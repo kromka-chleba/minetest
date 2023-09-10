@@ -77,12 +77,38 @@ core.register_entity(":__builtin:falling_node", {
 		-- Save liquidtype for falling water
 		self.liquidtype = def.liquidtype
 
-		-- Set up entity visuals
-		-- For compatibility with older clients we continue to use "item" visual
-		-- for simple situations.
-		local drawtypes = {normal=true, glasslike=true, allfaces=true, nodebox=true}
-		local p2types = {none=true, facedir=true, ["4dir"]=true}
-		if drawtypes[def.drawtype] and p2types[def.paramtype2] and def.use_texture_alpha ~= "blend" then
+		-- Set entity visuals
+		if def.drawtype == "torchlike" or def.drawtype == "signlike" then
+			local textures
+			if def.tiles and def.tiles[1] then
+				local tile = def.tiles[1]
+				if type(tile) == "table" then
+					tile = tile.name
+				end
+				if def.drawtype == "torchlike" then
+					textures = { "("..tile..")^[transformFX", tile }
+				else
+					textures = { tile, "("..tile..")^[transformFX" }
+				end
+			end
+			local vsize
+			if def.visual_scale then
+				local s = def.visual_scale
+				vsize = vector.new(s, s, s)
+			end
+			self.object:set_properties({
+				is_visible = true,
+				visual = "upright_sprite",
+				visual_size = vsize,
+				textures = textures,
+				glow = def.light_source,
+			})
+		elseif def.drawtype ~= "airlike" then
+			local itemstring = node.name
+			if core.is_colored_paramtype(def.paramtype2) then
+				itemstring = core.itemstring_with_palette(itemstring, node.param2)
+			end
+			-- FIXME: solution needed for paramtype2 == "leveled"
 			-- Calculate size of falling node
 			local s = vector.zero()
 			s.x = (def.visual_scale or 1) * 0.667
@@ -184,32 +210,21 @@ core.register_entity(":__builtin:falling_node", {
 		-- Decide if we're replacing the node or placing on top
 		-- This condition is very similar to the check in core.check_single_for_falling(p)
 		local np = vector.copy(bcp)
-		if bcd and bcd.buildable_to
-				and -- Take "float" group into consideration:
-				(
-					-- Fall through non-liquids
-					not self.floats or bcd.liquidtype == "none" or
-					-- Only let sources fall through flowing liquids
-					(self.floats and self.liquidtype ~= "none" and bcd.liquidtype ~= "source")
-				) then
-
+		if bcd and bcd.buildable_to and
+			((not self.floats or bcd.liquidtype == "none") or
+             (self.floats and self.liquidtype ~= "none" and bcd.liquidtype ~= "source")) then
 			core.remove_node(bcp)
 		else
 			-- We are placing on top so check what's there
 			np.y = np.y + 1
 
-			local n2 = core.get_node(np)
-			local nd = core.registered_nodes[n2.name]
-			if not nd or nd.buildable_to then
-				core.remove_node(np)
-			else
-				-- 'walkable' is used to mean "falling nodes can't replace this"
-				-- here. Normally we would collide with the walkable node itself
-				-- and place our node on top (so `n2.name == "air"`), but we
-				-- re-check this in case we ended up inside a node.
-				if not nd.diggable or nd.walkable then
-					return false
-				end
+		-- Check what's here
+		local n2 = core.get_node(np)
+		local nd = core.registered_nodes[n2.name]
+		-- If it's not air or liquid, remove node and replace it with
+		-- it's drops
+		if n2.name ~= "air" and (not nd or nd.liquidtype ~= "source") then
+			if nd and nd.buildable_to == false then
 				nd.on_dig(np, n2, nil)
 				-- If it's still there, it might be protected
 				if core.get_node(np).name == n2.name then
