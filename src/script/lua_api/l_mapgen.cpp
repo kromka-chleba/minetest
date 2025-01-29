@@ -1720,6 +1720,49 @@ int ModApiMapgen::l_generate_biome_dust(lua_State *L)
 }
 
 
+// generate_caves(vm, p1, p2)
+int ModApiMapgen::l_generate_caves(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	auto *mg_current = getMapgen(L);
+	auto *bgen = getBiomeGen(L);
+	if (!mg_current || !bgen)
+		return 0;
+
+	const NodeDefManager *ndef = mg_current->ndef;
+
+	MapgenBasic mg;
+
+	mg.vm   = checkObject<LuaVoxelManip>(L, 1)->vm;
+	mg.m_bmgr = mg_current->m_emerge->biomemgr;
+	mg.ndef = ndef;
+	mg.biomegen = mg_current->biomegen;
+	mg.biomemap = bgen->biomemap;
+	mg.water_level = mg_current->water_level;
+
+	v3s16 pmin = lua_istable(L, 2) ? check_v3s16(L, 2) :
+			mg.vm->m_area.MinEdge + v3s16(1,1,1) * MAP_BLOCKSIZE;
+	v3s16 pmax = lua_istable(L, 3) ? check_v3s16(L, 3) - v3s16(0,1,0) :
+			mg.vm->m_area.MaxEdge - v3s16(1,1,1) * MAP_BLOCKSIZE - v3s16(0,1,0);
+	sortBoxVerticies(pmin, pmax);
+
+	mg.node_min = pmin;
+	mg.node_max = pmax;
+	mg.full_node_min = mg.vm->m_area.MinEdge;
+	mg.full_node_max = mg.vm->m_area.MaxEdge;
+    // if (!mg.large_cave_depth)
+    //   mg.large_cave_depth = -33;
+
+    s16 stone_surface_max_y = -MAX_MAP_GENERATION_LIMIT;
+	s16 large_cave_depth = MAX_MAP_GENERATION_LIMIT; //mg.large_cave_depth;
+	
+	mg.generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+
+	return 0;
+}
+
+
 // create_schematic(p1, p2, probability_list, filename, y_slice_prob_list)
 int ModApiMapgen::l_create_schematic(lua_State *L)
 {
@@ -2154,6 +2197,7 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 	API_FCT(generate_ores);
 	API_FCT(generate_decorations);
 	API_FCT(generate_biomes);
+	API_FCT(generate_caves);
 	API_FCT(generate_biome_dust);
 	API_FCT(create_schematic);
 	API_FCT(place_schematic);
@@ -2185,6 +2229,7 @@ void ModApiMapgen::InitializeEmerge(lua_State *L, int top)
 	API_FCT(generate_ores);
 	API_FCT(generate_decorations);
 	API_FCT(generate_biomes);
+    API_FCT(generate_caves);
 	API_FCT(generate_biome_dust);
 	API_FCT(place_schematic_on_vmanip);
 	API_FCT(spawn_tree_on_vmanip);
