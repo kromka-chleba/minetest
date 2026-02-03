@@ -1869,91 +1869,36 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	int large_cave_num_max = 2;
 	float large_cave_flooded = 0.5f;
 
-	// Use the mapgen's cave parameters if available
-	MapgenType mgtype = mgparams->mgtype;
-	switch (mgtype) {
-		case MAPGEN_V7: {
-			auto *params = static_cast<MapgenV7Params *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
-		case MAPGEN_V5: {
-			auto *params = static_cast<MapgenV5Params *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
-		case MAPGEN_FLAT: {
-			auto *params = static_cast<MapgenFlatParams *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
-		case MAPGEN_FRACTAL: {
-			auto *params = static_cast<MapgenFractalParams *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
-		case MAPGEN_CARPATHIAN: {
-			auto *params = static_cast<MapgenCarpathianParams *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
-		case MAPGEN_VALLEYS: {
-			auto *params = static_cast<MapgenValleysParams *>(mgparams);
-			np_cave1 = params->np_cave1;
-			np_cave2 = params->np_cave2;
-			cave_width = params->cave_width;
-			large_cave_depth = params->large_cave_depth;
-			small_cave_num_min = params->small_cave_num_min;
-			small_cave_num_max = params->small_cave_num_max;
-			large_cave_num_min = params->large_cave_num_min;
-			large_cave_num_max = params->large_cave_num_max;
-			large_cave_flooded = params->large_cave_flooded;
-			break;
-		}
+	// Use the mapgen's cave parameters if available.
+	// All supported mapgen param types have identical cave parameter members,
+	// so we use a macro to avoid repeating the extraction code.
+#define EXTRACT_CAVE_PARAMS(ParamsType) \
+	do { \
+		auto *params = static_cast<ParamsType *>(mgparams); \
+		np_cave1 = params->np_cave1; \
+		np_cave2 = params->np_cave2; \
+		cave_width = params->cave_width; \
+		large_cave_depth = params->large_cave_depth; \
+		small_cave_num_min = params->small_cave_num_min; \
+		small_cave_num_max = params->small_cave_num_max; \
+		large_cave_num_min = params->large_cave_num_min; \
+		large_cave_num_max = params->large_cave_num_max; \
+		large_cave_flooded = params->large_cave_flooded; \
+	} while (0)
+
+	switch (mgparams->mgtype) {
+		case MAPGEN_V7:         EXTRACT_CAVE_PARAMS(MapgenV7Params);         break;
+		case MAPGEN_V5:         EXTRACT_CAVE_PARAMS(MapgenV5Params);         break;
+		case MAPGEN_FLAT:       EXTRACT_CAVE_PARAMS(MapgenFlatParams);       break;
+		case MAPGEN_FRACTAL:    EXTRACT_CAVE_PARAMS(MapgenFractalParams);    break;
+		case MAPGEN_CARPATHIAN: EXTRACT_CAVE_PARAMS(MapgenCarpathianParams); break;
+		case MAPGEN_VALLEYS:    EXTRACT_CAVE_PARAMS(MapgenValleysParams);    break;
 		default:
 			// Use default values set above for unsupported mapgens
 			break;
 	}
+
+#undef EXTRACT_CAVE_PARAMS
 
 	// Generate noise-based caves (CavesNoiseIntersection)
 	// cave_width >= 10 disables noise caves (see generateCavesNoiseIntersection)
