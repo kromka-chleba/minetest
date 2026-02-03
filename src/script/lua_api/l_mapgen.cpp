@@ -1868,6 +1868,8 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 			stone_surface_max_y = surface_y;
 	}
 
+	mg.biomegen->calcBiomeNoise(pmin);
+
 	mg.generateCavesNoiseIntersection(stone_surface_max_y);
 
 	bool allow_caverns = true;
