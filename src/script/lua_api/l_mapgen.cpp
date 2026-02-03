@@ -1856,9 +1856,9 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		return 0;
 	auto *mgparams = emerge->mgparams;
 
-	// Get mapgen-type-specific cave parameters using dynamic_cast since
-	// different mapgens have different cave parameter sets
-	// For this implementation, we use default parameters for cave generation
+	// Get mapgen-type-specific cave parameters.
+	// Default values match those used by MapgenV7 (see mapgen_v7.h)
+	// These are used as fallback for mapgens without cave parameters (e.g., singlenode)
 	NoiseParams np_cave1(0, 12, v3f(61, 61, 61), 52534, 3, 0.5, 2.0);
 	NoiseParams np_cave2(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0);
 	float cave_width = 0.09f;
@@ -1956,7 +1956,7 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	}
 
 	// Generate noise-based caves (CavesNoiseIntersection)
-	// cave_width >= 10 is used to disable generation
+	// cave_width >= 10 disables noise caves (see generateCavesNoiseIntersection)
 	if (pmin.Y <= max_stone_y && cave_width < 10.0f) {
 		CavesNoiseIntersection caves_noise(ndef, bmgr, mg.biomegen, mg.csize,
 			&np_cave1, &np_cave2, mg.seed, cave_width);
