@@ -1856,75 +1856,99 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		return 0;
 	auto *mgparams = emerge->mgparams;
 
-	// Get mapgen-type-specific cave parameters.
+	// Get mapgen-type-specific cave parameters using a helper function.
+	// All supported mapgen param types have identical cave parameter members.
+	struct CaveParams {
+		NoiseParams np_cave1;
+		NoiseParams np_cave2;
+		float cave_width;
+		s16 large_cave_depth;
+		int small_cave_num_min;
+		int small_cave_num_max;
+		int large_cave_num_min;
+		int large_cave_num_max;
+		float large_cave_flooded;
+	};
+
+	// Template function to extract cave parameters from any mapgen params type
+	auto getCaveParams = [](auto *params) -> CaveParams {
+		return {
+			params->np_cave1,
+			params->np_cave2,
+			params->cave_width,
+			params->large_cave_depth,
+			params->small_cave_num_min,
+			params->small_cave_num_max,
+			params->large_cave_num_min,
+			params->large_cave_num_max,
+			params->large_cave_flooded
+		};
+	};
+
 	// Default values match those used by MapgenV7 (see mapgen_v7.h)
 	// These are used as fallback for mapgens without cave parameters (e.g., singlenode)
-	NoiseParams np_cave1(0, 12, v3f(61, 61, 61), 52534, 3, 0.5, 2.0);
-	NoiseParams np_cave2(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0);
-	float cave_width = 0.09f;
-	s16 large_cave_depth = -33;
-	int small_cave_num_min = 0;
-	int small_cave_num_max = 0;
-	int large_cave_num_min = 0;
-	int large_cave_num_max = 2;
-	float large_cave_flooded = 0.5f;
+	CaveParams cave_params = {
+		NoiseParams(0, 12, v3f(61, 61, 61), 52534, 3, 0.5, 2.0),  // np_cave1
+		NoiseParams(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0),  // np_cave2
+		0.09f,   // cave_width
+		-33,     // large_cave_depth
+		0,       // small_cave_num_min
+		0,       // small_cave_num_max
+		0,       // large_cave_num_min
+		2,       // large_cave_num_max
+		0.5f     // large_cave_flooded
+	};
 
-	// Use the mapgen's cave parameters if available.
-	// All supported mapgen param types have identical cave parameter members,
-	// so we use a macro to avoid repeating the extraction code.
-#define EXTRACT_CAVE_PARAMS(ParamsType) \
-	do { \
-		auto *params = static_cast<ParamsType *>(mgparams); \
-		np_cave1 = params->np_cave1; \
-		np_cave2 = params->np_cave2; \
-		cave_width = params->cave_width; \
-		large_cave_depth = params->large_cave_depth; \
-		small_cave_num_min = params->small_cave_num_min; \
-		small_cave_num_max = params->small_cave_num_max; \
-		large_cave_num_min = params->large_cave_num_min; \
-		large_cave_num_max = params->large_cave_num_max; \
-		large_cave_flooded = params->large_cave_flooded; \
-	} while (0)
-
+	// Use the mapgen's cave parameters if available
 	switch (mgparams->mgtype) {
-		case MAPGEN_V7:         EXTRACT_CAVE_PARAMS(MapgenV7Params);         break;
-		case MAPGEN_V5:         EXTRACT_CAVE_PARAMS(MapgenV5Params);         break;
-		case MAPGEN_FLAT:       EXTRACT_CAVE_PARAMS(MapgenFlatParams);       break;
-		case MAPGEN_FRACTAL:    EXTRACT_CAVE_PARAMS(MapgenFractalParams);    break;
-		case MAPGEN_CARPATHIAN: EXTRACT_CAVE_PARAMS(MapgenCarpathianParams); break;
-		case MAPGEN_VALLEYS:    EXTRACT_CAVE_PARAMS(MapgenValleysParams);    break;
+		case MAPGEN_V7:
+			cave_params = getCaveParams(static_cast<MapgenV7Params *>(mgparams));
+			break;
+		case MAPGEN_V5:
+			cave_params = getCaveParams(static_cast<MapgenV5Params *>(mgparams));
+			break;
+		case MAPGEN_FLAT:
+			cave_params = getCaveParams(static_cast<MapgenFlatParams *>(mgparams));
+			break;
+		case MAPGEN_FRACTAL:
+			cave_params = getCaveParams(static_cast<MapgenFractalParams *>(mgparams));
+			break;
+		case MAPGEN_CARPATHIAN:
+			cave_params = getCaveParams(static_cast<MapgenCarpathianParams *>(mgparams));
+			break;
+		case MAPGEN_VALLEYS:
+			cave_params = getCaveParams(static_cast<MapgenValleysParams *>(mgparams));
+			break;
 		default:
 			// Use default values set above for unsupported mapgens
 			break;
 	}
 
-#undef EXTRACT_CAVE_PARAMS
-
 	// Generate noise-based caves (CavesNoiseIntersection)
 	// cave_width >= 10 disables noise caves (see generateCavesNoiseIntersection)
-	if (pmin.Y <= max_stone_y && cave_width < 10.0f) {
+	if (pmin.Y <= max_stone_y && cave_params.cave_width < 10.0f) {
 		CavesNoiseIntersection caves_noise(ndef, bmgr, mg.biomegen, mg.csize,
-			&np_cave1, &np_cave2, mg.seed, cave_width);
+			&cave_params.np_cave1, &cave_params.np_cave2, mg.seed, cave_params.cave_width);
 		caves_noise.generateCaves(mg.vm, pmin, pmax, mg.biomemap);
 	}
 
 	// Generate small randomwalk caves
 	PseudoRandom ps(mg.blockseed + 21343);
-	u32 num_small_caves = ps.range(small_cave_num_min, small_cave_num_max);
+	u32 num_small_caves = ps.range(cave_params.small_cave_num_min, cave_params.small_cave_num_max);
 
 	for (u32 i = 0; i < num_small_caves; i++) {
 		CavesRandomWalk cave(ndef, &mg.gennotify, mg.seed, mg.water_level,
-			mg.c_water_source, mg.c_lava_source, large_cave_flooded, mg.biomegen);
+			mg.c_water_source, mg.c_lava_source, cave_params.large_cave_flooded, mg.biomegen);
 		cave.makeCave(mg.vm, pmin, pmax, &ps, false, max_stone_y, mg.heightmap);
 	}
 
 	// Generate large randomwalk caves below 'large_cave_depth'
-	if (pmax.Y <= large_cave_depth) {
-		u32 num_large_caves = ps.range(large_cave_num_min, large_cave_num_max);
+	if (pmax.Y <= cave_params.large_cave_depth) {
+		u32 num_large_caves = ps.range(cave_params.large_cave_num_min, cave_params.large_cave_num_max);
 
 		for (u32 i = 0; i < num_large_caves; i++) {
 			CavesRandomWalk cave(ndef, &mg.gennotify, mg.seed, mg.water_level,
-				mg.c_water_source, mg.c_lava_source, large_cave_flooded, mg.biomegen);
+				mg.c_water_source, mg.c_lava_source, cave_params.large_cave_flooded, mg.biomegen);
 			cave.makeCave(mg.vm, pmin, pmax, &ps, true, max_stone_y, mg.heightmap);
 		}
 	}
