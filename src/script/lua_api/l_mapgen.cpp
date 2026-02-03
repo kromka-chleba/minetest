@@ -20,6 +20,10 @@
 #include "mapgen/mg_ore.h"
 #include "mapgen/mg_decoration.h"
 #include "mapgen/mg_schematic.h"
+#include "mapgen/mapgen_carpathian.h"
+#include "mapgen/mapgen_flat.h"
+#include "mapgen/mapgen_v5.h"
+#include "mapgen/mapgen_v7.h"
 #include "mapgen/treegen.h"
 #include "filesys.h"
 #include "settings.h"
@@ -1792,6 +1796,115 @@ int ModApiMapgen::l_generate_biome_dust(lua_State *L)
 }
 
 
+// generate_caves(vm, p1, p2)
+int ModApiMapgen::l_generate_caves(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	auto *mg_current = getMapgen(L);
+	auto *bgen = getBiomeGen(L);
+	if (!mg_current || !bgen)
+		return 0;
+
+	auto *mg_current_basic = dynamic_cast<MapgenBasic *>(mg_current);
+	if (!mg_current_basic)
+		return 0;
+
+	const NodeDefManager *ndef = mg_current->ndef;
+
+	MapgenBasic mg;
+
+	mg.vm          = checkObject<LuaVoxelManip>(L, 1)->vm;
+	mg.ndef        = ndef;
+	mg.m_bmgr      = mg_current->m_emerge->biomemgr;
+	mg.biomegen    = mg_current->biomegen;
+	mg.biomemap    = bgen->biomemap;
+	mg.water_level = mg_current->water_level;
+	mg.seed        = mg_current->seed;
+	mg.csize       = mg_current->csize;
+
+	mg.c_water_source   = mg_current_basic->c_water_source;
+	mg.c_lava_source    = mg_current_basic->c_lava_source;
+	mg.np_cave1          = mg_current_basic->np_cave1;
+	mg.np_cave2          = mg_current_basic->np_cave2;
+	mg.np_cavern         = mg_current_basic->np_cavern;
+	mg.cave_width        = mg_current_basic->cave_width;
+	mg.cavern_limit      = mg_current_basic->cavern_limit;
+	mg.cavern_taper      = mg_current_basic->cavern_taper;
+	mg.cavern_threshold  = mg_current_basic->cavern_threshold;
+	mg.small_cave_num_min = mg_current_basic->small_cave_num_min;
+	mg.small_cave_num_max = mg_current_basic->small_cave_num_max;
+	mg.large_cave_num_min = mg_current_basic->large_cave_num_min;
+	mg.large_cave_num_max = mg_current_basic->large_cave_num_max;
+	mg.large_cave_flooded = mg_current_basic->large_cave_flooded;
+	mg.large_cave_depth   = mg_current_basic->large_cave_depth;
+
+	v3s16 pmin = lua_istable(L, 2) ? check_v3s16(L, 2) :
+			mg.vm->m_area.MinEdge + v3s16(1,1,1) * MAP_BLOCKSIZE;
+	v3s16 pmax = lua_istable(L, 3) ? check_v3s16(L, 3) :
+			mg.vm->m_area.MaxEdge - v3s16(1,1,1) * MAP_BLOCKSIZE;
+	sortBoxVerticies(pmin, pmax);
+	v3s16 psize = pmax - pmin + v3s16(1,1,1);
+
+	if (psize.X != mg_current->csize.X ||
+			psize.Y != mg_current->csize.Y ||
+			psize.Z != mg_current->csize.Z) {
+		errorstream << "generate_caves: extent must match mapgen chunk size"
+				<< std::endl;
+		return 0;
+	}
+
+	mg.node_min = pmin;
+	mg.node_max = pmax;
+	mg.blockseed = Mapgen::getBlockSeed(pmin, mg.seed);
+
+	std::vector<s16> heightmap(psize.X * psize.Z);
+	mg.heightmap = heightmap.data();
+	mg.updateHeightmap(pmin, pmax);
+
+	s16 stone_surface_max_y = -MAX_MAP_GENERATION_LIMIT;
+	for (s16 surface_y : heightmap) {
+		if (surface_y > stone_surface_max_y)
+			stone_surface_max_y = surface_y;
+	}
+
+	mg.generateCavesNoiseIntersection(stone_surface_max_y);
+
+	bool allow_caverns = true;
+	switch (mg_current->getType()) {
+	case MAPGEN_V5:
+		allow_caverns = (mg_current_basic->spflags & MGV5_CAVERNS) != 0;
+		break;
+	case MAPGEN_V7:
+		allow_caverns = (mg_current_basic->spflags & MGV7_CAVERNS) != 0;
+		break;
+	case MAPGEN_FLAT:
+		allow_caverns = (mg_current_basic->spflags & MGFLAT_CAVERNS) != 0;
+		break;
+	case MAPGEN_CARPATHIAN:
+		allow_caverns = (mg_current_basic->spflags & MGCARPATHIAN_CAVERNS) != 0;
+		break;
+	case MAPGEN_FRACTAL:
+		allow_caverns = false;
+		break;
+	default:
+		break;
+	}
+
+	bool near_cavern = false;
+	if (allow_caverns)
+		near_cavern = mg.generateCavernsNoise(stone_surface_max_y);
+
+	if (near_cavern)
+		mg.generateCavesRandomWalk(stone_surface_max_y,
+			-MAX_MAP_GENERATION_LIMIT);
+	else
+		mg.generateCavesRandomWalk(stone_surface_max_y, mg.large_cave_depth);
+
+	return 0;
+}
+
+
 // create_schematic(p1, p2, probability_list, filename, y_slice_prob_list)
 int ModApiMapgen::l_create_schematic(lua_State *L)
 {
@@ -2225,6 +2338,7 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 	API_FCT(generate_decorations);
 	API_FCT(generate_biomes);
 	API_FCT(generate_biome_dust);
+	API_FCT(generate_caves);
 	API_FCT(create_schematic);
 	API_FCT(place_schematic);
 	API_FCT(place_schematic_on_vmanip);
@@ -2257,6 +2371,7 @@ void ModApiMapgen::InitializeEmerge(lua_State *L, int top)
 	API_FCT(generate_decorations);
 	API_FCT(generate_biomes);
 	API_FCT(generate_biome_dust);
+	API_FCT(generate_caves);
 	API_FCT(place_schematic_on_vmanip);
 	API_FCT(spawn_tree_on_vmanip);
 	API_FCT(serialize_schematic);
