@@ -1721,7 +1721,7 @@ int ModApiMapgen::l_generate_biomes(lua_State *L)
 
 	mg.vm   = checkObject<LuaVoxelManip>(L, 1)->vm;
 	mg.ndef = ndef;
-	mg.biomegen = mg_current->biomegen;
+	mg.biomegen = mg_current->m_emerge->biomegen;
 	mg.biomemap = bgen->biomemap;
 	mg.water_level = mg_current->water_level;
 
@@ -1776,7 +1776,7 @@ int ModApiMapgen::l_generate_biome_dust(lua_State *L)
 	mg.vm   = checkObject<LuaVoxelManip>(L, 1)->vm;
 	mg.m_bmgr = mg_current->m_emerge->biomemgr;
 	mg.ndef = ndef;
-	mg.biomegen = mg_current->biomegen;
+	mg.biomegen = mg_current->m_emerge->biomegen;
 	mg.biomemap = bgen->biomemap;
 	mg.water_level = mg_current->water_level;
 
@@ -1817,7 +1817,7 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	mg.vm          = checkObject<LuaVoxelManip>(L, 1)->vm;
 	mg.ndef        = ndef;
 	mg.m_bmgr      = mg_current->m_emerge->biomemgr;
-	mg.biomegen    = mg_current->biomegen;
+	mg.biomegen    = mg_current->m_emerge->biomegen;
 	mg.biomemap    = bgen->biomemap;
 	mg.water_level = mg_current->water_level;
 	mg.seed        = mg_current->seed;
