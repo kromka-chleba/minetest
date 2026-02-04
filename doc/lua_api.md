@@ -6779,13 +6779,31 @@ Environment access
     * `pos1` and `pos2` should have the same X and Z size as mapgen chunks.
     * Reads the mapgen object `biomemap` (see [Mapgen Objects]), that must be
       already computed (ie. using `core.generate_biomes`).
-* `core.generate_caves(vm[, pos1, pos2])`
+* `core.generate_caves(vm[, pos1, pos2[, params]])`
     * Generate caves within the VoxelManip `vm` and in the area from
       `pos1` to `pos2`.
     * `pos1` and `pos2` are optional and default to mapchunk minp and maxp.
     * The X and Z extent must match mapgen chunk size.
     * Uses the cave generation parameters of the current mapgen (noise-based
       caves and randomwalk caves).
+    * `params` is an optional table that can override cave generation
+      parameters. Useful for mapgens without cave parameters (e.g., singlenode)
+      or for custom cave generation. The following fields are supported:
+        * `np_cave1`: NoiseParams table for the first 3D noise defining tunnels.
+        * `np_cave2`: NoiseParams table for the second 3D noise defining tunnels.
+        * `cave_width`: Controls width of tunnels, smaller values create wider
+          tunnels. Value >= 10.0 disables noise-based caves. (default: 0.09)
+        * `large_cave_depth`: Y of upper limit of large caves. (default: -33)
+        * `small_cave_num_min`: Minimum number of small caves per mapchunk.
+          (default: 0)
+        * `small_cave_num_max`: Maximum number of small caves per mapchunk.
+          (default: 0)
+        * `large_cave_num_min`: Minimum number of large caves per mapchunk.
+          (default: 0)
+        * `large_cave_num_max`: Maximum number of large caves per mapchunk.
+          (default: 2)
+        * `large_cave_flooded`: Proportion of large caves that contain liquid.
+          (default: 0.5)
     * Reads the mapgen object `biomemap` (see [Mapgen Objects]), that must be
       already computed (ie. using `core.generate_biomes`).
 * `core.clear_objects([options])`

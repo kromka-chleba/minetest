@@ -1799,7 +1799,7 @@ int ModApiMapgen::l_generate_biome_dust(lua_State *L)
 }
 
 
-// generate_caves(vm, p1, p2)
+// generate_caves(vm, p1, p2, params)
 int ModApiMapgen::l_generate_caves(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -1922,6 +1922,28 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		default:
 			// Use default values set above for unsupported mapgens
 			break;
+	}
+
+	// Read optional cave parameters from the 4th argument (table)
+	// These override the mapgen-specific or default values
+	if (lua_istable(L, 4)) {
+		lua_getfield(L, 4, "np_cave1");
+		if (lua_istable(L, -1))
+			read_noiseparams(L, -1, &cave_params.np_cave1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 4, "np_cave2");
+		if (lua_istable(L, -1))
+			read_noiseparams(L, -1, &cave_params.np_cave2);
+		lua_pop(L, 1);
+
+		getfloatfield(L, 4, "cave_width", cave_params.cave_width);
+		getintfield(L, 4, "large_cave_depth", cave_params.large_cave_depth);
+		getintfield(L, 4, "small_cave_num_min", cave_params.small_cave_num_min);
+		getintfield(L, 4, "small_cave_num_max", cave_params.small_cave_num_max);
+		getintfield(L, 4, "large_cave_num_min", cave_params.large_cave_num_min);
+		getintfield(L, 4, "large_cave_num_max", cave_params.large_cave_num_max);
+		getfloatfield(L, 4, "large_cave_flooded", cave_params.large_cave_flooded);
 	}
 
 	// Generate noise-based caves (CavesNoiseIntersection)
