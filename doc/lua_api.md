@@ -6807,6 +6807,15 @@ Environment access
           (default: 2)
         * `large_cave_flooded`: Proportion of large caves that contain liquid.
           (default: 0.5)
+        * `np_cavern`: NoiseParams table for cavern noise. Controls the
+          distribution and shape of large caverns.
+        * `cavern_limit`: Y coordinate of upper limit of caverns. Caverns only
+          generate at or below this level. Set to a high value (e.g., 31000)
+          to disable caverns. (default: 31000)
+        * `cavern_taper`: Distance in nodes over which cavern amplitude tapers
+          to zero as it approaches cavern_limit. (default: 256)
+        * `cavern_threshold`: Noise threshold for cavern generation. Higher
+          values create fewer but larger caverns. (default: 0.7)
     * Reads the mapgen object `biomemap` (see [Mapgen Objects]), that must be
       already computed (ie. using `core.generate_biomes`).
 * `core.clear_objects([options])`
