@@ -6791,9 +6791,12 @@ Environment access
       or for custom cave generation. The following fields are supported:
         * `np_cave1`: NoiseParams table for the first 3D noise defining tunnels.
         * `np_cave2`: NoiseParams table for the second 3D noise defining tunnels.
-        * `cave_width`: Controls width of tunnels, smaller values create wider
-          tunnels. Value >= 10.0 disables noise-based caves. (default: 0.09)
-        * `large_cave_depth`: Y of upper limit of large caves. (default: -33)
+        * `cave_width`: Average width of tunnels in nodes. Larger values create
+          wider tunnels. Value >= 10.0 disables noise-based caves. (default: 8)
+        * `large_cave_depth`: Y coordinate of upper limit of large caves. Large
+          caves only generate at or below this level. (default: -33)
+        * `small_cave_depth`: Y coordinate of upper limit of small caves. Small
+          caves only generate at or below this level. (default: 31000)
         * `small_cave_num_min`: Minimum number of small caves per mapchunk.
           (default: 0)
         * `small_cave_num_max`: Maximum number of small caves per mapchunk.

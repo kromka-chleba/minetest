@@ -8,8 +8,9 @@
 	The params table supports the following fields:
 	- np_cave1: NoiseParams table for the first 3D noise defining tunnels
 	- np_cave2: NoiseParams table for the second 3D noise defining tunnels
-	- cave_width: Controls width of tunnels (smaller = wider, >= 10.0 disables)
+	- cave_width: Average width of tunnels in nodes (larger = wider, >= 10.0 disables)
 	- large_cave_depth: Y coordinate of upper limit of large caves
+	- small_cave_depth: Y coordinate of upper limit of small caves
 	- small_cave_num_min: Minimum number of small caves per mapchunk
 	- small_cave_num_max: Maximum number of small caves per mapchunk
 	- large_cave_num_min: Minimum number of large caves per mapchunk
@@ -46,8 +47,8 @@ local function example_custom_noise_caves(vm, minp, maxp)
 			persist = 0.5,
 			lacunarity = 2.0
 		},
-		-- Wider tunnels (smaller value = wider)
-		cave_width = 0.15,
+		-- Wider tunnels: 12 nodes wide (larger value = wider)
+		cave_width = 12,
 		-- Large caves up to y = -20 (instead of default -33)
 		large_cave_depth = -20,
 		-- No small caves in this example
@@ -68,6 +69,8 @@ local function example_small_caves_only(vm, minp, maxp)
 	local params = {
 		-- Disable noise-based caves by setting cave_width >= 10.0
 		cave_width = 10.0,
+		-- Limit small caves to y <= 10 (near surface)
+		small_cave_depth = 10,
 		-- Generate 3-5 small randomwalk caves per chunk
 		small_cave_num_min = 3,
 		small_cave_num_max = 5,
@@ -83,8 +86,8 @@ end
 local function example_flooded_caves(vm, minp, maxp)
 	local params = {
 		-- Default noise parameters (omitted, will use mapgen defaults)
-		-- Normal tunnel width
-		cave_width = 0.09,
+		-- Normal tunnel width: 8 nodes (default)
+		cave_width = 8,
 		-- Large caves up to y = -50 (deeper)
 		large_cave_depth = -50,
 		-- Few small caves
@@ -103,10 +106,12 @@ end
 -- Example 4: Very tight/narrow cave network
 local function example_narrow_caves(vm, minp, maxp)
 	local params = {
-		-- Very narrow tunnels (larger value = narrower)
-		cave_width = 0.05,
+		-- Very narrow tunnels: 4 nodes wide
+		cave_width = 4,
 		-- Standard depth for large caves
 		large_cave_depth = -33,
+		-- Limit small caves to deeper areas (y <= -10)
+		small_cave_depth = -10,
 		-- Many small caves
 		small_cave_num_min = 2,
 		small_cave_num_max = 4,
@@ -169,8 +174,20 @@ end)
 	3. You can override only some parameters. Unspecified parameters will use
 	   the mapgen's defaults.
 	
-	4. Setting cave_width >= 10.0 completely disables noise-based caves,
-	   leaving only randomwalk caves (small and large).
+	4. cave_width is specified in nodes. Larger values create wider tunnels.
+	   The default is 8 nodes. Setting cave_width >= 10.0 completely disables
+	   noise-based caves, leaving only randomwalk caves (small and large).
+	
+	5. The large_cave_flooded value is a probability (0.0 to 1.0). Each large
+	   cave is randomly chosen to be flooded based on this value.
+	
+	6. large_cave_depth and small_cave_depth set the upper Y limit for their
+	   respective cave types. Caves only generate at or below these levels.
+	   By default, small_cave_depth is 31000 (no limit) and large_cave_depth
+	   is -33.
+	
+	7. Cave generation parameters are per-mapchunk, not global.
+]]
 	
 	5. The large_cave_flooded value is a probability (0.0 to 1.0). Each large
 	   cave is randomly chosen to be flooded based on this value.
