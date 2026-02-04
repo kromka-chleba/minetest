@@ -640,6 +640,9 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 void MapgenV6::removeOvergeneratedCStone()
 {
 	// Remove overgenerated stone from Y borders (top and bottom)
+	// Note: Corner and edge nodes may be checked multiple times across the
+	// three border-processing loops below, but this is acceptable as the
+	// operation is fast and the code is simpler and more maintainable.
 	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
 		for (s16 x = node_min.X; x <= node_max.X; x++) {
 			u32 vi = vm->m_area.index(x, node_max.Y + 1, z); // top
