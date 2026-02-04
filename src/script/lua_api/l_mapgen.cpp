@@ -1972,8 +1972,9 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	}
 
 	// Generate small randomwalk caves below 'small_cave_depth'
+	PseudoRandom ps(mg.blockseed + 21343);
+	
 	if (pmax.Y <= cave_params.small_cave_depth) {
-		PseudoRandom ps(mg.blockseed + 21343);
 		u32 num_small_caves = ps.range(cave_params.small_cave_num_min, cave_params.small_cave_num_max);
 
 		for (u32 i = 0; i < num_small_caves; i++) {
