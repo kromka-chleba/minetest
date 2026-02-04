@@ -1863,6 +1863,7 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		NoiseParams np_cave2;
 		float cave_width;
 		s16 large_cave_depth;
+		s16 small_cave_depth;
 		int small_cave_num_min;
 		int small_cave_num_max;
 		int large_cave_num_min;
@@ -1877,6 +1878,7 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 			params->np_cave2,
 			params->cave_width,
 			params->large_cave_depth,
+			31000,  // small_cave_depth default: no upper limit
 			params->small_cave_num_min,
 			params->small_cave_num_max,
 			params->large_cave_num_min,
@@ -1892,6 +1894,7 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		NoiseParams(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0),  // np_cave2
 		0.09f,   // cave_width
 		-33,     // large_cave_depth
+		31000,   // small_cave_depth (no upper limit by default)
 		0,       // small_cave_num_min
 		0,       // small_cave_num_max
 		0,       // large_cave_num_min
@@ -1937,8 +1940,22 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 			read_noiseparams(L, -1, &cave_params.np_cave2);
 		lua_pop(L, 1);
 
-		getfloatfield(L, 4, "cave_width", cave_params.cave_width);
+		// Read cave_width in nodes and convert to internal representation
+		// The internal value is approximately 0.72 / width_in_nodes
+		// A value of 8 nodes gives the default 0.09 internal value
+		float cave_width_nodes;
+		if (getfloatfield(L, 4, "cave_width", cave_width_nodes)) {
+			if (cave_width_nodes >= 10.0f) {
+				// Special case: disable noise-based caves
+				cave_params.cave_width = 10.0f;
+			} else if (cave_width_nodes > 0.0f) {
+				// Convert from nodes to internal value
+				cave_params.cave_width = 0.72f / cave_width_nodes;
+			}
+		}
+
 		getintfield(L, 4, "large_cave_depth", cave_params.large_cave_depth);
+		getintfield(L, 4, "small_cave_depth", cave_params.small_cave_depth);
 		getintfield(L, 4, "small_cave_num_min", cave_params.small_cave_num_min);
 		getintfield(L, 4, "small_cave_num_max", cave_params.small_cave_num_max);
 		getintfield(L, 4, "large_cave_num_min", cave_params.large_cave_num_min);
@@ -1954,14 +1971,16 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		caves_noise.generateCaves(mg.vm, pmin, pmax, mg.biomemap);
 	}
 
-	// Generate small randomwalk caves
-	PseudoRandom ps(mg.blockseed + 21343);
-	u32 num_small_caves = ps.range(cave_params.small_cave_num_min, cave_params.small_cave_num_max);
+	// Generate small randomwalk caves below 'small_cave_depth'
+	if (pmax.Y <= cave_params.small_cave_depth) {
+		PseudoRandom ps(mg.blockseed + 21343);
+		u32 num_small_caves = ps.range(cave_params.small_cave_num_min, cave_params.small_cave_num_max);
 
-	for (u32 i = 0; i < num_small_caves; i++) {
-		CavesRandomWalk cave(ndef, &mg.gennotify, mg.seed, mg.water_level,
-			mg.c_water_source, mg.c_lava_source, cave_params.large_cave_flooded, mg.biomegen);
-		cave.makeCave(mg.vm, pmin, pmax, &ps, false, max_stone_y, mg.heightmap);
+		for (u32 i = 0; i < num_small_caves; i++) {
+			CavesRandomWalk cave(ndef, &mg.gennotify, mg.seed, mg.water_level,
+				mg.c_water_source, mg.c_lava_source, cave_params.large_cave_flooded, mg.biomegen);
+			cave.makeCave(mg.vm, pmin, pmax, &ps, false, max_stone_y, mg.heightmap);
+		}
 	}
 
 	// Generate large randomwalk caves below 'large_cave_depth'

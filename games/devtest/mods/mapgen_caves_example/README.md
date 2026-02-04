@@ -25,10 +25,10 @@ The `params` table supports the following fields:
 - **`np_cave2`**: NoiseParams table for the second 3D noise pattern
   - Intersects with np_cave1 to create the final cave system
   
-- **`cave_width`**: Float value controlling tunnel width
-  - Smaller values create wider tunnels
+- **`cave_width`**: Average width of tunnels in nodes
+  - Larger values create wider tunnels
   - Value >= 10.0 disables noise-based caves entirely
-  - Default: 0.09
+  - Default: 8 nodes
 
 ### Randomwalk Cave Parameters
 
@@ -38,6 +38,10 @@ The `params` table supports the following fields:
 - **`small_cave_num_max`**: Maximum number of small caves per mapchunk
   - Default: 0
   
+- **`small_cave_depth`**: Y coordinate of upper limit for small caves
+  - Small caves only generate at or below this Y level
+  - Default: 31000 (no limit)
+  
 - **`large_cave_num_min`**: Minimum number of large caves per mapchunk
   - Default: 0
   
@@ -45,7 +49,7 @@ The `params` table supports the following fields:
   - Default: 2
   
 - **`large_cave_depth`**: Y coordinate of upper limit for large caves
-  - Large caves only generate below this Y level
+  - Large caves only generate at or below this Y level
   - Default: -33
   
 - **`large_cave_flooded`**: Proportion of large caves containing liquid
