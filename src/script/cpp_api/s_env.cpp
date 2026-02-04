@@ -159,7 +159,11 @@ void ScriptApiEnv::player_event(ServerActiveObject *player, const std::string &t
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
-// Helper function for read-only table metatables
+/*
+ * Helper function for read-only table metatables.
+ * Used as the __newindex metamethod to prevent modifications.
+ * Expects a table name as an upvalue for error messaging.
+ */
 static int block_table_newindex_error(lua_State *L)
 {
 	const char *table_name = lua_tostring(L, lua_upvalueindex(1));
