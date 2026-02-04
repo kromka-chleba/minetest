@@ -159,6 +159,13 @@ void ScriptApiEnv::player_event(ServerActiveObject *player, const std::string &t
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
+// Helper function for read-only table metatables
+static int block_table_newindex_error(lua_State *L)
+{
+	const char *table_name = lua_tostring(L, lua_upvalueindex(1));
+	return luaL_error(L, "%s is read-only", table_name);
+}
+
 void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 {
 	SCRIPTAPI_PRECHECKHEADER
@@ -174,9 +181,8 @@ void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 	lua_newtable(L);
 	lua_newtable(L); // metatable
 	lua_pushstring(L, "__newindex");
-	lua_pushcfunction(L, [](lua_State *L) -> int {
-		return luaL_error(L, "core.loaded_blocks is read-only");
-	});
+	lua_pushstring(L, "core.loaded_blocks");
+	lua_pushcclosure(L, block_table_newindex_error, 1);
 	lua_settable(L, -3);
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, "loaded_blocks");
@@ -185,9 +191,8 @@ void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 	lua_newtable(L);
 	lua_newtable(L); // metatable
 	lua_pushstring(L, "__newindex");
-	lua_pushcfunction(L, [](lua_State *L) -> int {
-		return luaL_error(L, "core.active_blocks is read-only");
-	});
+	lua_pushstring(L, "core.active_blocks");
+	lua_pushcclosure(L, block_table_newindex_error, 1);
 	lua_settable(L, -3);
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, "active_blocks");

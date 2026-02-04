@@ -964,8 +964,8 @@ void ServerEnvironment::step(float dtime)
 			}
 
 			// Call on_block_loaded callback only for newly emerged blocks
-			// We detect this by checking if the block was in loaded_blocks before
-			// A better approach would track block emergence, but this works for now
+			// We detect this by checking if the block's timestamp is UNDEFINED,
+			// which indicates the block was just loaded/generated
 			u32 stamp = block->getTimestamp();
 			bool is_new_block = (stamp == BLOCK_TIMESTAMP_UNDEFINED);
 			if (is_new_block) {
