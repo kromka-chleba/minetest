@@ -768,46 +768,52 @@ void MapgenBasic::generateBiomes()
 
 void MapgenBasic::removeOvergeneratedCStone()
 {
-	// Remove overgenerated stone from Y borders (top and bottom)
+	// Remove overgenerated stone and water from Y borders (top and bottom)
 	// Note: Corner and edge nodes may be checked multiple times across the
 	// three border-processing loops below, but this is acceptable as the
 	// operation is fast and the code is simpler and more maintainable.
 	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
 		for (s16 x = node_min.X; x <= node_max.X; x++) {
 			u32 vi = vm->m_area.index(x, node_max.Y + 1, z); // top
-			if (vm->m_data[vi].getContent() == c_stone) {
+			content_t c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 			vi = vm->m_area.index(x, node_min.Y - 1, z);     // bottom
-			if (vm->m_data[vi].getContent() == c_stone) {
+			c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 		}
 	}
 
-	// Remove overgenerated stone from X borders (X+ and X-)
+	// Remove overgenerated stone and water from X borders (X+ and X-)
 	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
 		for (s16 y = node_min.Y; y <= node_max.Y; y++) {
 			u32 vi = vm->m_area.index(node_max.X + 1, y, z); // X+
-			if (vm->m_data[vi].getContent() == c_stone) {
+			content_t c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 			vi = vm->m_area.index(node_min.X - 1, y, z);     // X-
-			if (vm->m_data[vi].getContent() == c_stone) {
+			c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 		}
 	}
 
-	// Remove overgenerated stone from Z borders (Z+ and Z-)
+	// Remove overgenerated stone and water from Z borders (Z+ and Z-)
 	for (s16 y = node_min.Y; y <= node_max.Y; y++) {
 		for (s16 x = node_min.X; x <= node_max.X; x++) {
 			u32 vi = vm->m_area.index(x, y, node_max.Z + 1); // Z+
-			if (vm->m_data[vi].getContent() == c_stone) {
+			content_t c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 			vi = vm->m_area.index(x, y, node_min.Z - 1);     // Z-
-			if (vm->m_data[vi].getContent() == c_stone) {
+			c = vm->m_data[vi].getContent();
+			if (c == c_stone || c == c_water_source || c == c_river_water_source) {
 				vm->m_data[vi].setContent(CONTENT_IGNORE);
 			}
 		}
