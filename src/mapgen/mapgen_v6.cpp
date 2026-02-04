@@ -631,7 +631,7 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 		calcLighting(node_min - v3s16(1, 1, 1) * MAP_BLOCKSIZE,
 			node_max + v3s16(1, 0, 1) * MAP_BLOCKSIZE,
 			full_node_min, full_node_max);
-	
+
 	removeOvergeneratedCStone();
 
 	this->generating = false;
@@ -640,41 +640,44 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 void MapgenV6::removeOvergeneratedCStone()
 {
 	// Remove overgenerated stone from Y borders (top and bottom)
-	for (s16 z = node_min.Z; z <= node_max.Z; z++)
-	for (s16 x = node_min.X; x <= node_max.X; x++) {
-		u32 vi = vm->m_area.index(x, node_max.Y + 1, z); // top
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
-		}
-		vi = vm->m_area.index(x, node_min.Y - 1, z);     // bottom
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
+	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+		for (s16 x = node_min.X; x <= node_max.X; x++) {
+			u32 vi = vm->m_area.index(x, node_max.Y + 1, z); // top
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
+			vi = vm->m_area.index(x, node_min.Y - 1, z);     // bottom
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
 		}
 	}
 
-	// Remove overgenerated stone from X borders (left and right)
-	for (s16 z = node_min.Z; z <= node_max.Z; z++)
+	// Remove overgenerated stone from X borders (X+ and X-)
+	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+		for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+			u32 vi = vm->m_area.index(node_max.X + 1, y, z); // X+
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
+			vi = vm->m_area.index(node_min.X - 1, y, z);     // X-
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
+		}
+	}
+
+	// Remove overgenerated stone from Z borders (Z+ and Z-)
 	for (s16 y = node_min.Y; y <= node_max.Y; y++) {
-		u32 vi = vm->m_area.index(node_max.X + 1, y, z); // right
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
-		}
-		vi = vm->m_area.index(node_min.X - 1, y, z);     // left
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
-		}
-	}
-
-	// Remove overgenerated stone from Z borders (front and back)
-	for (s16 y = node_min.Y; y <= node_max.Y; y++)
-	for (s16 x = node_min.X; x <= node_max.X; x++) {
-		u32 vi = vm->m_area.index(x, y, node_max.Z + 1); // front
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
-		}
-		vi = vm->m_area.index(x, y, node_min.Z - 1);     // back
-		if (vm->m_data[vi].getContent() == c_stone) {
-			vm->m_data[vi].setContent(CONTENT_IGNORE);
+		for (s16 x = node_min.X; x <= node_max.X; x++) {
+			u32 vi = vm->m_area.index(x, y, node_max.Z + 1); // Z+
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
+			vi = vm->m_area.index(x, y, node_min.Z - 1);     // Z-
+			if (vm->m_data[vi].getContent() == c_stone) {
+				vm->m_data[vi].setContent(CONTENT_IGNORE);
+			}
 		}
 	}
 }
