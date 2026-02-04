@@ -1941,12 +1941,15 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		lua_pop(L, 1);
 
 		// Read cave_width in nodes and convert to internal representation
-		// The internal value is approximately 0.72 / width_in_nodes
-		// A value of 8 nodes gives the default 0.09 internal value
+		// The internal value is used in a product check: d1 * d2 > cave_width
+		// where d1 and d2 are contour functions of 3D noise (range 0-1).
+		// The conversion factor 0.72 was derived empirically to match the
+		// default behavior: 8 nodes width = 0.09 internal value.
+		// This makes the API intuitive: larger values = wider caves.
 		float cave_width_nodes;
 		if (getfloatfield(L, 4, "cave_width", cave_width_nodes)) {
+			// Values >= 10.0 disable noise-based caves (threshold from cavegen.cpp)
 			if (cave_width_nodes >= 10.0f) {
-				// Special case: disable noise-based caves
 				cave_params.cave_width = 10.0f;
 			} else if (cave_width_nodes > 0.0f) {
 				// Convert from nodes to internal value
