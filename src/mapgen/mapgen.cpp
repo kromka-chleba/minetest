@@ -768,6 +768,7 @@ void MapgenBasic::generateBiomes()
 
 void MapgenBasic::removeOvergeneratedCStone()
 {
+	// Remove overgenerated stone from Y borders (top and bottom)
 	for (s16 z = node_min.Z; z <= node_max.Z; z++)
 	for (s16 x = node_min.X; x <= node_max.X; x++) {
 		u32 vi = vm->m_area.index(x, node_max.Y + 1, z); // top
@@ -775,6 +776,32 @@ void MapgenBasic::removeOvergeneratedCStone()
 			vm->m_data[vi].setContent(CONTENT_IGNORE);
 		}
 		vi = vm->m_area.index(x, node_min.Y - 1, z);     // bottom
+		if (vm->m_data[vi].getContent() == c_stone) {
+			vm->m_data[vi].setContent(CONTENT_IGNORE);
+		}
+	}
+
+	// Remove overgenerated stone from X borders (left and right)
+	for (s16 z = node_min.Z; z <= node_max.Z; z++)
+	for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+		u32 vi = vm->m_area.index(node_max.X + 1, y, z); // right
+		if (vm->m_data[vi].getContent() == c_stone) {
+			vm->m_data[vi].setContent(CONTENT_IGNORE);
+		}
+		vi = vm->m_area.index(node_min.X - 1, y, z);     // left
+		if (vm->m_data[vi].getContent() == c_stone) {
+			vm->m_data[vi].setContent(CONTENT_IGNORE);
+		}
+	}
+
+	// Remove overgenerated stone from Z borders (front and back)
+	for (s16 y = node_min.Y; y <= node_max.Y; y++)
+	for (s16 x = node_min.X; x <= node_max.X; x++) {
+		u32 vi = vm->m_area.index(x, y, node_max.Z + 1); // front
+		if (vm->m_data[vi].getContent() == c_stone) {
+			vm->m_data[vi].setContent(CONTENT_IGNORE);
+		}
+		vi = vm->m_area.index(x, y, node_min.Z - 1);     // back
 		if (vm->m_data[vi].getContent() == c_stone) {
 			vm->m_data[vi].setContent(CONTENT_IGNORE);
 		}
