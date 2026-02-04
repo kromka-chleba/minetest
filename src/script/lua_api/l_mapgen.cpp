@@ -1869,10 +1869,15 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		int large_cave_num_min;
 		int large_cave_num_max;
 		float large_cave_flooded;
+		// Cavern parameters
+		NoiseParams np_cavern;
+		s16 cavern_limit;
+		s16 cavern_taper;
+		float cavern_threshold;
 	};
 
-	// Template function to extract cave parameters from any mapgen params type
-	auto getCaveParams = [](auto *params) -> CaveParams {
+	// Template function to extract cave parameters from mapgen params with cavern support
+	auto getCaveParamsWithCaverns = [](auto *params) -> CaveParams {
 		return {
 			params->np_cave1,
 			params->np_cave2,
@@ -1883,12 +1888,38 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 			params->small_cave_num_max,
 			params->large_cave_num_min,
 			params->large_cave_num_max,
-			params->large_cave_flooded
+			params->large_cave_flooded,
+			params->np_cavern,
+			params->cavern_limit,
+			params->cavern_taper,
+			params->cavern_threshold
+		};
+	};
+
+	// Template function to extract cave parameters from mapgen params without cavern support
+	auto getCaveParamsNoCaverns = [](auto *params) -> CaveParams {
+		return {
+			params->np_cave1,
+			params->np_cave2,
+			params->cave_width,
+			params->large_cave_depth,
+			31000,  // small_cave_depth default: no upper limit
+			params->small_cave_num_min,
+			params->small_cave_num_max,
+			params->large_cave_num_min,
+			params->large_cave_num_max,
+			params->large_cave_flooded,
+			NoiseParams(0.0, 1.0, v3f(384, 128, 384), 723, 5, 0.63, 2.0),  // np_cavern (default)
+			31000,   // cavern_limit (disabled by default)
+			256,     // cavern_taper
+			0.7f     // cavern_threshold
 		};
 	};
 
 	// Default values match those used by MapgenV7 (see mapgen_v7.h)
 	// These are used as fallback for mapgens without cave parameters (e.g., singlenode)
+	// Note: cavern_limit is set above the highest Y to effectively disable caverns by default
+	// unless explicitly requested via Lua parameters
 	CaveParams cave_params = {
 		NoiseParams(0, 12, v3f(61, 61, 61), 52534, 3, 0.5, 2.0),  // np_cave1
 		NoiseParams(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0),  // np_cave2
@@ -1899,28 +1930,32 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		0,       // small_cave_num_max
 		0,       // large_cave_num_min
 		2,       // large_cave_num_max
-		0.5f     // large_cave_flooded
+		0.5f,    // large_cave_flooded
+		NoiseParams(0.0, 1.0, v3f(384, 128, 384), 723, 5, 0.63, 2.0),  // np_cavern
+		31000,   // cavern_limit (set very high to disable by default)
+		256,     // cavern_taper
+		0.7f     // cavern_threshold
 	};
 
 	// Use the mapgen's cave parameters if available
 	switch (mgparams->mgtype) {
 		case MAPGEN_V7:
-			cave_params = getCaveParams(static_cast<MapgenV7Params *>(mgparams));
+			cave_params = getCaveParamsWithCaverns(static_cast<MapgenV7Params *>(mgparams));
 			break;
 		case MAPGEN_V5:
-			cave_params = getCaveParams(static_cast<MapgenV5Params *>(mgparams));
+			cave_params = getCaveParamsWithCaverns(static_cast<MapgenV5Params *>(mgparams));
 			break;
 		case MAPGEN_FLAT:
-			cave_params = getCaveParams(static_cast<MapgenFlatParams *>(mgparams));
+			cave_params = getCaveParamsWithCaverns(static_cast<MapgenFlatParams *>(mgparams));
 			break;
 		case MAPGEN_FRACTAL:
-			cave_params = getCaveParams(static_cast<MapgenFractalParams *>(mgparams));
+			cave_params = getCaveParamsNoCaverns(static_cast<MapgenFractalParams *>(mgparams));
 			break;
 		case MAPGEN_CARPATHIAN:
-			cave_params = getCaveParams(static_cast<MapgenCarpathianParams *>(mgparams));
+			cave_params = getCaveParamsWithCaverns(static_cast<MapgenCarpathianParams *>(mgparams));
 			break;
 		case MAPGEN_VALLEYS:
-			cave_params = getCaveParams(static_cast<MapgenValleysParams *>(mgparams));
+			cave_params = getCaveParamsWithCaverns(static_cast<MapgenValleysParams *>(mgparams));
 			break;
 		default:
 			// Use default values set above for unsupported mapgens
@@ -1964,6 +1999,16 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		getintfield(L, 4, "large_cave_num_min", cave_params.large_cave_num_min);
 		getintfield(L, 4, "large_cave_num_max", cave_params.large_cave_num_max);
 		getfloatfield(L, 4, "large_cave_flooded", cave_params.large_cave_flooded);
+
+		// Read cavern parameters
+		lua_getfield(L, 4, "np_cavern");
+		if (lua_istable(L, -1))
+			read_noiseparams(L, -1, &cave_params.np_cavern);
+		lua_pop(L, 1);
+
+		getintfield(L, 4, "cavern_limit", cave_params.cavern_limit);
+		getintfield(L, 4, "cavern_taper", cave_params.cavern_taper);
+		getfloatfield(L, 4, "cavern_threshold", cave_params.cavern_threshold);
 	}
 
 	// Generate noise-based caves (CavesNoiseIntersection)
@@ -1996,6 +2041,15 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 				mg.c_water_source, mg.c_lava_source, cave_params.large_cave_flooded, mg.biomegen);
 			cave.makeCave(mg.vm, pmin, pmax, &ps, true, max_stone_y, mg.heightmap);
 		}
+	}
+
+	// Generate caverns (large noise-based caverns)
+	// Only generate if pmin.Y is below the cavern_limit
+	if (pmin.Y <= max_stone_y && pmin.Y <= cave_params.cavern_limit) {
+		CavernsNoise caverns_noise(ndef, mg.csize, &cave_params.np_cavern,
+			mg.seed, cave_params.cavern_limit, cave_params.cavern_taper,
+			cave_params.cavern_threshold);
+		caverns_noise.generateCaverns(mg.vm, pmin, pmax);
 	}
 
 	return 0;
