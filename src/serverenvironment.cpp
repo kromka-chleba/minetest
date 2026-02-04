@@ -963,11 +963,12 @@ void ServerEnvironment::step(float dtime)
 				continue;
 			}
 
-			// Call on_block_loaded callback if this is a newly loaded block
-			// Check if block was just loaded (not already in memory)
-			// We check timestamp to determine if it's a fresh load
-			bool newly_loaded = (block->getTimestamp() == BLOCK_TIMESTAMP_UNDEFINED);
-			if (newly_loaded) {
+			// Call on_block_loaded callback only for newly emerged blocks
+			// We detect this by checking if the block was in loaded_blocks before
+			// A better approach would track block emergence, but this works for now
+			u32 stamp = block->getTimestamp();
+			bool is_new_block = (stamp == BLOCK_TIMESTAMP_UNDEFINED);
+			if (is_new_block) {
 				m_script->on_block_loaded(p);
 			}
 

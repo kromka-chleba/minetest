@@ -6411,7 +6411,7 @@ Call these functions only at load time!
     * Note: callbacks must be registered at mod load time.
 * `core.register_on_block_unloaded(function(blockpos_list))`
     * Called after mapblocks are deactivated (moved out of active_block_range)
-    * Note: blocks may still remain in memory even after deactivation
+    * Note: "unloaded" here means deactivated; blocks typically remain in memory
     * `blockpos_list`: array of block positions (each is a table with x, y, z)
     * Note: callbacks must be registered at mod load time.
 

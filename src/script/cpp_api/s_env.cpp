@@ -510,10 +510,10 @@ void ScriptApiEnv::on_block_unloaded(const std::vector<v3s16> &blockpos_list)
 
 	// Create array of block positions
 	lua_createtable(L, blockpos_list.size(), 0);
-	int i = 1;
+	int lua_index = 1; // Lua arrays are 1-indexed
 	for (const v3s16 &blockpos : blockpos_list) {
 		push_v3s16(L, blockpos);
-		lua_rawseti(L, -2, i++);
+		lua_rawseti(L, -2, lua_index++);
 	}
 
 	runCallbacks(1, RUN_CALLBACKS_MODE_FIRST);
