@@ -1856,6 +1856,10 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		return 0;
 	auto *mgparams = emerge->mgparams;
 
+	// Constants for cave generation defaults
+	constexpr s16 CAVE_DEPTH_UNLIMITED = 31000;  // No upper limit for cave depth
+	constexpr s16 CAVERN_LIMIT_DISABLED = 31000; // Cavern limit set very high to disable
+
 	// Get mapgen-type-specific cave parameters using a helper function.
 	// All supported mapgen param types have identical cave parameter members.
 	struct CaveParams {
@@ -1876,14 +1880,17 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 		float cavern_threshold;
 	};
 
+	// Default noise parameters for caverns (matches MapgenV7 defaults)
+	const NoiseParams np_cavern_default(0.0, 1.0, v3f(384, 128, 384), 723, 5, 0.63, 2.0);
+
 	// Template function to extract cave parameters from mapgen params with cavern support
-	auto getCaveParamsWithCaverns = [](auto *params) -> CaveParams {
+	auto getCaveParamsWithCaverns = [CAVE_DEPTH_UNLIMITED](auto *params) -> CaveParams {
 		return {
 			params->np_cave1,
 			params->np_cave2,
 			params->cave_width,
 			params->large_cave_depth,
-			31000,  // small_cave_depth default: no upper limit
+			CAVE_DEPTH_UNLIMITED,  // small_cave_depth: no upper limit by default
 			params->small_cave_num_min,
 			params->small_cave_num_max,
 			params->large_cave_num_min,
@@ -1897,44 +1904,45 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	};
 
 	// Template function to extract cave parameters from mapgen params without cavern support
-	auto getCaveParamsNoCaverns = [](auto *params) -> CaveParams {
+	// Uses default cavern parameters with caverns disabled
+	auto getCaveParamsNoCaverns = [CAVE_DEPTH_UNLIMITED, CAVERN_LIMIT_DISABLED, &np_cavern_default](auto *params) -> CaveParams {
 		return {
 			params->np_cave1,
 			params->np_cave2,
 			params->cave_width,
 			params->large_cave_depth,
-			31000,  // small_cave_depth default: no upper limit
+			CAVE_DEPTH_UNLIMITED,  // small_cave_depth: no upper limit by default
 			params->small_cave_num_min,
 			params->small_cave_num_max,
 			params->large_cave_num_min,
 			params->large_cave_num_max,
 			params->large_cave_flooded,
-			NoiseParams(0.0, 1.0, v3f(384, 128, 384), 723, 5, 0.63, 2.0),  // np_cavern (default)
-			31000,   // cavern_limit (disabled by default)
-			256,     // cavern_taper
-			0.7f     // cavern_threshold
+			np_cavern_default,
+			CAVERN_LIMIT_DISABLED,  // cavern_limit: disabled by default
+			256,                    // cavern_taper
+			0.7f                    // cavern_threshold
 		};
 	};
 
 	// Default values match those used by MapgenV7 (see mapgen_v7.h)
 	// These are used as fallback for mapgens without cave parameters (e.g., singlenode)
-	// Note: cavern_limit is set above the highest Y to effectively disable caverns by default
+	// Note: cavern_limit is set high to effectively disable caverns by default
 	// unless explicitly requested via Lua parameters
 	CaveParams cave_params = {
 		NoiseParams(0, 12, v3f(61, 61, 61), 52534, 3, 0.5, 2.0),  // np_cave1
 		NoiseParams(0, 12, v3f(67, 67, 67), 10325, 3, 0.5, 2.0),  // np_cave2
-		0.09f,   // cave_width
-		-33,     // large_cave_depth
-		31000,   // small_cave_depth (no upper limit by default)
-		0,       // small_cave_num_min
-		0,       // small_cave_num_max
-		0,       // large_cave_num_min
-		2,       // large_cave_num_max
-		0.5f,    // large_cave_flooded
-		NoiseParams(0.0, 1.0, v3f(384, 128, 384), 723, 5, 0.63, 2.0),  // np_cavern
-		31000,   // cavern_limit (set very high to disable by default)
-		256,     // cavern_taper
-		0.7f     // cavern_threshold
+		0.09f,                  // cave_width
+		-33,                    // large_cave_depth
+		CAVE_DEPTH_UNLIMITED,   // small_cave_depth (no upper limit by default)
+		0,                      // small_cave_num_min
+		0,                      // small_cave_num_max
+		0,                      // large_cave_num_min
+		2,                      // large_cave_num_max
+		0.5f,                   // large_cave_flooded
+		np_cavern_default,      // np_cavern
+		CAVERN_LIMIT_DISABLED,  // cavern_limit (disabled by default)
+		256,                    // cavern_taper
+		0.7f                    // cavern_threshold
 	};
 
 	// Use the mapgen's cave parameters if available
