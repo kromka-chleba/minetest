@@ -397,7 +397,7 @@ public:
 	void setLighting(RemotePlayer *player, const Lighting &lighting);
 
 	// Dynamic node appearance modification system
-	void changeNodeAppearance(const std::string &block_type, 
+	void changeNodeAppearance(const std::string &node_name, 
 		const std::vector<std::string> &texture_paths);
 
 	/* con::PeerHandler implementation. */

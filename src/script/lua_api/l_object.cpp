@@ -2777,8 +2777,9 @@ int ObjectRef::l_set_node_visual(lua_State *L)
 	NO_MAP_LOCK_REQUIRED;
 	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
 	RemotePlayer *player = getplayer(ref);
-	if (player == nullptr)
-		return 0;
+	if (player == nullptr) {
+		throw LuaError("set_node_visual can only be called on player objects");
+	}
 
 	// Parse node name argument
 	std::string node_identifier = luaL_checkstring(L, 2);
@@ -2791,12 +2792,15 @@ int ObjectRef::l_set_node_visual(lua_State *L)
 	while (lua_next(L, 3) != 0) {
 		if (lua_isstring(L, -1)) {
 			texture_list.push_back(lua_tostring(L, -1));
+		} else {
+			warningstream << "set_node_visual: skipping non-string entry in tiles table" 
+				<< std::endl;
 		}
 		lua_pop(L, 1);
 	}
 	
 	if (texture_list.empty()) {
-		throw LuaError("set_node_visual: tiles table cannot be empty");
+		throw LuaError("set_node_visual: tiles table must contain at least one valid texture string");
 	}
 	
 	// Trigger server-side node appearance change

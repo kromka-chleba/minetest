@@ -3663,32 +3663,32 @@ void Server::setLighting(RemotePlayer *player, const Lighting &lighting)
 	SendSetLighting(player->getPeerId(), lighting);
 }
 
-void Server::changeNodeAppearance(const std::string &block_type,
+void Server::changeNodeAppearance(const std::string &node_name,
 	const std::vector<std::string> &texture_paths)
 {
 	NodeDefManager *ndef_mgr = getWritableNodeDefManager();
 	
-	content_t block_id;
-	bool exists = ndef_mgr->getId(block_type, block_id);
-	if (!exists) {
-		errorstream << "changeNodeAppearance: unknown block type '" 
-			<< block_type << "'" << std::endl;
+	content_t node_id;
+	bool node_exists = ndef_mgr->getId(node_name, node_id);
+	if (!node_exists) {
+		errorstream << "changeNodeAppearance: unknown node '" 
+			<< node_name << "'" << std::endl;
 		return;
 	}
 
-	// Retrieve mutable features
-	ContentFeatures &block_features = 
-		const_cast<ContentFeatures&>(ndef_mgr->get(block_id));
+	// Get writable reference to node features
+	ContentFeatures &node_features = 
+		const_cast<ContentFeatures&>(ndef_mgr->get(node_id));
 	
-	// Update tile textures based on provided paths
-	size_t path_count = texture_paths.size();
-	size_t max_faces = 6;
-	for (size_t face_idx = 0; face_idx < path_count && face_idx < max_faces; face_idx++) {
-		block_features.tiledef[face_idx].name = texture_paths[face_idx];
+	// Apply new textures to node tile definitions
+	const size_t TILES_PER_NODE = 6;
+	size_t num_textures = texture_paths.size();
+	for (size_t tile_idx = 0; tile_idx < num_textures && tile_idx < TILES_PER_NODE; tile_idx++) {
+		node_features.tiledef[tile_idx].name = texture_paths[tile_idx];
 	}
 
-	infostream << "Node appearance modified: " << block_type 
-		<< " with " << path_count << " textures" << std::endl;
+	infostream << "Node appearance modified: " << node_name 
+		<< " with " << num_textures << " texture(s)" << std::endl;
 
 	// Broadcast updated definitions to all connected clients
 	std::vector<session_t> client_ids = m_clients.getClientIDs(CS_DefinitionsSent);
