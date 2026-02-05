@@ -3712,8 +3712,31 @@ void Server::changeNodeAppearance(const std::string &node_name,
 
 void Server::SendNodeVisualUpdate(const std::string &node_name, content_t node_id)
 {
+	// Safety check: ensure node_id is valid
+	if (node_id == CONTENT_IGNORE || node_id == CONTENT_AIR || node_id == CONTENT_UNKNOWN) {
+		warningstream << "SendNodeVisualUpdate: Invalid node_id " << node_id << std::endl;
+		return;
+	}
+	
 	std::vector<session_t> peers = m_clients.getClientIDs(CS_Active);
+	
+	// Only send if there are active clients
+	if (peers.empty()) {
+		infostream << "SendNodeVisualUpdate: No active clients, skipping broadcast" << std::endl;
+		return;
+	}
+	
 	NodeDefManager *mgr = getWritableNodeDefManager();
+	
+	// Verify the node still exists and is valid
+	const ContentFeatures &features = mgr->get(node_id);
+	if (features.name.empty()) {
+		errorstream << "SendNodeVisualUpdate: Node has empty name, cannot broadcast" << std::endl;
+		return;
+	}
+	
+	infostream << "SendNodeVisualUpdate: Broadcasting update for '" << node_name 
+		<< "' to " << peers.size() << " peer(s)" << std::endl;
 	
 	for (session_t peer : peers) {
 		u16 proto = m_clients.getProtocolVersion(peer);
