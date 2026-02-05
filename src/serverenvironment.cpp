@@ -976,14 +976,23 @@ void ServerEnvironment::step(float dtime)
 		}
 
 		for (const v3s16 &p: extra_blocks_added) {
-			// only activate if the block is already loaded
-			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
+			// Load the block but don't activate it (these are view-only blocks)
+			MapBlock *block = m_map->getBlockOrEmerge(p, true);
 			if (!block) {
 				m_active_blocks.remove(p);
 				continue;
 			}
 
-			activateBlock(block);
+			// Call on_block_loaded callback for newly loaded or generated blocks
+			u32 stamp = block->getTimestamp();
+			bool is_new_block = (stamp == BLOCK_TIMESTAMP_UNDEFINED);
+			if (is_new_block) {
+				m_script->on_block_loaded(p);
+			}
+
+			// Extra blocks are NOT active, so remove from active_blocks if present
+			// (This ensures core.active_blocks only tracks truly active blocks)
+			m_active_blocks.remove(p);
 		}
 
 		// Some blocks may be removed again by the code above so do this here
