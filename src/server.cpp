@@ -3675,32 +3675,49 @@ void Server::changeNodeAppearance(const std::string &node_name,
 			<< node_name << "'" << std::endl;
 		return;
 	}
-
-	// Get writable reference to node features
-	ContentFeatures &node_features = 
-		const_cast<ContentFeatures&>(ndef_mgr->get(node_id));
 	
-	// Strategy: Only swap texture name strings, preserving all other tile properties
-	// This avoids the need for full node definition updates
+	// Validate that we have at least one tile definition
+	if (tile_definitions.empty()) {
+		errorstream << "changeNodeAppearance: empty tile_definitions for '" 
+			<< node_name << "'" << std::endl;
+		return;
+	}
+
+	// Use applyFunction to safely modify node features
+	// This ensures we don't create dangling references or race conditions
 	const size_t TILES_PER_NODE = 6;
 	size_t num_tiles = tile_definitions.size();
 	
-	for (size_t tile_idx = 0; tile_idx < num_tiles && tile_idx < TILES_PER_NODE; tile_idx++) {
-		// Only update the texture name, keep all other properties intact
-		node_features.tiledef[tile_idx].name = tile_definitions[tile_idx].name;
+	ndef_mgr->applyFunction([&](ContentFeatures &f) {
+		// Only modify the specific node we're targeting
+		if (f.name != node_name)
+			return;
 		
-		// Also update visual properties if they're explicitly set
-		if (tile_definitions[tile_idx].has_color) {
-			node_features.tiledef[tile_idx].has_color = true;
-			node_features.tiledef[tile_idx].color = tile_definitions[tile_idx].color;
+		// Apply tile updates
+		for (size_t tile_idx = 0; tile_idx < num_tiles && tile_idx < TILES_PER_NODE; tile_idx++) {
+			// Update texture name
+			if (!tile_definitions[tile_idx].name.empty()) {
+				f.tiledef[tile_idx].name = tile_definitions[tile_idx].name;
+			}
+			
+			// Update color if specified
+			if (tile_definitions[tile_idx].has_color) {
+				f.tiledef[tile_idx].has_color = true;
+				f.tiledef[tile_idx].color = tile_definitions[tile_idx].color;
+			}
+			
+			// Update scale and align if specified
+			if (tile_definitions[tile_idx].scale != 0) {
+				f.tiledef[tile_idx].scale = tile_definitions[tile_idx].scale;
+				f.tiledef[tile_idx].align_style = tile_definitions[tile_idx].align_style;
+			}
+			
+			// Copy animation if present
+			if (tile_definitions[tile_idx].animation.type != TAT_NONE) {
+				f.tiledef[tile_idx].animation = tile_definitions[tile_idx].animation;
+			}
 		}
-		
-		// Update other visual properties if they differ from defaults
-		if (tile_definitions[tile_idx].scale != 0) {
-			node_features.tiledef[tile_idx].scale = tile_definitions[tile_idx].scale;
-			node_features.tiledef[tile_idx].align_style = tile_definitions[tile_idx].align_style;
-		}
-	}
+	});
 
 	infostream << "Node appearance modified: " << node_name 
 		<< " with " << num_tiles << " tile(s)" << std::endl;
