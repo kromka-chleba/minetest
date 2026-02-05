@@ -496,8 +496,17 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos)
 
 	runCallbacks(1, RUN_CALLBACKS_MODE_FIRST);
 
-	// Update active_blocks table
+	// Update loaded_blocks table (activated blocks are by definition loaded)
 	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "loaded_blocks");
+	if (lua_istable(L, -1)) {
+		lua_pushnumber(L, hash_node_position(blockpos));
+		lua_pushboolean(L, true);
+		lua_rawset(L, -3);
+	}
+	lua_pop(L, 1); // Pop loaded_blocks
+
+	// Update active_blocks table
 	lua_getfield(L, -1, "active_blocks");
 	if (lua_istable(L, -1)) {
 		lua_pushnumber(L, hash_node_position(blockpos));
