@@ -66,6 +66,7 @@ struct SkyboxParams;
 struct SoundSpec;
 struct StarParams;
 struct SunParams;
+struct TileDef;
 
 namespace con {
 	class IConnection;
@@ -398,7 +399,7 @@ public:
 
 	// Dynamic node appearance modification system
 	void changeNodeAppearance(const std::string &node_name, 
-		const std::vector<std::string> &texture_paths);
+		const std::vector<TileDef> &tile_definitions);
 
 	/* con::PeerHandler implementation. */
 	void peerAdded(con::IPeer *peer) override;

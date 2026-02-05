@@ -3664,7 +3664,7 @@ void Server::setLighting(RemotePlayer *player, const Lighting &lighting)
 }
 
 void Server::changeNodeAppearance(const std::string &node_name,
-	const std::vector<std::string> &texture_paths)
+	const std::vector<TileDef> &tile_definitions)
 {
 	NodeDefManager *ndef_mgr = getWritableNodeDefManager();
 	
@@ -3680,15 +3680,15 @@ void Server::changeNodeAppearance(const std::string &node_name,
 	ContentFeatures &node_features = 
 		const_cast<ContentFeatures&>(ndef_mgr->get(node_id));
 	
-	// Apply new textures to node tile definitions
+	// Apply new tile definitions to node
 	const size_t TILES_PER_NODE = 6;
-	size_t num_textures = texture_paths.size();
-	for (size_t tile_idx = 0; tile_idx < num_textures && tile_idx < TILES_PER_NODE; tile_idx++) {
-		node_features.tiledef[tile_idx].name = texture_paths[tile_idx];
+	size_t num_tiles = tile_definitions.size();
+	for (size_t tile_idx = 0; tile_idx < num_tiles && tile_idx < TILES_PER_NODE; tile_idx++) {
+		node_features.tiledef[tile_idx] = tile_definitions[tile_idx];
 	}
 
 	infostream << "Node appearance modified: " << node_name 
-		<< " with " << num_textures << " texture(s)" << std::endl;
+		<< " with " << num_tiles << " tile(s)" << std::endl;
 
 	// Broadcast updated definitions to all connected clients
 	std::vector<session_t> client_ids = m_clients.getClientIDs(CS_DefinitionsSent);

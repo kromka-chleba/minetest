@@ -13,6 +13,7 @@
 #include "common/c_content.h"
 #include "cpp_api/s_base.h"
 #include "log.h"
+#include "nodedef.h"
 #include "player.h"
 #include "server/serveractiveobject.h"
 #include "tool.h"
@@ -2787,24 +2788,24 @@ int ObjectRef::l_set_node_visual(lua_State *L)
 	// Parse tiles table argument
 	luaL_checktype(L, 3, LUA_TTABLE);
 	
-	std::vector<std::string> texture_list;
+	std::vector<TileDef> tile_definitions;
+	
+	// Iterate through the tiles table
 	lua_pushnil(L);
 	while (lua_next(L, 3) != 0) {
-		if (lua_isstring(L, -1)) {
-			texture_list.push_back(lua_tostring(L, -1));
-		} else {
-			warningstream << "set_node_visual: skipping non-string entry in tiles table" 
-				<< std::endl;
-		}
+		// Each entry can be a string or a full tile definition table
+		// We use NDT_NORMAL as drawtype since we don't know the actual node type yet
+		TileDef tile = read_tiledef(L, -1, NDT_NORMAL, false);
+		tile_definitions.push_back(tile);
 		lua_pop(L, 1);
 	}
 	
-	if (texture_list.empty()) {
-		throw LuaError("set_node_visual: tiles table must contain at least one valid texture string");
+	if (tile_definitions.empty()) {
+		throw LuaError("set_node_visual: tiles table must contain at least one tile definition");
 	}
 	
 	// Trigger server-side node appearance change
-	getServer(L)->changeNodeAppearance(node_identifier, texture_list);
+	getServer(L)->changeNodeAppearance(node_identifier, tile_definitions);
 	
 	return 0;
 }
