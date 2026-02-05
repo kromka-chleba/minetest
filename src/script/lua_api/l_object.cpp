@@ -2807,7 +2807,14 @@ int ObjectRef::l_set_node_visual(lua_State *L)
 	}
 	
 	// Trigger server-side node appearance change
+	// Note: Due to technical limitations, connected clients won't see changes
+	// until they reconnect. This is because updating node definitions at runtime
+	// requires stopping the mesh update manager, which would cause visual glitches.
 	getServer(L)->changeNodeAppearance(node_identifier, tile_definitions);
+	
+	// Inform the caller about the limitation
+	warningstream << "set_node_visual: Changes applied server-side. "
+		<< "Connected clients must reconnect to see the changes." << std::endl;
 	
 	return 0;
 }

@@ -3690,13 +3690,21 @@ void Server::changeNodeAppearance(const std::string &node_name,
 	infostream << "Node appearance modified: " << node_name 
 		<< " with " << num_tiles << " tile(s)" << std::endl;
 
-	// Broadcast updated definitions to all connected clients
-	std::vector<session_t> client_ids = m_clients.getClientIDs(CS_DefinitionsSent);
+	// NOTE: Cannot safely broadcast node definition updates to connected clients
+	// during active gameplay because it requires stopping the mesh update manager.
+	// Changes will only be visible to:
+	// - The server (for newly placed nodes)
+	// - Clients that connect after this change
+	// 
+	// TODO: Implement safe runtime node definition updates by:
+	// - Stopping mesh update manager on all clients
+	// - Sending updated definitions
+	// - Restarting mesh update manager
+	// This requires careful synchronization to avoid visual glitches.
 	
-	for (session_t client_id : client_ids) {
-		u16 proto_ver = m_clients.getProtocolVersion(client_id);
-		SendNodeDef(client_id, ndef_mgr, proto_ver);
-	}
+	warningstream << "changeNodeAppearance: Node definition updated server-side. "
+		<< "Connected clients will not see changes until reconnection. "
+		<< "This is a known limitation." << std::endl;
 }
 
 void Server::notifyPlayers(const std::wstring &msg)
