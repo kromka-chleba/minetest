@@ -3691,15 +3691,11 @@ void Server::changeNodeAppearance(const std::string &block_type,
 		<< " with " << path_count << " textures" << std::endl;
 
 	// Broadcast updated definitions to all connected clients
-	std::vector<session_t> client_ids;
-	m_clients.getClientIDs(client_ids);
+	std::vector<session_t> client_ids = m_clients.getClientIDs(CS_DefinitionsSent);
 	
 	for (session_t client_id : client_ids) {
-		auto client_state = m_clients.getClientState(client_id);
-		if (client_state >= CS_DefinitionsSent) {
-			u16 proto_ver = m_clients.getProtocolVersion(client_id);
-			SendNodeDef(client_id, ndef_mgr, proto_ver);
-		}
+		u16 proto_ver = m_clients.getProtocolVersion(client_id);
+		SendNodeDef(client_id, ndef_mgr, proto_ver);
 	}
 }
 
