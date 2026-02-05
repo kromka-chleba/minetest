@@ -1,18 +1,25 @@
 -- Test mod for player:set_node_visual() API
 -- This mod provides chat commands to test various features of the set_node_visual API
 
--- Helper function to get basenodes
-local function get_test_node()
-	-- Use a common node from basenodes mod
-	return "basenodes:stone"
+-- Helper functions to get mapgen nodes (actually used in world generation)
+local function get_test_node_stone()
+	-- Most common mapgen node - used for terrain
+	return "mapgen_stone"
 end
 
-local function get_test_node_dirt()
-	return "basenodes:dirt"
+local function get_test_node_dirt_grass()
+	-- Surface layer node
+	return "mapgen_dirt_with_grass"
+end
+
+local function get_test_node_sand()
+	-- Beach and riverbed node
+	return "mapgen_sand"
 end
 
 local function get_test_node_cobble()
-	return "basenodes:cobble"
+	-- Dungeon node
+	return "mapgen_cobble"
 end
 
 -- Test 1: Simple texture strings (backward compatibility)
@@ -24,17 +31,17 @@ core.register_chatcommand("test_visual_simple", {
 			return false, "Player not found"
 		end
 		
-		-- Change stone to use dirt texture on all faces
-		player:set_node_visual(get_test_node(), {
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png"
+		-- Change mapgen_stone to use dirt_with_grass texture on all faces
+		player:set_node_visual(get_test_node_stone(), {
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png"
 		})
 		
-		return true, "Stone now uses dirt texture (simple strings)"
+		return true, "Stone (mapgen) now uses grass texture (simple strings)"
 	end,
 })
 
@@ -47,8 +54,8 @@ core.register_chatcommand("test_visual_color", {
 			return false, "Player not found"
 		end
 		
-		-- Apply different colors to each face of stone
-		player:set_node_visual(get_test_node(), {
+		-- Apply different colors to each face of mapgen_stone
+		player:set_node_visual(get_test_node_stone(), {
 			{name = "basenodes_stone.png", color = "#FF0000"},  -- Red top
 			{name = "basenodes_stone.png", color = "#00FF00"},  -- Green bottom
 			{name = "basenodes_stone.png", color = "#0000FF"},  -- Blue right
@@ -57,7 +64,7 @@ core.register_chatcommand("test_visual_color", {
 			{name = "basenodes_stone.png", color = "#00FFFF"}   -- Cyan front
 		})
 		
-		return true, "Stone now has rainbow-colored faces"
+		return true, "Stone (mapgen) now has rainbow-colored faces"
 	end,
 })
 
@@ -70,8 +77,8 @@ core.register_chatcommand("test_visual_aligned", {
 			return false, "Player not found"
 		end
 		
-		-- Apply world-aligned texture with scale
-		player:set_node_visual(get_test_node(), {
+		-- Apply world-aligned texture with scale to mapgen_stone
+		player:set_node_visual(get_test_node_stone(), {
 			{
 				name = "basenodes_stone.png",
 				align_style = "world",
@@ -104,7 +111,7 @@ core.register_chatcommand("test_visual_aligned", {
 			}
 		})
 		
-		return true, "Stone now uses world-aligned texture with scale=2"
+		return true, "Stone (mapgen) now uses world-aligned texture with scale=2"
 	end,
 })
 
@@ -117,9 +124,9 @@ core.register_chatcommand("test_visual_animated", {
 			return false, "Player not found"
 		end
 		
-		-- Apply animated texture (if the texture has multiple frames)
+		-- Apply animated texture to mapgen_stone
 		-- Note: This will only show animation if the texture is actually animated
-		player:set_node_visual(get_test_node(), {
+		player:set_node_visual(get_test_node_stone(), {
 			{
 				name = "basenodes_stone.png",
 				animation = {
@@ -176,7 +183,7 @@ core.register_chatcommand("test_visual_animated", {
 			}
 		})
 		
-		return true, "Stone now has animation definition (effect depends on texture)"
+		return true, "Stone (mapgen) now has animation definition (effect depends on texture)"
 	end,
 })
 
@@ -189,8 +196,8 @@ core.register_chatcommand("test_visual_culling", {
 			return false, "Player not found"
 		end
 		
-		-- Disable backface culling (useful for glass-like nodes)
-		player:set_node_visual(get_test_node(), {
+		-- Disable backface culling on mapgen_stone
+		player:set_node_visual(get_test_node_stone(), {
 			{name = "basenodes_stone.png", backface_culling = false},
 			{name = "basenodes_stone.png", backface_culling = false},
 			{name = "basenodes_stone.png", backface_culling = false},
@@ -199,7 +206,7 @@ core.register_chatcommand("test_visual_culling", {
 			{name = "basenodes_stone.png", backface_culling = false}
 		})
 		
-		return true, "Stone now has backface culling disabled"
+		return true, "Stone (mapgen) now has backface culling disabled"
 	end,
 })
 
@@ -212,10 +219,10 @@ core.register_chatcommand("test_visual_mixed", {
 			return false, "Player not found"
 		end
 		
-		-- Mix simple strings with full tile definitions
-		player:set_node_visual(get_test_node(), {
+		-- Mix simple strings with full tile definitions on mapgen_stone
+		player:set_node_visual(get_test_node_stone(), {
 			"basenodes_dirt.png",  -- Simple string for top
-			"basenodes_cobble.png",  -- Simple string for bottom
+			"basenodes_sand.png",  -- Simple string for bottom
 			{name = "basenodes_stone.png", color = "#FF0000"},  -- Red tinted right
 			{name = "basenodes_stone.png", color = "#00FF00"},  -- Green tinted left
 			{name = "basenodes_stone.png", backface_culling = false},  -- No culling back
@@ -226,7 +233,7 @@ core.register_chatcommand("test_visual_mixed", {
 			}  -- World-aligned front
 		})
 		
-		return true, "Stone now has mixed tile definitions"
+		return true, "Stone (mapgen) now has mixed tile definitions"
 	end,
 })
 
@@ -239,59 +246,64 @@ core.register_chatcommand("test_visual_multiface", {
 			return false, "Player not found"
 		end
 		
-		-- Use different textures for each face
-		player:set_node_visual(get_test_node(), {
-			"basenodes_dirt.png",      -- Top
-			"basenodes_cobble.png",    -- Bottom
-			"basenodes_stone.png",     -- Right
-			"basenodes_dirt.png",      -- Left
-			"basenodes_cobble.png",    -- Back
-			"basenodes_stone.png"      -- Front
+		-- Use different textures for each face of mapgen_stone
+		player:set_node_visual(get_test_node_stone(), {
+			"basenodes_grass.png",          -- Top (grass)
+			"basenodes_dirt.png",           -- Bottom (dirt)
+			"basenodes_sand.png",           -- Right (sand)
+			"basenodes_cobble.png",         -- Left (cobble)
+			"basenodes_stone.png",          -- Back (stone)
+			"basenodes_grass_side.png"      -- Front (grass side)
 		})
 		
-		return true, "Stone faces now have different textures"
+		return true, "Stone (mapgen) faces now have different textures"
 	end,
 })
 
--- Test 8: Apply visual changes to multiple nodes
+-- Test 8: Apply visual changes to multiple mapgen nodes
 core.register_chatcommand("test_visual_multi", {
-	description = "Test set_node_visual on multiple different nodes",
+	description = "Test set_node_visual on multiple different mapgen nodes",
 	func = function(name)
 		local player = core.get_player_by_name(name)
 		if not player then
 			return false, "Player not found"
 		end
 		
-		-- Change stone
-		player:set_node_visual(get_test_node(), {
-			{name = "basenodes_dirt.png", color = "#FF8800"}
+		-- Change mapgen_stone (terrain)
+		player:set_node_visual(get_test_node_stone(), {
+			{name = "basenodes_sand.png", color = "#FF8800"}
 		})
 		
-		-- Change dirt
-		player:set_node_visual(get_test_node_dirt(), {
+		-- Change mapgen_dirt_with_grass (surface)
+		player:set_node_visual(get_test_node_dirt_grass(), {
 			{name = "basenodes_stone.png", color = "#8888FF"}
 		})
 		
-		-- Change cobble
-		player:set_node_visual(get_test_node_cobble(), {
+		-- Change mapgen_sand (beaches)
+		player:set_node_visual(get_test_node_sand(), {
 			{name = "basenodes_dirt.png", color = "#88FF88"}
 		})
 		
-		return true, "Multiple nodes changed: stone, dirt, and cobble"
+		-- Change mapgen_cobble (dungeons)
+		player:set_node_visual(get_test_node_cobble(), {
+			{name = "basenodes_grass.png", color = "#FF88FF"}
+		})
+		
+		return true, "Multiple mapgen nodes changed: stone, dirt_with_grass, sand, and cobble"
 	end,
 })
 
 -- Reset command to restore original textures
 core.register_chatcommand("test_visual_reset", {
-	description = "Reset node visuals to default (requires server restart to fully restore)",
+	description = "Reset mapgen node visuals to default (requires server restart to fully restore)",
 	func = function(name)
 		local player = core.get_player_by_name(name)
 		if not player then
 			return false, "Player not found"
 		end
 		
-		-- Reset stone to its original texture
-		player:set_node_visual(get_test_node(), {
+		-- Reset mapgen_stone to its original texture
+		player:set_node_visual(get_test_node_stone(), {
 			"basenodes_stone.png",
 			"basenodes_stone.png",
 			"basenodes_stone.png",
@@ -300,17 +312,27 @@ core.register_chatcommand("test_visual_reset", {
 			"basenodes_stone.png"
 		})
 		
-		-- Reset dirt
-		player:set_node_visual(get_test_node_dirt(), {
+		-- Reset mapgen_dirt_with_grass
+		player:set_node_visual(get_test_node_dirt_grass(), {
+			"basenodes_grass.png",
 			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png",
-			"basenodes_dirt.png"
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png",
+			"basenodes_dirt.png^basenodes_grass_side.png"
 		})
 		
-		-- Reset cobble
+		-- Reset mapgen_sand
+		player:set_node_visual(get_test_node_sand(), {
+			"basenodes_sand.png",
+			"basenodes_sand.png",
+			"basenodes_sand.png",
+			"basenodes_sand.png",
+			"basenodes_sand.png",
+			"basenodes_sand.png"
+		})
+		
+		-- Reset mapgen_cobble
 		player:set_node_visual(get_test_node_cobble(), {
 			"basenodes_cobble.png",
 			"basenodes_cobble.png",
@@ -320,7 +342,7 @@ core.register_chatcommand("test_visual_reset", {
 			"basenodes_cobble.png"
 		})
 		
-		return true, "Node visuals reset to default textures"
+		return true, "Mapgen node visuals reset to default textures"
 	end,
 })
 
@@ -337,12 +359,18 @@ Available test_visual commands:
   /test_visual_culling - Backface culling disabled
   /test_visual_mixed - Mixed tile formats (strings + tables)
   /test_visual_multiface - Different texture per face
-  /test_visual_multi - Apply to multiple node types
+  /test_visual_multi - Apply to multiple mapgen node types
   /test_visual_reset - Reset to default textures
   /test_visual_help - Show this help
 
+Tests use mapgen nodes (actually used in world generation):
+  - mapgen_stone (terrain)
+  - mapgen_dirt_with_grass (surface)
+  - mapgen_sand (beaches/riverbeds)
+  - mapgen_cobble (dungeons)
+
 Note: Changes are global and affect all players.
-Place some stone, dirt, and cobble nodes to see the effects.
+The world terrain will change appearance when you run these commands!
 ]]
 	end,
 })
