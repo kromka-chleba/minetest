@@ -2794,14 +2794,16 @@ int ObjectRef::l_set_node_visual(lua_State *L)
 	lua_pushnil(L);
 	while (lua_next(L, 3) != 0) {
 		// Each entry can be a string or a full tile definition table
-		// We use NDT_NORMAL as drawtype since we don't know the actual node type yet
+		// Use NDT_NORMAL as drawtype - it provides sensible defaults for most cases
+		// The false parameter indicates this is not a special tile (e.g., liquid, overlay)
 		TileDef tile = read_tiledef(L, -1, NDT_NORMAL, false);
 		tile_definitions.push_back(tile);
 		lua_pop(L, 1);
 	}
 	
 	if (tile_definitions.empty()) {
-		throw LuaError("set_node_visual: tiles table must contain at least one tile definition");
+		throw LuaError("set_node_visual: tiles table must contain at least one tile "
+			"(can be simple string like \"texture.png\" or table definition)");
 	}
 	
 	// Trigger server-side node appearance change
