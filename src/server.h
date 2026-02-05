@@ -396,6 +396,10 @@ public:
 
 	void setLighting(RemotePlayer *player, const Lighting &lighting);
 
+	// Dynamic node appearance modification system
+	void changeNodeAppearance(const std::string &block_type, 
+		const std::vector<std::string> &texture_paths);
+
 	/* con::PeerHandler implementation. */
 	void peerAdded(con::IPeer *peer) override;
 	void deletingPeer(con::IPeer *peer, bool timeout) override;

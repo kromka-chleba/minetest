@@ -2771,6 +2771,40 @@ int ObjectRef::l_get_lighting(lua_State *L)
 	return 1;
 }
 
+// set_node_visual(self, node_name, tiles)
+int ObjectRef::l_set_node_visual(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	// Parse node name argument
+	std::string node_identifier = luaL_checkstring(L, 2);
+	
+	// Parse tiles table argument
+	luaL_checktype(L, 3, LUA_TTABLE);
+	
+	std::vector<std::string> texture_list;
+	lua_pushnil(L);
+	while (lua_next(L, 3) != 0) {
+		if (lua_isstring(L, -1)) {
+			texture_list.push_back(lua_tostring(L, -1));
+		}
+		lua_pop(L, 1);
+	}
+	
+	if (texture_list.empty()) {
+		throw LuaError("set_node_visual: tiles table cannot be empty");
+	}
+	
+	// Trigger server-side node appearance change
+	getServer(L)->changeNodeAppearance(node_identifier, texture_list);
+	
+	return 0;
+}
+
 // respawn(self)
 int ObjectRef::l_respawn(lua_State *L)
 {
@@ -2974,6 +3008,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_lighting),
 	luamethod(ObjectRef, get_lighting),
 	luamethod(ObjectRef, respawn),
+	luamethod(ObjectRef, set_node_visual),
 	luamethod(ObjectRef, set_flags),
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),

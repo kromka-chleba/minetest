@@ -3663,6 +3663,46 @@ void Server::setLighting(RemotePlayer *player, const Lighting &lighting)
 	SendSetLighting(player->getPeerId(), lighting);
 }
 
+void Server::changeNodeAppearance(const std::string &block_type,
+	const std::vector<std::string> &texture_paths)
+{
+	NodeDefManager *ndef_mgr = getWritableNodeDefManager();
+	
+	content_t block_id;
+	bool exists = ndef_mgr->getId(block_type, block_id);
+	if (!exists) {
+		errorstream << "changeNodeAppearance: unknown block type '" 
+			<< block_type << "'" << std::endl;
+		return;
+	}
+
+	// Retrieve mutable features
+	ContentFeatures &block_features = 
+		const_cast<ContentFeatures&>(ndef_mgr->get(block_id));
+	
+	// Update tile textures based on provided paths
+	size_t path_count = texture_paths.size();
+	size_t max_faces = 6;
+	for (size_t face_idx = 0; face_idx < path_count && face_idx < max_faces; face_idx++) {
+		block_features.tiledef[face_idx].name = texture_paths[face_idx];
+	}
+
+	infostream << "Node appearance modified: " << block_type 
+		<< " with " << path_count << " textures" << std::endl;
+
+	// Broadcast updated definitions to all connected clients
+	std::vector<session_t> client_ids;
+	m_clients.getClientIDs(client_ids);
+	
+	for (session_t client_id : client_ids) {
+		auto client_state = m_clients.getClientState(client_id);
+		if (client_state >= CS_DefinitionsSent) {
+			u16 proto_ver = m_clients.getProtocolVersion(client_id);
+			SendNodeDef(client_id, ndef_mgr, proto_ver);
+		}
+	}
+}
+
 void Server::notifyPlayers(const std::wstring &msg)
 {
 	SendChatMessage(PEER_ID_INEXISTENT, ChatMessage(msg));

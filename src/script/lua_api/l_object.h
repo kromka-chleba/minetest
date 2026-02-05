@@ -412,6 +412,9 @@ private:
 	// respawn(self)
 	static int l_respawn(lua_State *L);
 
+	// set_node_visual(self, node_name, tiles)
+	static int l_set_node_visual(lua_State *L);
+
 	// set_flags(self, flags)
 	static int l_set_flags(lua_State *L);
 
