@@ -742,7 +742,7 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 		m_env->getMap().timerUpdate(map_timer_and_unload_dtime,
 			std::max(g_settings->getFloat("server_unload_unused_data_timeout"), 0.0f),
 			-1, &unloaded_blocks);
-		
+
 		// Notify scripts of blocks that were unloaded from memory
 		if (!unloaded_blocks.empty()) {
 			m_env->getScriptIface()->on_block_unloaded(unloaded_blocks);
