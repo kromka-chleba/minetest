@@ -400,6 +400,9 @@ public:
 	// Dynamic node appearance modification system
 	void changeNodeAppearance(const std::string &node_name, 
 		const std::vector<TileDef> &tile_definitions);
+	
+	// Send node visual update to trigger mesh regeneration
+	void SendNodeVisualUpdate(const std::string &node_name, content_t node_id);
 
 	/* con::PeerHandler implementation. */
 	void peerAdded(con::IPeer *peer) override;

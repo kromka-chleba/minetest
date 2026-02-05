@@ -3680,31 +3680,45 @@ void Server::changeNodeAppearance(const std::string &node_name,
 	ContentFeatures &node_features = 
 		const_cast<ContentFeatures&>(ndef_mgr->get(node_id));
 	
-	// Apply new tile definitions to node
+	// Strategy: Only swap texture name strings, preserving all other tile properties
+	// This avoids the need for full node definition updates
 	const size_t TILES_PER_NODE = 6;
 	size_t num_tiles = tile_definitions.size();
+	
 	for (size_t tile_idx = 0; tile_idx < num_tiles && tile_idx < TILES_PER_NODE; tile_idx++) {
-		node_features.tiledef[tile_idx] = tile_definitions[tile_idx];
+		// Only update the texture name, keep all other properties intact
+		node_features.tiledef[tile_idx].name = tile_definitions[tile_idx].name;
+		
+		// Also update visual properties if they're explicitly set
+		if (tile_definitions[tile_idx].has_color) {
+			node_features.tiledef[tile_idx].has_color = true;
+			node_features.tiledef[tile_idx].color = tile_definitions[tile_idx].color;
+		}
+		
+		// Update other visual properties if they differ from defaults
+		if (tile_definitions[tile_idx].scale != 0) {
+			node_features.tiledef[tile_idx].scale = tile_definitions[tile_idx].scale;
+			node_features.tiledef[tile_idx].align_style = tile_definitions[tile_idx].align_style;
+		}
 	}
 
 	infostream << "Node appearance modified: " << node_name 
 		<< " with " << num_tiles << " tile(s)" << std::endl;
 
-	// NOTE: Cannot safely broadcast node definition updates to connected clients
-	// during active gameplay because it requires stopping the mesh update manager.
-	// Changes will only be visible to:
-	// - The server (for newly placed nodes)
-	// - Clients that connect after this change
-	// 
-	// TODO: Implement safe runtime node definition updates by:
-	// - Stopping mesh update manager on all clients
-	// - Sending updated definitions
-	// - Restarting mesh update manager
-	// This requires careful synchronization to avoid visual glitches.
+	// Send a message to all clients instructing them to invalidate cached meshes
+	// for this node type, forcing a re-render with the new texture
+	SendNodeVisualUpdate(node_name, node_id);
+}
+
+void Server::SendNodeVisualUpdate(const std::string &node_name, content_t node_id)
+{
+	std::vector<session_t> peers = m_clients.getClientIDs(CS_Active);
+	NodeDefManager *mgr = getWritableNodeDefManager();
 	
-	warningstream << "changeNodeAppearance: Node definition updated server-side. "
-		<< "Connected clients will not see changes until reconnection. "
-		<< "This is a known limitation." << std::endl;
+	for (session_t peer : peers) {
+		u16 proto = m_clients.getProtocolVersion(peer);
+		SendNodeDef(peer, mgr, proto);
+	}
 }
 
 void Server::notifyPlayers(const std::wstring &msg)

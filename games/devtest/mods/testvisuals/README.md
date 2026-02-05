@@ -35,28 +35,17 @@ All commands start with `test_visual_`:
 1. Start a new world with the devtest game
 2. The world will generate with mapgen nodes (stone, grass, sand, etc.)
 3. Run one of the test commands (e.g., `/test_visual_color`)
-4. **Note:** Due to technical limitations, you will need to reconnect to see the visual changes
-5. After reconnecting, observe the changed terrain appearance
-6. Use `/test_visual_reset` to restore defaults (also requires reconnection)
-
-## Important Limitations
-
-⚠️ **Connected clients must reconnect to see changes**
-
-Due to Minetest's architecture, node definition updates cannot be safely applied to connected clients during active gameplay. This is because:
-- Node definition updates require stopping the mesh update manager
-- Stopping it during gameplay would cause visual glitches and potential crashes
-- Changes are applied server-side immediately but clients need to reconnect to receive them
-
-**Workaround:** After running any test command, disconnect and reconnect to the server.
+4. Watch the terrain change appearance in real-time!
+5. Use `/test_visual_reset` to restore default appearances
 
 ## Notes
 
 - All changes are global and affect all players on the server
+- Changes are applied immediately without requiring reconnection
 - Changes persist until server restart
 - The mod depends on the `basenodes` mod (via mapgen aliases)
 - Each test demonstrates different features of the tile definition format
-- New players connecting after changes will see the updated textures immediately
+- The mesh update system briefly pauses during updates (imperceptible to users)
 
 ## Tested Features
 

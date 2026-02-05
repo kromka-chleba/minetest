@@ -740,9 +740,15 @@ void Client::handleCommand_NodeDef(NetworkPacket* pkt)
 	infostream << "Client: Received node definitions: packet size: "
 			<< pkt->getSize() << std::endl;
 
-	// Mesh update thread must be stopped while
-	// updating content definitions
-	sanity_check(!m_mesh_update_manager->isRunning());
+	// Check if mesh updates are running (runtime update scenario)
+	bool was_running = m_mesh_update_manager->isRunning();
+	
+	if (was_running) {
+		// Runtime update: safely pause mesh generation
+		infostream << "Client: Pausing mesh updates for runtime node definition update" << std::endl;
+		m_mesh_update_manager->stop();
+		m_mesh_update_manager->wait();
+	}
 
 	// Decompress node definitions
 	std::istringstream tmp_is(pkt->readLongString(), std::ios::binary);
@@ -755,6 +761,12 @@ void Client::handleCommand_NodeDef(NetworkPacket* pkt)
 	// Deserialize node definitions
 	m_nodedef->deSerialize(tmp_os, m_proto_ver);
 	m_nodedef_received = true;
+	
+	if (was_running) {
+		// Restart mesh updates after applying changes
+		infostream << "Client: Resuming mesh updates after node definition update" << std::endl;
+		m_mesh_update_manager->start();
+	}
 }
 
 void Client::handleCommand_ItemDef(NetworkPacket* pkt)
