@@ -625,6 +625,9 @@ core.registered_on_block_activated, core.register_on_block_activated = make_regi
 core.registered_on_block_deactivated, core.register_on_block_deactivated = make_registration()
 core.registered_on_block_unloaded, core.register_on_block_unloaded = make_registration()
 
+-- Flag to control whether on_block_loaded callbacks should be executed
+core.block_loaded_callbacks_enabled = true
+
 -- A bunch of registrations are read by the C++ side once on env init, so we cannot
 -- allow them to change afterwards (see s_env.cpp).
 -- Nodes and items do not have this problem but there are obvious consistency
