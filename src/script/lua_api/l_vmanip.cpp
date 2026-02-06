@@ -13,6 +13,7 @@
 #include "serverenvironment.h"
 #include "servermap.h"
 #include "voxelalgorithms.h"
+#include "script/scripting_server.h"
 
 // garbage collector
 int LuaVoxelManip::gc_object(lua_State *L)
@@ -151,8 +152,13 @@ int LuaVoxelManip::l_write_to_map(lua_State *L)
 
 	ServerMap *map = &(env->getServerMap());
 
+	// During block generation phase, skip lighting updates to avoid artifacts
+	// Lighting will be properly calculated later by the server
+	ServerScripting *script = env->getScriptIface();
+	bool in_gen_phase = script && script->isInBlockGenPhase();
+
 	std::map<v3s16, MapBlock*> modified_blocks;
-	if (o->is_mapgen_vm || !update_light) {
+	if (o->is_mapgen_vm || !update_light || in_gen_phase) {
 		o->vm->blitBackAll(&modified_blocks);
 	} else {
 		voxalgo::blit_back_with_light(map, o->vm, &modified_blocks);

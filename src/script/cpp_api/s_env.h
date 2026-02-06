@@ -7,6 +7,7 @@
 #include "cpp_api/s_base.h"
 #include "irr_v3d.h"
 #include "mapnode.h"
+#include <atomic>
 #include <unordered_set>
 #include <vector>
 
@@ -56,6 +57,29 @@ public:
 	void triggerLBM(int id, MapBlock *block,
 		const std::unordered_set<v3s16> &positions, float dtime_s);
 
+	// Set/get flag for block generation phase (used to control VoxelManip lighting)
+	void setInBlockGenPhase(bool in_gen) { m_in_block_gen_phase = in_gen; }
+	bool isInBlockGenPhase() const { return m_in_block_gen_phase; }
+
+	// RAII helper to automatically manage generation phase flag
+	// Note: ScriptApiEnv must outlive this guard
+	class BlockGenPhaseGuard {
+	public:
+		BlockGenPhaseGuard(ScriptApiEnv *env) : m_env(env) {
+			if (m_env) m_env->setInBlockGenPhase(true);
+		}
+		~BlockGenPhaseGuard() {
+			if (m_env) m_env->setInBlockGenPhase(false);
+		}
+		// Non-copyable and non-movable
+		BlockGenPhaseGuard(const BlockGenPhaseGuard&) = delete;
+		BlockGenPhaseGuard& operator=(const BlockGenPhaseGuard&) = delete;
+		BlockGenPhaseGuard(BlockGenPhaseGuard&&) = delete;
+		BlockGenPhaseGuard& operator=(BlockGenPhaseGuard&&) = delete;
+	private:
+		ScriptApiEnv *m_env;
+	};
+
 private:
 	void readABMs();
 
@@ -63,4 +87,8 @@ private:
 
 	// Reads a single or a list of node names into a vector
 	static bool read_nodenames(lua_State *L, int idx, std::vector<std::string> &to);
+
+	// Flag to indicate we're calling on_block_loaded during generation phase
+	// Using atomic for thread safety
+	std::atomic<bool> m_in_block_gen_phase{false};
 };

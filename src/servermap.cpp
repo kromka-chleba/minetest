@@ -350,9 +350,20 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
 			block->setGenerated(true);
-			// Set timestamp to ensure correct application
-			// of LBMs and other stuff.
-			block->setTimestampNoChangedFlag(now);
+			// Timestamp will be set later in activateBlock() to allow
+			// on_block_loaded callbacks to run for newly generated blocks
+
+			// Call on_block_loaded callback for newly generated blocks
+			// Set flag to indicate generation phase so VoxelManip skips lighting updates
+			// Note: env is a function parameter, guaranteed non-null (used above)
+			if (env) {
+				ServerScripting *script = env->getScriptIface();
+				if (script) {
+					// RAII guard ensures flag is reset even on exception
+					ScriptApiEnv::BlockGenPhaseGuard guard(script);
+					script->on_block_loaded(bp);
+				}
+			}
 		}
 	}
 
@@ -780,6 +791,13 @@ MapBlock *ServerMap::loadBlock(const std::string &blob, v3s16 p3d, bool save_aft
 			event.type = MEET_OTHER;
 			event.setModifiedBlocks(modified_blocks);
 			dispatchEvent(event);
+		}
+
+		// Call on_block_loaded callback for blocks loaded from disk
+		if (m_env) {
+			ServerScripting *script = m_env->getScriptIface();
+			if (script)
+				script->on_block_loaded(p3d);
 		}
 	}
 
