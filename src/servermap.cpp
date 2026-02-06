@@ -355,6 +355,7 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 
 			// Initialize lighting for the block before calling on_block_loaded
 			// This ensures VoxelManipulator operations in callbacks work correctly
+			// Note: modified_blocks is unused here as map events are ignored during generation
 			std::map<v3s16, MapBlock*> lighting_modified_blocks;
 			voxalgo::update_block_border_lighting(this, block, lighting_modified_blocks);
 
