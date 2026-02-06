@@ -62,6 +62,7 @@ public:
 	bool isInBlockGenPhase() const { return m_in_block_gen_phase; }
 
 	// RAII helper to automatically manage generation phase flag
+	// Note: ScriptApiEnv must outlive this guard
 	class BlockGenPhaseGuard {
 	public:
 		BlockGenPhaseGuard(ScriptApiEnv *env) : m_env(env) {
@@ -70,9 +71,11 @@ public:
 		~BlockGenPhaseGuard() {
 			if (m_env) m_env->setInBlockGenPhase(false);
 		}
-		// Non-copyable
+		// Non-copyable and non-movable
 		BlockGenPhaseGuard(const BlockGenPhaseGuard&) = delete;
 		BlockGenPhaseGuard& operator=(const BlockGenPhaseGuard&) = delete;
+		BlockGenPhaseGuard(BlockGenPhaseGuard&&) = delete;
+		BlockGenPhaseGuard& operator=(BlockGenPhaseGuard&&) = delete;
 	private:
 		ScriptApiEnv *m_env;
 	};
