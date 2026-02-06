@@ -138,3 +138,5 @@ lib/irrlichtmt
 
 # Generated mod storage database
 client/mod_storage.sqlite
+build.log
+_codeql_detected_source_root
