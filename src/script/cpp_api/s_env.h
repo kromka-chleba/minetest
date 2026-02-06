@@ -7,6 +7,7 @@
 #include "cpp_api/s_base.h"
 #include "irr_v3d.h"
 #include "mapnode.h"
+#include <atomic>
 #include <unordered_set>
 #include <vector>
 
@@ -69,5 +70,6 @@ private:
 	static bool read_nodenames(lua_State *L, int idx, std::vector<std::string> &to);
 
 	// Flag to indicate we're calling on_block_loaded during generation phase
-	bool m_in_block_gen_phase = false;
+	// Using atomic for thread safety
+	std::atomic<bool> m_in_block_gen_phase{false};
 };

@@ -360,7 +360,12 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 				ServerScripting *script = env->getScriptIface();
 				if (script) {
 					script->setInBlockGenPhase(true);
-					script->on_block_loaded(bp);
+					try {
+						script->on_block_loaded(bp);
+					} catch (...) {
+						script->setInBlockGenPhase(false);
+						throw;
+					}
 					script->setInBlockGenPhase(false);
 				}
 			}
