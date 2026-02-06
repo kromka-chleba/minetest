@@ -464,7 +464,7 @@ void ScriptApiEnv::on_block_loaded(v3s16 blockpos)
 	lua_getfield(L, -1, "block_loaded_callbacks_enabled");
 	bool enabled = lua_toboolean(L, -1);
 	lua_pop(L, 2); // Pop enabled flag and core
-	
+
 	if (!enabled) {
 		// Callbacks are disabled, only update loaded_blocks table
 		lua_getglobal(L, "core");

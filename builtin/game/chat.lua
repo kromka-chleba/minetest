@@ -1367,7 +1367,7 @@ core.register_chatcommand("toggle_block_loaded_callbacks", {
 	privs = {server=true},
 	func = function(name, param)
 		param = param:trim():lower()
-		
+
 		if param == "" then
 			-- Show current status
 			local status = core.block_loaded_callbacks_enabled and "enabled" or "disabled"
