@@ -293,10 +293,8 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	/*
 		Blit generated stuff to map
 		NOTE: blitBackAll adds nearly everything to changed_blocks
-		Don't overwrite already-generated blocks to prevent neighboring
-		chunks from overwriting blocks modified by voxel manipulator in callbacks
 	*/
-	data->vmanip->blitBackAll(changed_blocks, false);
+	data->vmanip->blitBackAll(changed_blocks);
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()="
 		<< changed_blocks->size());
