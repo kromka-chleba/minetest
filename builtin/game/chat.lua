@@ -1360,28 +1360,3 @@ core.register_chatcommand("kill", {
 		return handle_kill_command(name, param == "" and name or param)
 	end,
 })
-
-core.register_chatcommand("toggle_block_loaded_callbacks", {
-	params = S("[on|off]"),
-	description = S("Enable or disable on_block_loaded callbacks"),
-	privs = {server=true},
-	func = function(name, param)
-		param = param:trim():lower()
-
-		if param == "" then
-			-- Show current status
-			local status = core.block_loaded_callbacks_enabled and "enabled" or "disabled"
-			return true, S("on_block_loaded callbacks are currently @1.", status)
-		elseif param == "on" or param == "enable" or param == "true" then
-			core.block_loaded_callbacks_enabled = true
-			core.log("action", name .. " enabled on_block_loaded callbacks")
-			return true, S("on_block_loaded callbacks enabled.")
-		elseif param == "off" or param == "disable" or param == "false" then
-			core.block_loaded_callbacks_enabled = false
-			core.log("action", name .. " disabled on_block_loaded callbacks")
-			return true, S("on_block_loaded callbacks disabled.")
-		else
-			return false, S("Invalid parameter. Use 'on' or 'off'.")
-		end
-	end,
-})
