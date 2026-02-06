@@ -350,9 +350,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
 			block->setGenerated(true);
-			// Set timestamp to ensure correct application
-			// of LBMs and other stuff.
-			block->setTimestampNoChangedFlag(now);
+			// Don't set timestamp here for newly generated blocks.
+			// Leave it as BLOCK_TIMESTAMP_UNDEFINED so that on_block_loaded
+			// callback will be triggered when the block enters active range.
+			// The timestamp will be set by activateBlock() which also handles
+			// LBM application correctly.
 		}
 	}
 
