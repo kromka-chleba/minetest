@@ -56,6 +56,10 @@ public:
 	void triggerLBM(int id, MapBlock *block,
 		const std::unordered_set<v3s16> &positions, float dtime_s);
 
+	// Set/get flag for block generation phase (used to control VoxelManip lighting)
+	void setInBlockGenPhase(bool in_gen) { m_in_block_gen_phase = in_gen; }
+	bool isInBlockGenPhase() const { return m_in_block_gen_phase; }
+
 private:
 	void readABMs();
 
@@ -63,4 +67,7 @@ private:
 
 	// Reads a single or a list of node names into a vector
 	static bool read_nodenames(lua_State *L, int idx, std::vector<std::string> &to);
+
+	// Flag to indicate we're calling on_block_loaded during generation phase
+	bool m_in_block_gen_phase = false;
 };

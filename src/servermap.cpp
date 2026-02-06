@@ -353,18 +353,16 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			// Timestamp will be set later in activateBlock() to allow
 			// on_block_loaded callbacks to run for newly generated blocks
 
-			// Initialize lighting for the block before calling on_block_loaded
-			// This ensures VoxelManipulator operations in callbacks work correctly
-			// Note: modified_blocks is unused here as map events are ignored during generation
-			std::map<v3s16, MapBlock*> lighting_modified_blocks;
-			voxalgo::update_block_border_lighting(this, block, lighting_modified_blocks);
-
 			// Call on_block_loaded callback for newly generated blocks
+			// Set flag to indicate generation phase so VoxelManip skips lighting updates
 			// Note: env is a function parameter, guaranteed non-null (used above)
 			if (env) {
 				ServerScripting *script = env->getScriptIface();
-				if (script)
+				if (script) {
+					script->setInBlockGenPhase(true);
 					script->on_block_loaded(bp);
+					script->setInBlockGenPhase(false);
+				}
 			}
 		}
 	}
