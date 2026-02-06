@@ -283,7 +283,6 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 {
 	assert(data);
 	assert(changed_blocks);
-	u32 now = env->getGameTime();
 	const v3s16 bpmin = data->blockpos_min;
 	const v3s16 bpmax = data->blockpos_max;
 
