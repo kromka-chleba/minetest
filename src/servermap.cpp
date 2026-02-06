@@ -283,7 +283,6 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 {
 	assert(data);
 	assert(changed_blocks);
-	u32 now = env->getGameTime();
 	const v3s16 bpmin = data->blockpos_min;
 	const v3s16 bpmax = data->blockpos_max;
 
@@ -350,9 +349,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
 			block->setGenerated(true);
-			// Set timestamp to ensure correct application
-			// of LBMs and other stuff.
-			block->setTimestampNoChangedFlag(now);
+			// Don't set timestamp here for newly generated blocks.
+			// Leave it as BLOCK_TIMESTAMP_UNDEFINED so that on_block_loaded
+			// callback will be triggered when the block enters active range.
+			// The timestamp will be set by activateBlock() which also handles
+			// LBM application correctly.
 		}
 	}
 
