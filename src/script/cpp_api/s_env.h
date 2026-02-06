@@ -61,6 +61,22 @@ public:
 	void setInBlockGenPhase(bool in_gen) { m_in_block_gen_phase = in_gen; }
 	bool isInBlockGenPhase() const { return m_in_block_gen_phase; }
 
+	// RAII helper to automatically manage generation phase flag
+	class BlockGenPhaseGuard {
+	public:
+		BlockGenPhaseGuard(ScriptApiEnv *env) : m_env(env) {
+			if (m_env) m_env->setInBlockGenPhase(true);
+		}
+		~BlockGenPhaseGuard() {
+			if (m_env) m_env->setInBlockGenPhase(false);
+		}
+		// Non-copyable
+		BlockGenPhaseGuard(const BlockGenPhaseGuard&) = delete;
+		BlockGenPhaseGuard& operator=(const BlockGenPhaseGuard&) = delete;
+	private:
+		ScriptApiEnv *m_env;
+	};
+
 private:
 	void readABMs();
 

@@ -359,14 +359,9 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			if (env) {
 				ServerScripting *script = env->getScriptIface();
 				if (script) {
-					script->setInBlockGenPhase(true);
-					try {
-						script->on_block_loaded(bp);
-					} catch (...) {
-						script->setInBlockGenPhase(false);
-						throw;
-					}
-					script->setInBlockGenPhase(false);
+					// RAII guard ensures flag is reset even on exception
+					ScriptApiEnv::BlockGenPhaseGuard guard(script);
+					script->on_block_loaded(bp);
 				}
 			}
 		}
