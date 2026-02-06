@@ -13,6 +13,7 @@
 #include "serverenvironment.h"
 #include "servermap.h"
 #include "voxelalgorithms.h"
+#include "script/scripting_server.h"
 
 // garbage collector
 int LuaVoxelManip::gc_object(lua_State *L)
