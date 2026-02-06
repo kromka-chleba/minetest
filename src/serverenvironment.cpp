@@ -568,6 +568,10 @@ void ServerEnvironment::activateBlock(MapBlock *block)
 		// do not set changed flag to avoid unnecessary mapblock writes
 	}
 
+	// Call Lua on_block_activated callback before setting timestamp and applying LBMs
+	// This allows voxel manipulator to modify the block, similar to on_block_loaded
+	m_script->on_block_activated(block->getPos());
+
 	// Set current time as timestamp
 	block->setTimestampNoChangedFlag(m_game_time);
 
@@ -585,10 +589,6 @@ void ServerEnvironment::activateBlock(MapBlock *block)
 	block->step((float)dtime_s, [&](v3s16 p, MapNode n, NodeTimer t) -> bool {
 		return m_script->node_on_timer(p, n, t.elapsed, t.timeout);
 	});
-
-	// Call Lua on_block_activated callback
-	// Note: on_block_loaded is called earlier during block load, not here
-	m_script->on_block_activated(block->getPos());
 }
 
 void ServerEnvironment::addActiveBlockModifier(ActiveBlockModifier *abm)
