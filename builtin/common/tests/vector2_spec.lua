@@ -344,9 +344,9 @@ describe("vector2", function()
 
 	describe("rotate()", function()
 		it("rotates", function()
-			assert.True(almost_equal({x = -1, y = 0},
+			assert.is_true(almost_equal({x = -1, y = 0},
 				vector2.rotate({x = 1, y = 0}, math.pi)))
-			assert.True(almost_equal({x = 0, y = 1},
+			assert.is_true(almost_equal({x = 0, y = 1},
 				vector2.rotate({x = 1, y = 0}, math.pi / 2)))
 		end)
 		it("rotates back", function()
@@ -354,15 +354,15 @@ describe("vector2", function()
 			local angle = math.pi / 13
 			local rotated = vector2.rotate(v, angle)
 			rotated = vector2.rotate(rotated, -angle)
-			assert.True(almost_equal(v, rotated))
+			assert.is_true(almost_equal(v, rotated))
 		end)
 	end)
 
 	it("in_area()", function()
-		assert.True(vector2.in_area(vector2.zero(), vector2.new(-10, -10), vector2.new(10, 10)))
-		assert.True(vector2.in_area(vector2.new(-2, 5), vector2.new(-10, -10), vector2.new(10, 10)))
-		assert.True(vector2.in_area(vector2.new(-10, -10), vector2.new(-10, -10), vector2.new(10, 10)))
-		assert.False(vector2.in_area(vector2.new(-11, -10), vector2.new(-10, -10), vector2.new(10, 10)))
+		assert.is_true(vector2.in_area(vector2.zero(), vector2.new(-10, -10), vector2.new(10, 10)))
+		assert.is_true(vector2.in_area(vector2.new(-2, 5), vector2.new(-10, -10), vector2.new(10, 10)))
+		assert.is_true(vector2.in_area(vector2.new(-10, -10), vector2.new(-10, -10), vector2.new(10, 10)))
+		assert.is_false(vector2.in_area(vector2.new(-11, -10), vector2.new(-10, -10), vector2.new(10, 10)))
 	end)
 
 	it("random_in_area()", function()
@@ -370,7 +370,7 @@ describe("vector2", function()
 		local max = vector2.new(100, 100)
 		for i = 1, 1000 do
 			local random = vector2.random_in_area(min, max)
-			assert.True(vector2.in_area(random, min, max))
+			assert.is_true(vector2.in_area(random, min, max))
 		end
 	end)
 end)

@@ -254,25 +254,9 @@ function vector2.check(v)
 	return getmetatable(v) == metatable
 end
 
-local function sin(x)
-	if x % math.pi == 0 then
-		return 0
-	else
-		return math.sin(x)
-	end
-end
-
-local function cos(x)
-	if x % math.pi == math.pi / 2 then
-		return 0
-	else
-		return math.cos(x)
-	end
-end
-
 function vector2.rotate(v, angle)
-	local cosangle = cos(angle)
-	local sinangle = sin(angle)
+	local cosangle = math.cos(angle)
+	local sinangle = math.sin(angle)
 	return fast_new(
 		v.x * cosangle - v.y * sinangle,
 		v.x * sinangle + v.y * cosangle
