@@ -1,5 +1,7 @@
+_G.vector = {}
 _G.vector2 = {}
 dofile("builtin/common/math.lua")
+dofile("builtin/common/vector.lua")
 dofile("builtin/common/vector2.lua")
 
 describe("vector2", function()
@@ -45,6 +47,29 @@ describe("vector2", function()
 		assert.same(vector2.new(v), vector2.copy(v))
 		assert.equal(vector2.new(v), vector2.copy(v))
 		assert.is_true(vector2.check(vector2.copy(v)))
+	end)
+
+	it("from_3d()", function()
+		local v3d = {x = 1, y = 2, z = 3}
+		local v2d = vector2.from_3d(v3d)
+		assert.equal(vector2.new(1, 2), v2d)
+		assert.is_true(vector2.check(v2d))
+		assert.is_nil(v2d.z)
+	end)
+
+	it("to_3d()", function()
+		local v2d = vector2.new(1, 2)
+		local v3d = vector2.to_3d(v2d)
+		assert.equal(1, v3d.x)
+		assert.equal(2, v3d.y)
+		assert.equal(0, v3d.z)
+		assert.is_true(vector.check(v3d))
+
+		local v3d_with_z = vector2.to_3d(v2d, 5)
+		assert.equal(1, v3d_with_z.x)
+		assert.equal(2, v3d_with_z.y)
+		assert.equal(5, v3d_with_z.z)
+		assert.is_true(vector.check(v3d_with_z))
 	end)
 
 	it("indexes", function()
