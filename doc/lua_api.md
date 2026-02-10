@@ -4257,12 +4257,12 @@ vectors are written like this: `(x, y)`:
       `np` is the next position in the string after the vector.
     * Returns `nil` on failure.
     * `s`: Has to begin with a substring of the form `"(x, y)"`. Additional
-           spaces, leaving away commas and adding an additional comma to the end
+           spaces, omitting commas and adding an additional comma to the end
            is allowed.
     * `init`: If given starts looking for the vector at this string index.
 * `vector2.to_string(v)`:
     * Returns a string of the form `"(x, y)"`.
-    *  `tostring(v)` does the same.
+    * `tostring(v)` does the same.
 * `vector2.direction(p1, p2)`:
     * Returns a vector of length 1 with direction `p1` to `p2`.
     * If `p1` and `p2` are identical, returns `(0, 0)`.
