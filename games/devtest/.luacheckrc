@@ -22,6 +22,7 @@ read_globals = {
 	"dump", "dump2",
 	"fgettext", "fgettext_ne",
 	"vector",
+	"vector2",
 	"VoxelArea",
 	"VoxelManip",
 	"profiler",
@@ -39,6 +40,7 @@ globals = {
 	"aborted",
 	"minetest",
 	"core",
+	"unittests",
 	os = { fields = { "tempfolder" } },
 	"_",
 }
