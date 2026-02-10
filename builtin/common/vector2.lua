@@ -30,9 +30,9 @@ local function fast_new(x, y)
 	return setmetatable({x = x, y = y}, metatable)
 end
 
-function vector2.new(a, b)
-	assert(a and b, "Invalid arguments for vector2.new()")
-	return fast_new(a, b)
+function vector2.new(x, y)
+	assert(x and y, "Invalid arguments for vector2.new()")
+	return fast_new(x, y)
 end
 
 function vector2.zero()
