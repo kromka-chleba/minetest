@@ -972,9 +972,16 @@ void ServerEnvironment::step(float dtime)
 		}
 
 		for (const v3s16 &p: extra_blocks_added) {
-			// only activate if the block is already loaded
-			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
+			// Try to get or emerge the block, similar to blocks_added handling
+			// Changed from getBlockNoCreateNoEx to ensure blocks that need to be loaded
+			// are properly queued for loading and activated when ready
+			MapBlock *block = m_map->getBlockOrEmerge(p, false);  // false = don't force generate
 			if (!block) {
+				// Block is still loading/generating, will be activated on next cycle
+				// TODO: The blocks removed here will only be picked up again
+				// on the next cycle. To minimize the latency of objects being
+				// activated we could remember the blocks pending activating
+				// and activate them instantly as soon as they're loaded.
 				m_active_blocks.remove(p);
 				continue;
 			}
