@@ -257,3 +257,16 @@ function vector2.random_in_area(min, max)
 		math.random(min.y, max.y)
 	)
 end
+
+if rawget(_G, "core") and core.set_push_vector2 then
+	if rawget(_G, "jit") then
+		-- This is necessary to prevent trace aborts.
+		local function push_vector2(x, y)
+			return (fast_new(x, y))
+		end
+		core.set_push_vector2(push_vector2)
+	else
+		core.set_push_vector2(fast_new)
+	end
+	core.set_push_vector2 = nil
+end

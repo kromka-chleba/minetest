@@ -17,3 +17,4 @@ function core.register_async_metatable(...)
 end
 
 core.register_portable_metatable("__builtin:vector", vector.metatable)
+core.register_portable_metatable("__builtin:vector2", vector2.metatable)
