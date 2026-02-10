@@ -4306,10 +4306,10 @@ vectors are written like this: `(x, y)`:
 * `vector2.angle(v1, v2)`:
     * Returns the angle between `v1` and `v2` in radians.
     * This is always a positive value (unsigned angle).
-* `vector2.angle_to(v1, v2)`:
+* `vector2.signed_angle(v1, v2)`:
     * Returns the signed angle from `v1` to `v2` in radians, in the range `(-pi, pi]`.
     * Positive values indicate counterclockwise rotation, negative values indicate clockwise rotation.
-    * Example: `vector2.angle_to(vector2.new(1, 0), vector2.new(0, 1))` returns `math.pi / 2`.
+    * Example: `vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))` returns `math.pi / 2`.
 * `vector2.dot(v1, v2)`:
     * Returns the dot product of `v1` and `v2`.
 * `vector2.offset(v, x, y)`:

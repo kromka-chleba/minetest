@@ -138,7 +138,7 @@ function vector2.angle(a, b)
 	return math.atan2(crossplen, dotp)
 end
 
-function vector2.angle_to(a, b)
+function vector2.signed_angle(a, b)
 	local angle = math.atan2(b.y, b.x) - math.atan2(a.y, a.x)
 	-- Normalize to (-pi, pi]
 	if angle > math.pi then
