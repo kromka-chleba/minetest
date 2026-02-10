@@ -153,6 +153,7 @@ describe("vector2", function()
 
 	it("equals()", function()
 		assert.is_true(vector2.equals({x = 0, y = 0}, {x = 0, y = 0}))
+		assert.is_true(vector2.equals({x = -1, y = 0}, vector2.new(-1, 0)))
 		assert.is_false(vector2.equals({x = 1, y = 2}, {x = 1, y = 3}))
 		assert.is_true(vector2.new(1, 2):equals(vector2.new(1, 2)))
 		assert.is_true(vector2.new(1, 2) == vector2.new(1, 2))
