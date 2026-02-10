@@ -139,7 +139,14 @@ function vector2.angle(a, b)
 end
 
 function vector2.angle_to(a, b)
-	return math.atan2(b.y, b.x) - math.atan2(a.y, a.x)
+	local angle = math.atan2(b.y, b.x) - math.atan2(a.y, a.x)
+	-- Normalize to (-pi, pi]
+	if angle > math.pi then
+		angle = angle - 2 * math.pi
+	elseif angle <= -math.pi then
+		angle = angle + 2 * math.pi
+	end
+	return angle
 end
 
 function vector2.dot(a, b)

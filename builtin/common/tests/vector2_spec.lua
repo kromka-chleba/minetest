@@ -455,6 +455,19 @@ describe("vector2", function()
 			local a2 = vector2.angle_to(v2, v1)
 			assert.is_true(almost_equal(a1, -a2))
 		end)
+
+		it("normalizes result to (-pi, pi]", function()
+			-- Test case where angle difference crosses pi boundary
+			-- Vector near -pi (slightly clockwise from negative x-axis)
+			local v1 = vector2.new(-1, -0.1)
+			-- Vector near +pi (slightly counterclockwise from negative x-axis)
+			local v2 = vector2.new(-1, 0.1)
+			local a = vector2.angle_to(v1, v2)
+			-- Should be normalized to a small angle, not near 2*pi
+			assert.is_true(a > -math.pi and a <= math.pi)
+			-- The angle should be small (around 0.2 radians for this case)
+			assert.is_true(math.abs(a) < 1)  -- Much smaller than 2*pi or pi
+		end)
 	end)
 
 	it("in_area()", function()
