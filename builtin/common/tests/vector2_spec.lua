@@ -9,15 +9,15 @@ local function close(state, arguments)
 	if #arguments < 2 then
 		return false
 	end
-	
+
 	local expected = arguments[1]
 	local actual = arguments[2]
 	local tolerance = arguments[3] or 0.000001
-	
+
 	if type(expected) == "number" and type(actual) == "number" then
 		return math.abs(expected - actual) < tolerance
 	end
-	
+
 	return false
 end
 
