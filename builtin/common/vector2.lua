@@ -60,7 +60,9 @@ function vector2.from_string(s, init)
 end
 
 function vector2.to_string(v)
-	-- Use %.17g to ensure sufficient precision for safe roundtrips
+	-- Use %.17g for sufficient precision to ensure safe roundtrips (to_string then from_string)
+	-- .17 = 17 significant digits (enough for IEEE 754 double precision floats)
+	-- g = general format (automatically picks fixed or exponential notation)
 	return string.format("(%.17g, %.17g)", v.x, v.y)
 end
 metatable.__tostring = vector2.to_string
