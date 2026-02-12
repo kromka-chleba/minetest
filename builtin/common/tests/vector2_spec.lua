@@ -4,7 +4,7 @@ dofile("builtin/common/math.lua")
 dofile("builtin/common/vector.lua")
 dofile("builtin/common/vector2.lua")
 
--- Custom assertion for comparing floating-point numbers with tolerance
+-- Custom assertion for comparing floating-point numbers and vectors with tolerance
 local function close(state, arguments)
 	if #arguments < 2 then
 		return false
@@ -16,6 +16,11 @@ local function close(state, arguments)
 	
 	if type(expected) == "number" and type(actual) == "number" then
 		return math.abs(expected - actual) < tolerance
+	end
+	
+	-- Handle vector comparison
+	if type(expected) == "table" and type(actual) == "table" then
+		return vector2.distance(expected, actual) < tolerance
 	end
 	
 	return false
@@ -317,27 +322,19 @@ describe("vector2", function()
 		assert.is_nil(vector2.from_string("nothing"))
 	end)
 
-	-- This function is needed because of floating point imprecision.
-	local function almost_equal(a, b)
-		if type(a) == "number" then
-			return math.abs(a - b) < 0.00000000001
-		end
-		return vector2.distance(a, b) < 0.000000000001
-	end
-
 	describe("rotate()", function()
 		it("rotates", function()
-			assert.is_true(almost_equal({x = -1, y = 0},
-				vector2.rotate({x = 1, y = 0}, math.pi)))
-			assert.is_true(almost_equal({x = 0, y = 1},
-				vector2.rotate({x = 1, y = 0}, math.pi / 2)))
+			assert.close({x = -1, y = 0},
+				vector2.rotate({x = 1, y = 0}, math.pi))
+			assert.close({x = 0, y = 1},
+				vector2.rotate({x = 1, y = 0}, math.pi / 2))
 		end)
 		it("rotates back", function()
 			local v = {x = 1, y = 3}
 			local angle = math.pi / 13
 			local rotated = vector2.rotate(v, angle)
 			rotated = vector2.rotate(rotated, -angle)
-			assert.is_true(almost_equal(v, rotated))
+			assert.close(v, rotated)
 		end)
 	end)
 
@@ -345,30 +342,30 @@ describe("vector2", function()
 		it("creates vector from polar coordinates", function()
 			-- East (positive x-axis): angle = 0
 			local v1 = vector2.from_polar(1, 0)
-			assert.is_true(almost_equal(vector2.new(1, 0), v1))
+			assert.close(vector2.new(1, 0), v1)
 
 			-- North (positive y-axis): angle = pi/2
 			local v2 = vector2.from_polar(1, math.pi / 2)
-			assert.is_true(almost_equal(vector2.new(0, 1), v2))
+			assert.close(vector2.new(0, 1), v2)
 
 			-- West (negative x-axis): angle = pi
 			local v3 = vector2.from_polar(1, math.pi)
-			assert.is_true(almost_equal(vector2.new(-1, 0), v3))
+			assert.close(vector2.new(-1, 0), v3)
 
 			-- South (negative y-axis): angle = -pi/2
 			local v4 = vector2.from_polar(1, -math.pi / 2)
-			assert.is_true(almost_equal(vector2.new(0, -1), v4))
+			assert.close(vector2.new(0, -1), v4)
 
 			-- Test with different radius
 			local v5 = vector2.from_polar(5, math.pi / 4)
-			assert.is_true(almost_equal(vector2.new(5 * math.cos(math.pi / 4), 5 * math.sin(math.pi / 4)), v5))
+			assert.close(vector2.new(5 * math.cos(math.pi / 4), 5 * math.sin(math.pi / 4)), v5)
 		end)
 
 		it("is inverse of to_polar", function()
 			local v = vector2.new(3, 4)
 			local r, theta = vector2.to_polar(v)
 			local v2 = vector2.from_polar(r, theta)
-			assert.is_true(almost_equal(v, v2))
+			assert.close(v, v2)
 		end)
 
 		it("throws on invalid input", function()
@@ -386,22 +383,22 @@ describe("vector2", function()
 			-- East (positive x-axis): angle = 0
 			local r1, theta1 = vector2.to_polar(vector2.new(5, 0))
 			assert.equal(5, r1)
-			assert.is_true(almost_equal(0, theta1))
+			assert.close(0, theta1)
 
 			-- North (positive y-axis): angle = pi/2
 			local r2, theta2 = vector2.to_polar(vector2.new(0, 3))
 			assert.equal(3, r2)
-			assert.is_true(almost_equal(math.pi / 2, theta2))
+			assert.close(math.pi / 2, theta2)
 
 			-- West (negative x-axis): angle = pi or -pi
 			local r3, theta3 = vector2.to_polar(vector2.new(-2, 0))
 			assert.equal(2, r3)
-			assert.is_true(almost_equal(math.pi, math.abs(theta3)))
+			assert.close(math.pi, math.abs(theta3))
 
 			-- Test with diagonal vector (3, 4, 5 triangle)
 			local r4, theta4 = vector2.to_polar(vector2.new(3, 4))
 			assert.equal(5, r4)
-			assert.is_true(almost_equal(math.atan2(4, 3), theta4))
+			assert.close(math.atan2(4, 3), theta4)
 		end)
 
 		it("handles zero vector", function()
@@ -414,8 +411,8 @@ describe("vector2", function()
 			local r, theta = 7, math.pi / 3
 			local v = vector2.from_polar(r, theta)
 			local r2, theta2 = vector2.to_polar(v)
-			assert.is_true(almost_equal(r, r2))
-			assert.is_true(almost_equal(theta, theta2))
+			assert.close(r, r2)
+			assert.close(theta, theta2)
 		end)
 	end)
 
@@ -423,25 +420,25 @@ describe("vector2", function()
 		it("returns signed angle from first to second vector", function()
 			-- From east to north: positive pi/2 (counterclockwise)
 			local a1 = vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))
-			assert.is_true(almost_equal(math.pi / 2, a1))
+			assert.close(math.pi / 2, a1)
 
 			-- From north to east: negative pi/2 (clockwise)
 			local a2 = vector2.signed_angle(vector2.new(0, 1), vector2.new(1, 0))
-			assert.is_true(almost_equal(-math.pi / 2, a2))
+			assert.close(-math.pi / 2, a2)
 
 			-- From east to west: pi
 			local a3 = vector2.signed_angle(vector2.new(1, 0), vector2.new(-1, 0))
-			assert.is_true(almost_equal(math.pi, math.abs(a3)))
+			assert.close(math.pi, math.abs(a3))
 
 			-- Same direction: 0
 			local a4 = vector2.signed_angle(vector2.new(1, 1), vector2.new(2, 2))
-			assert.is_true(almost_equal(0, a4))
+			assert.close(0, a4)
 		end)
 
 		it("works with method call syntax", function()
 			local a = vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))
 			local b = vector2.new(1, 0):signed_angle(vector2.new(0, 1))
-			assert.is_true(almost_equal(a, b))
+			assert.close(a, b)
 		end)
 
 		it("is opposite of reversed angle", function()
@@ -449,7 +446,7 @@ describe("vector2", function()
 			local v2 = vector2.new(3, -1)
 			local a1 = vector2.signed_angle(v1, v2)
 			local a2 = vector2.signed_angle(v2, v1)
-			assert.is_true(almost_equal(a1, -a2))
+			assert.close(a1, -a2)
 		end)
 
 		it("normalizes result to (-pi, pi]", function()
