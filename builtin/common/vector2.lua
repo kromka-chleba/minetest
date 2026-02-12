@@ -60,7 +60,7 @@ function vector2.from_string(s, init)
 end
 
 function vector2.to_string(v)
-	return string.format("(%g, %g)", v.x, v.y)
+	return string.format("(%.17g, %.17g)", v.x, v.y)
 end
 metatable.__tostring = vector2.to_string
 
