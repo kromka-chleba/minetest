@@ -4,8 +4,8 @@ dofile("builtin/common/math.lua")
 dofile("builtin/common/vector.lua")
 dofile("builtin/common/vector2.lua")
 
--- Custom assertion for comparing floating-point numbers and vectors with tolerance
-local function close(state, arguments)
+-- Custom assertion for comparing floating-point numbers with tolerance
+local function number_close(state, arguments)
 	if #arguments < 2 then
 		return false
 	end
@@ -18,7 +18,19 @@ local function close(state, arguments)
 		return math.abs(expected - actual) < tolerance
 	end
 	
-	-- Handle vector comparison
+	return false
+end
+
+-- Custom assertion for comparing vectors with tolerance
+local function vector_close(state, arguments)
+	if #arguments < 2 then
+		return false
+	end
+	
+	local expected = arguments[1]
+	local actual = arguments[2]
+	local tolerance = arguments[3] or 0.000001
+	
 	if type(expected) == "table" and type(actual) == "table" then
 		return vector2.distance(expected, actual) < tolerance
 	end
@@ -26,7 +38,8 @@ local function close(state, arguments)
 	return false
 end
 
-assert:register("assertion", "close", close)
+assert:register("assertion", "number_close", number_close)
+assert:register("assertion", "vector_close", vector_close)
 
 describe("vector2", function()
 	describe("new()", function()
@@ -88,40 +101,40 @@ describe("vector2", function()
 		local a = vector2.new(1, 0)
 		local b = vector2.new(1, 42)
 		local dir1 = vector2.direction(a, b)
-		assert.close(0, dir1.x)
-		assert.close(1, dir1.y)
+		assert.number_close(0, dir1.x)
+		assert.number_close(1, dir1.y)
 		local dir2 = a:direction(b)
-		assert.close(0, dir2.x)
-		assert.close(1, dir2.y)
+		assert.number_close(0, dir2.x)
+		assert.number_close(1, dir2.y)
 	end)
 
 	it("distance()", function()
 		local a = vector2.new(1, 0)
 		local b = vector2.new(4, 4)
-		assert.close(5, vector2.distance(a, b))
-		assert.close(5, a:distance(b))
-		assert.close(0, vector2.distance(a, a))
-		assert.close(0, b:distance(b))
+		assert.number_close(5, vector2.distance(a, b))
+		assert.number_close(5, a:distance(b))
+		assert.number_close(0, vector2.distance(a, a))
+		assert.number_close(0, b:distance(b))
 	end)
 
 	it("length()", function()
 		local a = vector2.new(3, 4)
-		assert.close(0, vector2.length(vector2.zero()))
-		assert.close(5, vector2.length(a))
-		assert.close(5, a:length())
+		assert.number_close(0, vector2.length(vector2.zero()))
+		assert.number_close(5, vector2.length(a))
+		assert.number_close(5, a:length())
 	end)
 
 	it("normalize()", function()
 		local a = vector2.new(0, -5)
 		local norm1 = vector2.normalize(a)
-		assert.close(0, norm1.x)
-		assert.close(-1, norm1.y)
+		assert.number_close(0, norm1.x)
+		assert.number_close(-1, norm1.y)
 		local norm2 = a:normalize()
-		assert.close(0, norm2.x)
-		assert.close(-1, norm2.y)
+		assert.number_close(0, norm2.x)
+		assert.number_close(-1, norm2.y)
 		local norm3 = vector2.normalize(vector2.zero())
-		assert.close(0, norm3.x)
-		assert.close(0, norm3.y)
+		assert.number_close(0, norm3.x)
+		assert.number_close(0, norm3.y)
 	end)
 
 	it("floor()", function()
@@ -216,8 +229,8 @@ describe("vector2", function()
 	end)
 
 	it("angle()", function()
-		assert.close(math.pi, vector2.angle(vector2.new(-1, -2), vector2.new(1, 2)))
-		assert.close(math.pi/2, vector2.new(0, 1):angle(vector2.new(1, 0)))
+		assert.number_close(math.pi, vector2.angle(vector2.new(-1, -2), vector2.new(1, 2)))
+		assert.number_close(math.pi/2, vector2.new(0, 1):angle(vector2.new(1, 0)))
 	end)
 
 	it("dot()", function()
@@ -324,9 +337,9 @@ describe("vector2", function()
 
 	describe("rotate()", function()
 		it("rotates", function()
-			assert.close({x = -1, y = 0},
+			assert.vector_close({x = -1, y = 0},
 				vector2.rotate({x = 1, y = 0}, math.pi))
-			assert.close({x = 0, y = 1},
+			assert.vector_close({x = 0, y = 1},
 				vector2.rotate({x = 1, y = 0}, math.pi / 2))
 		end)
 		it("rotates back", function()
@@ -334,7 +347,7 @@ describe("vector2", function()
 			local angle = math.pi / 13
 			local rotated = vector2.rotate(v, angle)
 			rotated = vector2.rotate(rotated, -angle)
-			assert.close(v, rotated)
+			assert.vector_close(v, rotated)
 		end)
 	end)
 
@@ -342,30 +355,30 @@ describe("vector2", function()
 		it("creates vector from polar coordinates", function()
 			-- East (positive x-axis): angle = 0
 			local v1 = vector2.from_polar(1, 0)
-			assert.close(vector2.new(1, 0), v1)
+			assert.vector_close(vector2.new(1, 0), v1)
 
 			-- North (positive y-axis): angle = pi/2
 			local v2 = vector2.from_polar(1, math.pi / 2)
-			assert.close(vector2.new(0, 1), v2)
+			assert.vector_close(vector2.new(0, 1), v2)
 
 			-- West (negative x-axis): angle = pi
 			local v3 = vector2.from_polar(1, math.pi)
-			assert.close(vector2.new(-1, 0), v3)
+			assert.vector_close(vector2.new(-1, 0), v3)
 
 			-- South (negative y-axis): angle = -pi/2
 			local v4 = vector2.from_polar(1, -math.pi / 2)
-			assert.close(vector2.new(0, -1), v4)
+			assert.vector_close(vector2.new(0, -1), v4)
 
 			-- Test with different radius
 			local v5 = vector2.from_polar(5, math.pi / 4)
-			assert.close(vector2.new(5 * math.cos(math.pi / 4), 5 * math.sin(math.pi / 4)), v5)
+			assert.vector_close(vector2.new(5 * math.cos(math.pi / 4), 5 * math.sin(math.pi / 4)), v5)
 		end)
 
 		it("is inverse of to_polar", function()
 			local v = vector2.new(3, 4)
 			local r, theta = vector2.to_polar(v)
 			local v2 = vector2.from_polar(r, theta)
-			assert.close(v, v2)
+			assert.vector_close(v, v2)
 		end)
 
 		it("throws on invalid input", function()
@@ -383,22 +396,22 @@ describe("vector2", function()
 			-- East (positive x-axis): angle = 0
 			local r1, theta1 = vector2.to_polar(vector2.new(5, 0))
 			assert.equal(5, r1)
-			assert.close(0, theta1)
+			assert.number_close(0, theta1)
 
 			-- North (positive y-axis): angle = pi/2
 			local r2, theta2 = vector2.to_polar(vector2.new(0, 3))
 			assert.equal(3, r2)
-			assert.close(math.pi / 2, theta2)
+			assert.number_close(math.pi / 2, theta2)
 
 			-- West (negative x-axis): angle = pi or -pi
 			local r3, theta3 = vector2.to_polar(vector2.new(-2, 0))
 			assert.equal(2, r3)
-			assert.close(math.pi, math.abs(theta3))
+			assert.number_close(math.pi, math.abs(theta3))
 
 			-- Test with diagonal vector (3, 4, 5 triangle)
 			local r4, theta4 = vector2.to_polar(vector2.new(3, 4))
 			assert.equal(5, r4)
-			assert.close(math.atan2(4, 3), theta4)
+			assert.number_close(math.atan2(4, 3), theta4)
 		end)
 
 		it("handles zero vector", function()
@@ -411,8 +424,8 @@ describe("vector2", function()
 			local r, theta = 7, math.pi / 3
 			local v = vector2.from_polar(r, theta)
 			local r2, theta2 = vector2.to_polar(v)
-			assert.close(r, r2)
-			assert.close(theta, theta2)
+			assert.number_close(r, r2)
+			assert.number_close(theta, theta2)
 		end)
 	end)
 
@@ -420,25 +433,25 @@ describe("vector2", function()
 		it("returns signed angle from first to second vector", function()
 			-- From east to north: positive pi/2 (counterclockwise)
 			local a1 = vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))
-			assert.close(math.pi / 2, a1)
+			assert.number_close(math.pi / 2, a1)
 
 			-- From north to east: negative pi/2 (clockwise)
 			local a2 = vector2.signed_angle(vector2.new(0, 1), vector2.new(1, 0))
-			assert.close(-math.pi / 2, a2)
+			assert.number_close(-math.pi / 2, a2)
 
 			-- From east to west: pi
 			local a3 = vector2.signed_angle(vector2.new(1, 0), vector2.new(-1, 0))
-			assert.close(math.pi, math.abs(a3))
+			assert.number_close(math.pi, math.abs(a3))
 
 			-- Same direction: 0
 			local a4 = vector2.signed_angle(vector2.new(1, 1), vector2.new(2, 2))
-			assert.close(0, a4)
+			assert.number_close(0, a4)
 		end)
 
 		it("works with method call syntax", function()
 			local a = vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))
 			local b = vector2.new(1, 0):signed_angle(vector2.new(0, 1))
-			assert.close(a, b)
+			assert.number_close(a, b)
 		end)
 
 		it("is opposite of reversed angle", function()
@@ -446,7 +459,7 @@ describe("vector2", function()
 			local v2 = vector2.new(3, -1)
 			local a1 = vector2.signed_angle(v1, v2)
 			local a2 = vector2.signed_angle(v2, v1)
-			assert.close(a1, -a2)
+			assert.number_close(a1, -a2)
 		end)
 
 		it("normalizes result to (-pi, pi]", function()
