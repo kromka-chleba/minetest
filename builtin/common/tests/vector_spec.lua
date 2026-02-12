@@ -4,6 +4,30 @@ dofile("builtin/common/math.lua")
 dofile("builtin/common/vector.lua")
 dofile("builtin/common/vector2.lua")
 
+-- Custom assertion for comparing floating-point numbers and vectors with tolerance
+local function close(state, arguments)
+	if #arguments < 2 then
+		return false
+	end
+	
+	local expected = arguments[1]
+	local actual = arguments[2]
+	local tolerance = arguments[3] or 0.000001
+	
+	if type(expected) == "number" and type(actual) == "number" then
+		return math.abs(expected - actual) < tolerance
+	end
+	
+	-- Handle vector comparison
+	if type(expected) == "table" and type(actual) == "table" then
+		return vector.distance(expected, actual) < tolerance
+	end
+	
+	return false
+end
+
+assert:register("assertion", "close", close)
+
 describe("vector", function()
 	describe("new()", function()
 		it("constructs", function()
@@ -350,89 +374,81 @@ describe("vector", function()
 		assert.same(nil, vector.from_string("nothing"))
 	end)
 
-	-- This function is needed because of floating point imprecision.
-	local function almost_equal(a, b)
-		if type(a) == "number" then
-			return math.abs(a - b) < 0.00000000001
-		end
-		return vector.distance(a, b) < 0.000000000001
-	end
-
 	describe("rotate_around_axis()", function()
 		it("rotates", function()
-			assert.True(almost_equal({x = -1, y = 0, z = 0},
-				vector.rotate_around_axis({x = 1, y = 0, z = 0}, {x = 0, y = 1, z = 0}, math.pi)))
-			assert.True(almost_equal({x = 0, y = 1, z = 0},
-				vector.rotate_around_axis({x = 0, y = 0, z = 1}, {x = 1, y = 0, z = 0}, math.pi / 2)))
-			assert.True(almost_equal({x = 4, y = 1, z = 1},
-				vector.rotate_around_axis({x = 4, y = 1, z = 1}, {x = 4, y = 1, z = 1}, math.pi / 6)))
+			assert.close({x = -1, y = 0, z = 0},
+				vector.rotate_around_axis({x = 1, y = 0, z = 0}, {x = 0, y = 1, z = 0}, math.pi))
+			assert.close({x = 0, y = 1, z = 0},
+				vector.rotate_around_axis({x = 0, y = 0, z = 1}, {x = 1, y = 0, z = 0}, math.pi / 2))
+			assert.close({x = 4, y = 1, z = 1},
+				vector.rotate_around_axis({x = 4, y = 1, z = 1}, {x = 4, y = 1, z = 1}, math.pi / 6))
 		end)
 		it("keeps distance to axis", function()
 			local rotate1 = {x = 1, y = 3, z = 1}
 			local axis1 = {x = 1, y = 3, z = 2}
 			local rotated1 = vector.rotate_around_axis(rotate1, axis1, math.pi / 13)
-			assert.True(almost_equal(vector.distance(axis1, rotate1), vector.distance(axis1, rotated1)))
+			assert.close(vector.distance(axis1, rotate1), vector.distance(axis1, rotated1))
 			local rotate2 = {x = 1, y = 1, z = 3}
 			local axis2 = {x = 2, y = 6, z = 100}
 			local rotated2 = vector.rotate_around_axis(rotate2, axis2, math.pi / 23)
-			assert.True(almost_equal(vector.distance(axis2, rotate2), vector.distance(axis2, rotated2)))
+			assert.close(vector.distance(axis2, rotate2), vector.distance(axis2, rotated2))
 			local rotate3 = {x = 1, y = -1, z = 3}
 			local axis3 = {x = 2, y = 6, z = 100}
 			local rotated3 = vector.rotate_around_axis(rotate3, axis3, math.pi / 2)
-			assert.True(almost_equal(vector.distance(axis3, rotate3), vector.distance(axis3, rotated3)))
+			assert.close(vector.distance(axis3, rotate3), vector.distance(axis3, rotated3))
 		end)
 		it("rotates back", function()
 			local rotate1 = {x = 1, y = 3, z = 1}
 			local axis1 = {x = 1, y = 3, z = 2}
 			local rotated1 = vector.rotate_around_axis(rotate1, axis1, math.pi / 13)
 			rotated1 = vector.rotate_around_axis(rotated1, axis1, -math.pi / 13)
-			assert.True(almost_equal(rotate1, rotated1))
+			assert.close(rotate1, rotated1)
 			local rotate2 = {x = 1, y = 1, z = 3}
 			local axis2 = {x = 2, y = 6, z = 100}
 			local rotated2 = vector.rotate_around_axis(rotate2, axis2, math.pi / 23)
 			rotated2 = vector.rotate_around_axis(rotated2, axis2, -math.pi / 23)
-			assert.True(almost_equal(rotate2, rotated2))
+			assert.close(rotate2, rotated2)
 			local rotate3 = {x = 1, y = -1, z = 3}
 			local axis3 = {x = 2, y = 6, z = 100}
 			local rotated3 = vector.rotate_around_axis(rotate3, axis3, math.pi / 2)
 			rotated3 = vector.rotate_around_axis(rotated3, axis3, -math.pi / 2)
-			assert.True(almost_equal(rotate3, rotated3))
+			assert.close(rotate3, rotated3)
 		end)
 		it("is right handed", function()
 			local v_before1 = {x = 0, y = 1, z = -1}
 			local v_after1 = vector.rotate_around_axis(v_before1, {x = 1, y = 0, z = 0}, math.pi / 4)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after1, v_before1)), {x = 1, y = 0, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after1, v_before1)), {x = 1, y = 0, z = 0})
 
 			local v_before2 = {x = 0, y = 3, z = 4}
 			local v_after2 = vector.rotate_around_axis(v_before2, {x = 1, y = 0, z = 0},  2 * math.pi / 5)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after2, v_before2)), {x = 1, y = 0, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after2, v_before2)), {x = 1, y = 0, z = 0})
 
 			local v_before3 = {x = 1, y = 0, z = -1}
 			local v_after3 = vector.rotate_around_axis(v_before3, {x = 0, y = 1, z = 0}, math.pi / 4)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after3, v_before3)), {x = 0, y = 1, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after3, v_before3)), {x = 0, y = 1, z = 0})
 
 			local v_before4 = {x = 3, y = 0, z = 4}
 			local v_after4 = vector.rotate_around_axis(v_before4, {x = 0, y = 1, z = 0}, 2 * math.pi / 5)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after4, v_before4)), {x = 0, y = 1, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after4, v_before4)), {x = 0, y = 1, z = 0})
 
 			local v_before5 = {x = 1, y = -1, z = 0}
 			local v_after5 = vector.rotate_around_axis(v_before5, {x = 0, y = 0, z = 1}, math.pi / 4)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after5, v_before5)), {x = 0, y = 0, z = 1}))
+			assert.close(vector.normalize(vector.cross(v_after5, v_before5)), {x = 0, y = 0, z = 1})
 
 			local v_before6 = {x = 3, y = 4, z = 0}
 			local v_after6 = vector.rotate_around_axis(v_before6, {x = 0, y = 0, z = 1}, 2 * math.pi / 5)
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after6, v_before6)), {x = 0, y = 0, z = 1}))
+			assert.close(vector.normalize(vector.cross(v_after6, v_before6)), {x = 0, y = 0, z = 1})
 		end)
 	end)
 
 	describe("rotate()", function()
 		it("rotates", function()
-			assert.True(almost_equal({x = -1, y = 0, z = 0},
-				vector.rotate({x = 1, y = 0, z = 0}, {x = 0, y = math.pi, z = 0})))
-			assert.True(almost_equal({x = 0, y = -1, z = 0},
-				vector.rotate({x = 1, y = 0, z = 0}, {x = 0, y = 0, z = math.pi / 2})))
-			assert.True(almost_equal({x = 1, y = 0, z = 0},
-				vector.rotate({x = 1, y = 0, z = 0}, {x = math.pi / 123, y = 0, z = 0})))
+			assert.close({x = -1, y = 0, z = 0},
+				vector.rotate({x = 1, y = 0, z = 0}, {x = 0, y = math.pi, z = 0}))
+			assert.close({x = 0, y = -1, z = 0},
+				vector.rotate({x = 1, y = 0, z = 0}, {x = 0, y = 0, z = math.pi / 2}))
+			assert.close({x = 1, y = 0, z = 0},
+				vector.rotate({x = 1, y = 0, z = 0}, {x = math.pi / 123, y = 0, z = 0}))
 		end)
 		it("rotation order is Z-X-Y", function()
 			local r = vector.new(1, 2, 3)
@@ -449,7 +465,7 @@ describe("vector", function()
 						r_axis[axis] = r[axis]
 						rotated = vector.rotate(rotated, r_axis)
 					end
-					return almost_equal(rotated, expected)
+					return vector.distance(rotated, expected) < 0.000001
 				end
 				assert.False(try("xyz"))
 				assert.False(try("xzy"))
@@ -462,27 +478,27 @@ describe("vector", function()
 		it("is right handed", function()
 			local v_before1 = {x = 0, y = 1, z = -1}
 			local v_after1 = vector.rotate(v_before1, {x = math.pi / 4, y = 0, z = 0})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after1, v_before1)), {x = 1, y = 0, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after1, v_before1)), {x = 1, y = 0, z = 0})
 
 			local v_before2 = {x = 0, y = 3, z = 4}
 			local v_after2 = vector.rotate(v_before2, {x = 2 * math.pi / 5, y = 0, z = 0})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after2, v_before2)), {x = 1, y = 0, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after2, v_before2)), {x = 1, y = 0, z = 0})
 
 			local v_before3 = {x = 1, y = 0, z = -1}
 			local v_after3 = vector.rotate(v_before3, {x = 0, y = math.pi / 4, z = 0})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after3, v_before3)), {x = 0, y = 1, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after3, v_before3)), {x = 0, y = 1, z = 0})
 
 			local v_before4 = {x = 3, y = 0, z = 4}
 			local v_after4 = vector.rotate(v_before4, {x = 0, y = 2 * math.pi / 5, z = 0})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after4, v_before4)), {x = 0, y = 1, z = 0}))
+			assert.close(vector.normalize(vector.cross(v_after4, v_before4)), {x = 0, y = 1, z = 0})
 
 			local v_before5 = {x = 1, y = -1, z = 0}
 			local v_after5 = vector.rotate(v_before5, {x = 0, y = 0, z = math.pi / 4})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after5, v_before5)), {x = 0, y = 0, z = 1}))
+			assert.close(vector.normalize(vector.cross(v_after5, v_before5)), {x = 0, y = 0, z = 1})
 
 			local v_before6 = {x = 3, y = 4, z = 0}
 			local v_after6 = vector.rotate(v_before6, {x = 0, y = 0, z = 2 * math.pi / 5})
-			assert.True(almost_equal(vector.normalize(vector.cross(v_after6, v_before6)), {x = 0, y = 0, z = 1}))
+			assert.close(vector.normalize(vector.cross(v_after6, v_before6)), {x = 0, y = 0, z = 1})
 		end)
 	end)
 
@@ -497,11 +513,11 @@ describe("vector", function()
 			return vector.rotate(vector.new(0, 1, 0), rot)
 		end
 		local rot1 = vector.dir_to_rotation({x = 1, y = 0, z = 0}, {x = 0, y = 1, z = 0})
-		assert.True(almost_equal({x = 1, y = 0, z = 0}, forward_at_rot(rot1)))
-		assert.True(almost_equal({x = 0, y = 1, z = 0}, up_at_rot(rot1)))
+		assert.close({x = 1, y = 0, z = 0}, forward_at_rot(rot1))
+		assert.close({x = 0, y = 1, z = 0}, up_at_rot(rot1))
 		local rot2 = vector.dir_to_rotation({x = 1, y = 1, z = 0}, {x = 0, y = 0, z = 1})
-		assert.True(almost_equal({x = 1/math.sqrt(2), y = 1/math.sqrt(2), z = 0}, forward_at_rot(rot2)))
-		assert.True(almost_equal({x = 0, y = 0, z = 1}, up_at_rot(rot2)))
+		assert.close({x = 1/math.sqrt(2), y = 1/math.sqrt(2), z = 0}, forward_at_rot(rot2))
+		assert.close({x = 0, y = 0, z = 1}, up_at_rot(rot2))
 		for i = 1, 1000 do
 			local rand_vec = vector.new(math.random(), math.random(), math.random())
 			if vector.length(rand_vec) ~= 0 then
@@ -511,7 +527,7 @@ describe("vector", function()
 					y = -math.atan2(rand_vec.x, rand_vec.z),
 					z = 0
 				}
-				assert.True(almost_equal(rot_1, rot_2))
+				assert.close(rot_1, rot_2)
 			end
 		end
 
