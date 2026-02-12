@@ -22,6 +22,7 @@ local function number_close(state, arguments)
 end
 
 -- Custom assertion for comparing vectors with tolerance
+-- Uses component-wise comparison to be self-contained
 local function vector_close(state, arguments)
 	if #arguments < 2 then
 		return false
@@ -32,7 +33,8 @@ local function vector_close(state, arguments)
 	local tolerance = arguments[3] or 0.000001
 	
 	if type(expected) == "table" and type(actual) == "table" then
-		return vector2.distance(expected, actual) < tolerance
+		return math.abs(expected.x - actual.x) < tolerance and
+		       math.abs(expected.y - actual.y) < tolerance
 	end
 	
 	return false
