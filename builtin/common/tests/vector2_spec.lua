@@ -397,11 +397,17 @@ describe("vector2", function()
 
 	describe("signed_angle()", function()
 		it("returns signed angle from first to second vector", function()
+			-- Counterclockwise rotation
 			local a1 = vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))
 			assert.number_close(math.pi / 2, a1)
 
-			local a2 = vector2.signed_angle(vector2.new(1, 1), vector2.new(2, 2))
-			assert.number_close(0, a2)
+			-- Clockwise rotation (negative angle)
+			local a2 = vector2.signed_angle(vector2.new(0, 1), vector2.new(1, 0))
+			assert.number_close(-math.pi / 2, a2)
+
+			-- Same direction
+			local a3 = vector2.signed_angle(vector2.new(1, 1), vector2.new(2, 2))
+			assert.number_close(0, a3)
 		end)
 
 		it("is opposite of reversed angle", function()
