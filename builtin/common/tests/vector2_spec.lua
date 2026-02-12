@@ -407,9 +407,9 @@ describe("vector2", function()
 		it("is inverse of from_polar", function()
 			local radius, angle = 7, math.pi / 3
 			local v = vector2.from_polar(radius, angle)
-			local r2, theta2 = vector2.to_polar(v)
-			assert.number_close(radius, r2)
-			assert.number_close(angle, theta2)
+			local radius2, angle2 = vector2.to_polar(v)
+			assert.number_close(radius, radius2)
+			assert.number_close(angle, angle2)
 		end)
 	end)
 
