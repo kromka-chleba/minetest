@@ -1973,7 +1973,7 @@ Vector (ie. a position)
 vector.new(x, y, z)
 ```
 
-See [Spatial Vectors](#spatial-vectors) for details.
+See [Spatial Vectors](#spatial-vectors-3d) for details.
 
 `pointed_thing`
 ---------------
@@ -3961,13 +3961,63 @@ or [Wikipedia](https://en.wikipedia.org/wiki/Cartesian_coordinate_system#Orienta
 for a more detailed and pictorial explanation of these terms.
 
 
-Spatial Vectors
-===============
+Vectors
+=======
+
+Vectors are fundamental mathematical objects used to represent positions, directions, 
+and various spatial quantities in Luanti. The API provides two vector classes:
+`vector.*` for 3D spatial vectors and `vector2.*` for 2D vectors.
+
+Compatibility notes
+-------------------
+
+For 3D vectors: Vectors used to be defined as tables of the form `{x = num, y = num, z = num}`.
+Since version 5.5.0, vectors additionally have a metatable to enable easier use.
+Note: Those old-style vectors can still be found in old mod code. Hence, mod and
+engine APIs still need to be able to cope with them in many places.
+
+For both 2D and 3D vectors: Manually constructed tables are deprecated and highly 
+discouraged. Use `vector.new()` or `vector2.new()` to ensure they have the proper 
+metatable. This interface should be used to ensure seamless compatibility between 
+mods and the Luanti API. This is especially important to callback function parameters 
+and functions overwritten by mods.
+Also, though not likely, the internal implementation of a vector might change in
+the future.
+In your own code, or if you define your own API, you can, of course, still use
+other representations of vectors.
+
+Vectors provided by API functions will provide an instance of this class if not
+stated otherwise. Mods should adapt this for convenience reasons.
+
+Special properties of the class
+-------------------------------
+
+Both 2D and 3D vectors can be indexed with numbers and allow method and operator syntax.
+
+All these forms of addressing a vector `v` are valid:
+* For 3D vectors: `v[1]`, `v[2]`, `v[3]`, `v.x`, `v.y`, `v.z`, `v[1] = 42`, `v.y = 13`
+* For 2D vectors: `v[1]`, `v[2]`, `v.x`, `v.y`, `v[1] = 42`, `v.y = 13`
+
+Note: Prefer letter over number indexing for performance and compatibility reasons.
+
+Where `v` is a vector and `foo` stands for any function name, `v:foo(...)` does
+the same as `vector.foo(v, ...)` (or `vector2.foo(v, ...)` for 2D vectors), apart 
+from deprecated functionality.
+
+`tostring` is defined for vectors, see `vector.to_string` and `vector2.to_string`.
+
+The metatable that is used for vectors can be accessed via `vector.metatable`
+or `vector2.metatable`. Do not modify it!
+
+All `vector.*` functions allow vectors `{x = X, y = Y, z = Z}` without metatables.
+All `vector2.*` functions allow vectors `{x = X, y = Y}` without metatables.
+Returned vectors always have a metatable set.
+
+Spatial Vectors (3D)
+====================
 
 Luanti stores 3-dimensional spatial vectors in Lua as tables of 3 coordinates,
-and has a class to represent them (`vector.*`), which this chapter is about.
-For details on what a spatial vectors is, please refer to Wikipedia:
-https://en.wikipedia.org/wiki/Euclidean_vector.
+and has a class to represent them (`vector.*`).
 
 Spatial vectors are used for various things, including, but not limited to:
 
@@ -3987,46 +4037,6 @@ by any of the following notations:
 * `vector.new(x, y, z)`
 * `{x=num, y=num, z=num}` (Even here you are still supposed to use `vector.new`.)
 
-Compatibility notes
--------------------
-
-Vectors used to be defined as tables of the form `{x = num, y = num, z = num}`.
-Since version 5.5.0, vectors additionally have a metatable to enable easier use.
-Note: Those old-style vectors can still be found in old mod code. Hence, mod and
-engine APIs still need to be able to cope with them in many places.
-
-Manually constructed tables are deprecated and highly discouraged. This interface
-should be used to ensure seamless compatibility between mods and the Luanti API.
-This is especially important to callback function parameters and functions overwritten
-by mods.
-Also, though not likely, the internal implementation of a vector might change in
-the future.
-In your own code, or if you define your own API, you can, of course, still use
-other representations of vectors.
-
-Vectors provided by API functions will provide an instance of this class if not
-stated otherwise. Mods should adapt this for convenience reasons.
-
-Special properties of the class
--------------------------------
-
-Vectors can be indexed with numbers and allow method and operator syntax.
-
-All these forms of addressing a vector `v` are valid:
-`v[1]`, `v[3]`, `v.x`, `v[1] = 42`, `v.y = 13`
-Note: Prefer letter over number indexing for performance and compatibility reasons.
-
-Where `v` is a vector and `foo` stands for any function name, `v:foo(...)` does
-the same as `vector.foo(v, ...)`, apart from deprecated functionality.
-
-`tostring` is defined for vectors, see `vector.to_string`.
-
-The metatable that is used for vectors can be accessed via `vector.metatable`.
-Do not modify it!
-
-All `vector.*` functions allow vectors `{x = X, y = Y, z = Z}` without metatables.
-Returned vectors always have a metatable set.
-
 Common functions and methods
 ----------------------------
 
@@ -4036,16 +4046,21 @@ For the following functions (and subchapters),
 `s` is a scalar (a number),
 vectors are written like this: `(x, y, z)`:
 
+### Construction functions
+
 * `vector.new([a[, b, c]])`:
     * Returns a new vector `(a, b, c)`.
     * Deprecated: `vector.new()` does the same as `vector.zero()` and
       `vector.new(v)` does the same as `vector.copy(v)`
 * `vector.zero()`:
     * Returns a new vector `(0, 0, 0)`.
-* `vector.random_direction()`:
-    * Returns a new vector of length 1, pointing into a direction chosen uniformly at random.
 * `vector.copy(v)`:
     * Returns a copy of the vector `v`.
+* `vector.random_direction()`:
+    * Returns a new vector of length 1, pointing into a direction chosen uniformly at random.
+
+### Conversion functions
+
 * `vector.from_string(s[, init])`:
     * Returns `v, np`, where `v` is a vector read from the given string `s` and
       `np` is the next position in the string after the vector.
@@ -4057,6 +4072,9 @@ vectors are written like this: `(x, y, z)`:
 * `vector.to_string(v)`:
     * Returns a string of the form `"(x, y, z)"`.
     *  `tostring(v)` does the same.
+
+### Direction and distance functions
+
 * `vector.direction(p1, p2)`:
     * Returns a vector of length 1 with direction `p1` to `p2`.
     * If `p1` and `p2` are identical, returns `(0, 0, 0)`.
@@ -4067,6 +4085,9 @@ vectors are written like this: `(x, y, z)`:
 * `vector.normalize(v)`:
     * Returns a vector of length 1 with direction of vector `v`.
     * If `v` has zero length, returns `(0, 0, 0)`.
+
+### Rounding functions
+
 * `vector.floor(v)`:
     * Returns a vector, each dimension rounded down.
 * `vector.ceil(v)`:
@@ -4074,11 +4095,14 @@ vectors are written like this: `(x, y, z)`:
 * `vector.round(v)`:
     * Returns a vector, each dimension rounded to nearest integer.
     * At a multiple of 0.5, rounds away from zero.
+
+### Component-wise operations
+
+* `vector.abs(v)`:
+    * Returns a vector with absolute values for each component.
 * `vector.sign(v, tolerance)`:
     * Returns a vector where `math.sign` was called for each component.
     * See [Helper functions](#helper-functions) for details.
-* `vector.abs(v)`:
-    * Returns a vector with absolute values for each component.
 * `vector.apply(v, func, ...)`:
     * Returns a vector where the function `func` has been applied to each
       component.
@@ -4086,22 +4110,20 @@ vectors are written like this: `(x, y, z)`:
 * `vector.combine(v, w, func)`:
     * Returns a vector where the function `func` has combined both components of `v` and `w`
       for each component
+
+### Comparison and utility functions
+
 * `vector.equals(v1, v2)`:
     * Returns a boolean, `true` if the vectors are identical.
-* `vector.sort(v1, v2)`:
-    * Returns in order minp, maxp vectors of the cuboid defined by `v1`, `v2`.
-* `vector.angle(v1, v2)`:
-    * Returns the angle between `v1` and `v2` in radians.
-* `vector.dot(v1, v2)`:
-    * Returns the dot product of `v1` and `v2`.
-* `vector.cross(v1, v2)`:
-    * Returns the cross product of `v1` and `v2`.
-* `vector.offset(v, x, y, z)`:
-    * Returns the sum of the vectors `v` and `(x, y, z)`.
 * `vector.check(v)`:
     * Returns a boolean value indicating whether `v` is a real vector, eg. created
       by a `vector.*` function.
     * Returns `false` for anything else, including tables like `{x=3,y=1,z=4}`.
+* `vector.sort(v1, v2)`:
+    * Returns in order minp, maxp vectors of the cuboid defined by `v1`, `v2`.
+
+### Area functions
+
 * `vector.in_area(pos, min, max)`:
     * Returns a boolean value indicating if `pos` is inside area formed by `min` and `max`.
     * `min` and `max` are inclusive.
@@ -4111,6 +4133,22 @@ vectors are written like this: `(x, y, z)`:
     * Returns a random integer position in area formed by `min` and `max`
     * `min` and `max` are inclusive.
     * You can use `vector.sort` if you have two vectors and don't know which are the minimum and the maximum.
+
+### Angular and dot/cross product functions
+
+* `vector.angle(v1, v2)`:
+    * Returns the angle between `v1` and `v2` in radians.
+* `vector.dot(v1, v2)`:
+    * Returns the dot product of `v1` and `v2`.
+* `vector.cross(v1, v2)`:
+    * Returns the cross product of `v1` and `v2`.
+
+### Offset functions
+
+* `vector.offset(v, x, y, z)`:
+    * Returns the sum of the vectors `v` and `(x, y, z)`.
+
+### Arithmetic operations
 
 For the following functions `x` can be either a vector or a number:
 
@@ -4132,7 +4170,8 @@ For the following functions `x` can be either a vector or a number:
 Operators
 ---------
 
-Operators can be used if all of the involved vectors have metatables:
+Operators can be used if all of the involved vectors have metatables.
+These work the same way for both 3D and 2D vectors:
 
 * `v1 == v2`:
     * Returns whether `v1` and `v2` are identical.
@@ -4204,35 +4243,6 @@ The API provides `vector2.new` to create vectors:
 * `vector2.new(x, y)`
 * `{x=num, y=num}` (Even here you are still supposed to use `vector2.new`.)
 
-Compatibility notes
--------------------
-
-Vectors should be created using `vector2.new(x, y)` to ensure they have the
-proper metatable. This enables:
-
-* Method call syntax (e.g., `v:length()` instead of `vector2.length(v)`)
-* Operator overloading (e.g., `v1 + v2` instead of `vector2.add(v1, v2)`)
-* Type checking with `vector2.check()`
-
-Special properties of the class
--------------------------------
-
-Vectors can be indexed with numbers and allow method and operator syntax.
-
-All these forms of addressing a vector `v` are valid:
-`v[1]`, `v[2]`, `v.x`, `v[1] = 42`, `v.y = 13`
-
-Where `v` is a vector and `foo` stands for any function name, `v:foo(...)` does
-the same as `vector2.foo(v, ...)`.
-
-`tostring` is defined for vectors, see `vector2.to_string`.
-
-The metatable that is used for vectors can be accessed via `vector2.metatable`.
-Do not modify it!
-
-All `vector2.*` functions allow vectors `{x = X, y = Y}` without metatables.
-Returned vectors always have a metatable set.
-
 Common functions and methods
 ----------------------------
 
@@ -4242,19 +4252,32 @@ For the following functions,
 `s` is a scalar (a number),
 vectors are written like this: `(x, y)`:
 
+### Construction functions
+
 * `vector2.new(x, y)`:
     * Returns a new vector `(x, y)`.
 * `vector2.zero()`:
     * Returns a new vector `(0, 0)`.
-* `vector2.random_direction()`:
-    * Returns a new vector of length 1, pointing in a direction chosen uniformly at random.
 * `vector2.copy(v)`:
     * Returns a copy of the vector `v`.
+* `vector2.random_direction()`:
+    * Returns a new vector of length 1, pointing in a direction chosen uniformly at random.
+
+### Polar coordinate conversion functions
+
 * `vector2.from_polar(radius, angle)`:
     * Returns a new vector from polar coordinates `(radius, angle)`.
     * `radius` is the radius (length) of the vector.
     * `angle` is the angle in radians from the positive x-axis (counterclockwise).
     * Example: `vector2.from_polar(1, math.pi / 2)` returns a vector pointing up `(0, 1)`.
+* `vector2.to_polar(v)`:
+    * Returns `r, theta` where `r` is the radius (length) and `theta` is the angle in radians.
+    * `theta` is the angle from the positive x-axis (counterclockwise), in the range `(-pi, pi]`.
+    * For a zero vector, returns `0, 0`.
+    * Example: `vector2.to_polar(vector2.new(0, 1))` returns `1, math.pi / 2`.
+
+### Conversion functions
+
 * `vector2.from_string(s[, init])`:
     * Returns `v, np`, where `v` is a vector read from the given string `s` and
       `np` is the next position in the string after the vector.
@@ -4266,11 +4289,9 @@ vectors are written like this: `(x, y)`:
 * `vector2.to_string(v)`:
     * Returns a string of the form `"(x, y)"`.
     * `tostring(v)` does the same.
-* `vector2.to_polar(v)`:
-    * Returns `r, theta` where `r` is the radius (length) and `theta` is the angle in radians.
-    * `theta` is the angle from the positive x-axis (counterclockwise), in the range `(-pi, pi]`.
-    * For a zero vector, returns `0, 0`.
-    * Example: `vector2.to_polar(vector2.new(0, 1))` returns `1, math.pi / 2`.
+
+### Direction and distance functions
+
 * `vector2.direction(p1, p2)`:
     * Returns a vector of length 1 with direction `p1` to `p2`.
     * If `p1` and `p2` are identical, returns `(0, 0)`.
@@ -4281,6 +4302,9 @@ vectors are written like this: `(x, y)`:
 * `vector2.normalize(v)`:
     * Returns a vector of length 1 with direction of vector `v`.
     * If `v` has zero length, returns `(0, 0)`.
+
+### Rounding functions
+
 * `vector2.floor(v)`:
     * Returns a vector, each dimension rounded down.
 * `vector2.ceil(v)`:
@@ -4288,10 +4312,13 @@ vectors are written like this: `(x, y)`:
 * `vector2.round(v)`:
     * Returns a vector, each dimension rounded to nearest integer.
     * At a multiple of 0.5, rounds away from zero.
-* `vector2.sign(v, tolerance)`:
-    * Returns a vector where `math.sign` was called for each component.
+
+### Component-wise operations
+
 * `vector2.abs(v)`:
     * Returns a vector with absolute values for each component.
+* `vector2.sign(v, tolerance)`:
+    * Returns a vector where `math.sign` was called for each component.
 * `vector2.apply(v, func, ...)`:
     * Returns a vector where the function `func` has been applied to each
       component.
@@ -4299,25 +4326,20 @@ vectors are written like this: `(x, y)`:
 * `vector2.combine(v, w, func)`:
     * Returns a vector where the function `func` has combined both components of `v` and `w`
       for each component
+
+### Comparison and utility functions
+
 * `vector2.equals(v1, v2)`:
     * Returns a boolean, `true` if the vectors are identical.
-* `vector2.sort(v1, v2)`:
-    * Returns in order minp, maxp vectors of the rectangle defined by `v1`, `v2`.
-* `vector2.angle(v1, v2)`:
-    * Returns the angle between `v1` and `v2` in radians.
-    * This is always a positive value (unsigned angle).
-* `vector2.signed_angle(v1, v2)`:
-    * Returns the signed angle from `v1` to `v2` in radians, in the range `(-pi, pi]`.
-    * Positive values indicate counterclockwise rotation, negative values indicate clockwise rotation.
-    * Example: `vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))` returns `math.pi / 2`.
-* `vector2.dot(v1, v2)`:
-    * Returns the dot product of `v1` and `v2`.
-* `vector2.offset(v, x, y)`:
-    * Returns the sum of the vectors `v` and `(x, y)`.
 * `vector2.check(v)`:
     * Returns a boolean value indicating whether `v` is a real vector, eg. created
       by a `vector2.*` function.
     * Returns `false` for anything else, including tables like `{x=3,y=1}`.
+* `vector2.sort(v1, v2)`:
+    * Returns in order minp, maxp vectors of the rectangle defined by `v1`, `v2`.
+
+### Area functions
+
 * `vector2.in_area(pos, min, max)`:
     * Returns a boolean value indicating if `pos` is inside area formed by `min` and `max`.
     * `min` and `max` are inclusive.
@@ -4327,6 +4349,25 @@ vectors are written like this: `(x, y)`:
     * Returns a random integer position in area formed by `min` and `max`
     * `min` and `max` are inclusive.
     * You can use `vector2.sort` if you have two vectors and don't know which are the minimum and the maximum.
+
+### Angular and dot product functions
+
+* `vector2.angle(v1, v2)`:
+    * Returns the angle between `v1` and `v2` in radians.
+    * This is always a positive value (unsigned angle).
+* `vector2.signed_angle(v1, v2)`:
+    * Returns the signed angle from `v1` to `v2` in radians, in the range `(-pi, pi]`.
+    * Positive values indicate counterclockwise rotation, negative values indicate clockwise rotation.
+    * Example: `vector2.signed_angle(vector2.new(1, 0), vector2.new(0, 1))` returns `math.pi / 2`.
+* `vector2.dot(v1, v2)`:
+    * Returns the dot product of `v1` and `v2`.
+
+### Offset functions
+
+* `vector2.offset(v, x, y)`:
+    * Returns the sum of the vectors `v` and `(x, y)`.
+
+### Arithmetic operations
 
 For the following functions `x` can be either a vector or a number:
 
@@ -4346,7 +4387,8 @@ For the following functions `x` can be either a vector or a number:
 Operators
 ---------
 
-Operators can be used if all of the involved vectors have metatables:
+Operators can be used if all of the involved vectors have metatables.
+These work the same way for both 3D and 2D vectors:
 
 * `v1 == v2`:
     * Returns whether `v1` and `v2` are identical.
