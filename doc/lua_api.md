@@ -1973,7 +1973,7 @@ Vector (ie. a position)
 vector.new(x, y, z)
 ```
 
-See [Spatial Vectors](#spatial-vectors) for details.
+See [Spatial Vectors](#spatial-vectors-3d) for details.
 
 `pointed_thing`
 ---------------
@@ -3968,48 +3968,6 @@ Vectors are fundamental mathematical objects used to represent positions, direct
 and various spatial quantities in Luanti. The API provides two vector classes:
 `vector.*` for 3D spatial vectors and `vector2.*` for 2D vectors.
 
-Spatial Vectors (3D)
-====================
-
-Luanti stores 3-dimensional spatial vectors in Lua as tables of 3 coordinates,
-and has a class to represent them (`vector.*`).
-
-Spatial vectors are used for various things, including, but not limited to:
-
-* any 3D spatial vector (x/y/z-directions)
-* Euler angles (pitch/yaw/roll in radians) (Spatial vectors have no real semantic
-  meaning here. Therefore, most vector operations make no sense in this use case.)
-
-Note that they are *not* used for:
-
-* 2-dimensional vectors (use `vector2.*` instead)
-* arrays of the form `{num, num, num}`
-
-The API documentation may refer to spatial vectors, as produced by `vector.new`,
-by any of the following notations:
-
-* `(x, y, z)` (Used rarely, and only if it's clear that it's a vector.)
-* `vector.new(x, y, z)`
-* `{x=num, y=num, z=num}` (Even here you are still supposed to use `vector.new`.)
-
-2D Vectors
-==========
-
-Luanti stores 2-dimensional vectors in Lua as tables of 2 coordinates,
-and has a class to represent them (`vector2.*`).
-
-2D vectors are used for various things, including:
-
-* 2D positions and offsets (x/y-directions)
-* texture coordinates
-* screen coordinates
-* 2D mathematical operations
-
-The API provides `vector2.new` to create vectors:
-
-* `vector2.new(x, y)`
-* `{x=num, y=num}` (Even here you are still supposed to use `vector2.new`.)
-
 Compatibility notes
 -------------------
 
@@ -4054,6 +4012,30 @@ or `vector2.metatable`. Do not modify it!
 All `vector.*` functions allow vectors `{x = X, y = Y, z = Z}` without metatables.
 All `vector2.*` functions allow vectors `{x = X, y = Y}` without metatables.
 Returned vectors always have a metatable set.
+
+Spatial Vectors (3D)
+====================
+
+Luanti stores 3-dimensional spatial vectors in Lua as tables of 3 coordinates,
+and has a class to represent them (`vector.*`).
+
+Spatial vectors are used for various things, including, but not limited to:
+
+* any 3D spatial vector (x/y/z-directions)
+* Euler angles (pitch/yaw/roll in radians) (Spatial vectors have no real semantic
+  meaning here. Therefore, most vector operations make no sense in this use case.)
+
+Note that they are *not* used for:
+
+* 2-dimensional vectors (use `vector2.*` instead)
+* arrays of the form `{num, num, num}`
+
+The API documentation may refer to spatial vectors, as produced by `vector.new`,
+by any of the following notations:
+
+* `(x, y, z)` (Used rarely, and only if it's clear that it's a vector.)
+* `vector.new(x, y, z)`
+* `{x=num, y=num, z=num}` (Even here you are still supposed to use `vector.new`.)
 
 Common functions and methods
 ----------------------------
