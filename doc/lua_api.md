@@ -4203,7 +4203,7 @@ see [Common to all vector types](#common-to-all-vector-types).
 Specific functions and methods
 -------------------------------
 
-For functions common to both spatial and 2D vectors, see [Common functions and methods](#common-functions-and-methods).
+For functions common to both spatial and 2D vectors, see [Common functions and methods](../vectors/#common-functions-and-methods).
 
 The following functions are specific to 3D spatial vectors.
 
@@ -4297,7 +4297,7 @@ see [Common to all vector types](#common-to-all-vector-types).
 Specific functions and methods
 -------------------------------
 
-For functions common to both spatial and 2D vectors, see [Common functions and methods](#common-functions-and-methods).
+For functions common to both spatial and 2D vectors, see [Common functions and methods](../vectors/#common-functions-and-methods).
 
 The following functions are specific to 2D vectors.
 
