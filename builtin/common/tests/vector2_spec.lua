@@ -428,6 +428,75 @@ describe("vector2", function()
 		end)
 	end)
 
+	describe("rotate()", function()
+		it("rotates vector by angle in radians", function()
+			-- Rotate (1, 0) by 90 degrees counterclockwise -> (0, 1)
+			local v1 = vector2.rotate(vector2.new(1, 0), math.pi / 2)
+			assert.vector_close(vector2.new(0, 1), v1)
+
+			-- Rotate (1, 0) by 180 degrees -> (-1, 0)
+			local v2 = vector2.rotate(vector2.new(1, 0), math.pi)
+			assert.vector_close(vector2.new(-1, 0), v2)
+
+			-- Rotate (1, 0) by -90 degrees (clockwise) -> (0, -1)
+			local v3 = vector2.rotate(vector2.new(1, 0), -math.pi / 2)
+			assert.vector_close(vector2.new(0, -1), v3)
+
+			-- Rotate (0, 1) by 90 degrees counterclockwise -> (-1, 0)
+			local v4 = vector2.rotate(vector2.new(0, 1), math.pi / 2)
+			assert.vector_close(vector2.new(-1, 0), v4)
+		end)
+
+		it("works with method syntax", function()
+			local v = vector2.new(1, 0)
+			local rotated = v:rotate(math.pi / 2)
+			assert.vector_close(vector2.new(0, 1), rotated)
+		end)
+
+		it("preserves length", function()
+			local v = vector2.new(3, 4)
+			local length_before = vector2.length(v)
+			local rotated = vector2.rotate(v, math.pi / 3)
+			local length_after = vector2.length(rotated)
+			assert.number_close(length_before, length_after)
+		end)
+
+		it("rotates back with negative angle", function()
+			local v = vector2.new(2, 3)
+			local angle = math.pi / 7
+			local rotated = vector2.rotate(v, angle)
+			local back = vector2.rotate(rotated, -angle)
+			assert.vector_close(v, back)
+		end)
+
+		it("handles zero vector", function()
+			local v = vector2.zero()
+			local rotated = vector2.rotate(v, math.pi / 4)
+			assert.vector_close(vector2.zero(), rotated)
+		end)
+
+		it("full rotation returns to original", function()
+			local v = vector2.new(1, 2)
+			local rotated = vector2.rotate(v, 2 * math.pi)
+			assert.vector_close(v, rotated)
+		end)
+
+		it("works with from_polar and to_polar", function()
+			-- Create a vector from polar coordinates
+			local radius = 5
+			local angle = math.pi / 6
+			local v = vector2.from_polar(radius, angle)
+
+			-- Rotate it by another angle
+			local rotation = math.pi / 3
+			local rotated = vector2.rotate(v, rotation)
+
+			-- Check that it's equivalent to adding angles in polar form
+			local expected = vector2.from_polar(radius, angle + rotation)
+			assert.vector_close(expected, rotated)
+		end)
+	end)
+
 	it("in_area()", function()
 		assert.is_true(vector2.in_area(vector2.zero(), vector2.new(-10, -10), vector2.new(10, 10)))
 		assert.is_true(vector2.in_area(vector2.new(-2, 5), vector2.new(-10, -10), vector2.new(10, 10)))
