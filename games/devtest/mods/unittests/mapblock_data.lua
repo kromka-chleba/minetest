@@ -94,11 +94,15 @@ local function test_get_node_content_counts_all_nodes(_, pos)
 	end
 	assert(num_types_air == 1, "Should only have one content type (air)")
 	
-	-- Add 3 random non-air nodes
+	-- Add 3 random non-air nodes within the same mapblock
+	-- Calculate positions relative to the mapblock's base position
+	local base_x = blockpos.x * 16
+	local base_y = blockpos.y * 16
+	local base_z = blockpos.z * 16
 	local test_positions = {
-		{x=pos.x+5, y=pos.y+5, z=pos.z+5},
-		{x=pos.x+10, y=pos.y+7, z=pos.z+3},
-		{x=pos.x+2, y=pos.y+12, z=pos.z+8}
+		{x=base_x+5, y=base_y+5, z=base_z+5},
+		{x=base_x+10, y=base_y+7, z=base_z+3},
+		{x=base_x+2, y=base_y+12, z=base_z+8}
 	}
 	core.set_node(test_positions[1], {name="basenodes:stone"})
 	core.set_node(test_positions[2], {name="basenodes:dirt"})
