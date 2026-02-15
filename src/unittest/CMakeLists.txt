@@ -15,6 +15,7 @@ set (UNITTEST_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/test_datastructures.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_k_d_tree.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_filesys.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/test_get_mapblock_data.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_inventory.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_irrptr.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_irr_matrix4.cpp

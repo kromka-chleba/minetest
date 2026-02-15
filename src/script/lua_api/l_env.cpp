@@ -1454,7 +1454,7 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_pushstring(L, "is_underground");
 	lua_pushboolean(L, block->getIsUnderground());
 	lua_settable(L, -3);
-	
+
 	return 1;
 }
 
