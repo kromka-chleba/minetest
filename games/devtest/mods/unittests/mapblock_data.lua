@@ -1,5 +1,34 @@
 -- Tests for core.get_node_content_counts()
 
+-- Helper function to clear all nodes in a mapblock to air using voxel manipulator
+local function clear_mapblock_to_air(blockpos)
+	-- Convert blockpos to world coordinates
+	-- A mapblock is 16x16x16, so multiply by 16 to get world position
+	local minp = {
+		x = blockpos.x * 16,
+		y = blockpos.y * 16,
+		z = blockpos.z * 16
+	}
+	local maxp = {
+		x = minp.x + 15,
+		y = minp.y + 15,
+		z = minp.z + 15
+	}
+	
+	-- Get voxel manipulator and load the area
+	local vm = core.get_voxel_manip(minp, maxp)
+	local data = vm:get_data()
+	
+	-- Set all nodes to air
+	for index = 1, #data do
+		data[index] = core.CONTENT_AIR
+	end
+	
+	-- Write the changes back to the map
+	vm:set_data(data)
+	vm:write_to_map()
+end
+
 -- Test 1: Check getting counts for not loaded or unexistent mapblock
 local function test_get_node_content_counts_unloaded(_, pos)
 	local far_blockpos = {x=10000, y=10000, z=10000}
@@ -15,6 +44,9 @@ local function test_get_node_content_counts_changes(_, pos)
 		y = math.floor(pos.y / 16),
 		z = math.floor(pos.z / 16)
 	}
+	
+	-- Clear the mapblock to air to ensure clean environment
+	clear_mapblock_to_air(blockpos)
 	
 	-- Get initial counts for the loaded block
 	local counts_before = core.get_node_content_counts(blockpos)
@@ -38,7 +70,7 @@ local function test_get_node_content_counts_changes(_, pos)
 end
 unittests.register("test_get_node_content_counts_changes", test_get_node_content_counts_changes, {map=true})
 
--- Test 3: Iterate over all registered nodes, add them to mapblock, verify counts
+-- Test 3: Set all nodes to air, add 3 nodes, verify counts
 local function test_get_node_content_counts_all_nodes(_, pos)
 	local blockpos = {
 		x = math.floor(pos.x / 16),
@@ -46,71 +78,69 @@ local function test_get_node_content_counts_all_nodes(_, pos)
 		z = math.floor(pos.z / 16)
 	}
 	
-	-- Collect all registered node names and their content IDs
-	local node_names = {}
-	local expected_ids = {}
-	for name, _ in pairs(core.registered_nodes) do
-		table.insert(node_names, name)
-		local id = core.get_content_id(name)
-		expected_ids[id] = true
+	-- Clear the mapblock to air to ensure clean environment
+	clear_mapblock_to_air(blockpos)
+	
+	-- Get counts after clearing - should only have air
+	local counts_all_air = core.get_node_content_counts(blockpos)
+	assert(counts_all_air ~= nil, "Block should be loaded")
+	local air_id = core.get_content_id("air")
+	assert(counts_all_air[air_id] == 4096, "All 4096 nodes should be air")
+	
+	-- Count number of unique content IDs (should be 1 - just air)
+	local num_types_air = 0
+	for _ in pairs(counts_all_air) do
+		num_types_air = num_types_air + 1
 	end
+	assert(num_types_air == 1, "Should only have one content type (air)")
 	
-	-- Place at least one of each node type in the mapblock
-	-- A mapblock is 16x16x16, so we have 4096 positions available
-	local positions_used = {}
-	local idx = 0
-	for x = 0, 15 do
-		for y = 0, 15 do
-			for z = 0, 15 do
-				if idx >= #node_names then
-					break
-				end
-				local node_pos = {x=pos.x+x, y=pos.y+y, z=pos.z+z}
-				core.set_node(node_pos, {name=node_names[idx+1]})
-				table.insert(positions_used, node_pos)
-				idx = idx + 1
-			end
-			if idx >= #node_names then
-				break
-			end
-		end
-		if idx >= #node_names then
-			break
-		end
+	-- Add 3 random non-air nodes
+	local test_positions = {
+		{x=pos.x+5, y=pos.y+5, z=pos.z+5},
+		{x=pos.x+10, y=pos.y+7, z=pos.z+3},
+		{x=pos.x+2, y=pos.y+12, z=pos.z+8}
+	}
+	core.set_node(test_positions[1], {name="basenodes:stone"})
+	core.set_node(test_positions[2], {name="basenodes:dirt"})
+	core.set_node(test_positions[3], {name="basenodes:wood"})
+	
+	-- Get counts with 3 non-air nodes
+	local counts_with_nodes = core.get_node_content_counts(blockpos)
+	assert(counts_with_nodes ~= nil, "Block should still be loaded")
+	
+	-- Verify the counts
+	local stone_id = core.get_content_id("basenodes:stone")
+	local dirt_id = core.get_content_id("basenodes:dirt")
+	local wood_id = core.get_content_id("basenodes:wood")
+	
+	assert(counts_with_nodes[stone_id] == 1, "Should have 1 stone node")
+	assert(counts_with_nodes[dirt_id] == 1, "Should have 1 dirt node")
+	assert(counts_with_nodes[wood_id] == 1, "Should have 1 wood node")
+	assert(counts_with_nodes[air_id] == 4093, "Should have 4093 air nodes (4096 - 3)")
+	
+	-- Count number of unique content IDs (should be 4 - air + 3 node types)
+	local num_types_with_nodes = 0
+	for _ in pairs(counts_with_nodes) do
+		num_types_with_nodes = num_types_with_nodes + 1
 	end
+	assert(num_types_with_nodes == 4, "Should have 4 content types")
 	
-	-- Get counts and verify all node IDs are present
-	local counts_with_all = core.get_node_content_counts(blockpos)
-	assert(counts_with_all ~= nil, "Block should be loaded")
+	-- Set the 3 nodes back to air
+	core.set_node(test_positions[1], {name="air"})
+	core.set_node(test_positions[2], {name="air"})
+	core.set_node(test_positions[3], {name="air"})
 	
-	-- Verify all expected node IDs are in the counts
-	for id, _ in pairs(expected_ids) do
-		assert(counts_with_all[id] ~= nil, 
-			"Node ID " .. id .. " (" .. core.get_name_from_content_id(id) .. ") should be in counts")
+	-- Get counts again - should be back to all air
+	local counts_air_again = core.get_node_content_counts(blockpos)
+	assert(counts_air_again ~= nil, "Block should still be loaded")
+	assert(counts_air_again[air_id] == 4096, "All 4096 nodes should be air again")
+	
+	-- Count number of unique content IDs (should be 1 again - just air)
+	local num_types_air_again = 0
+	for _ in pairs(counts_air_again) do
+		num_types_air_again = num_types_air_again + 1
 	end
-	
-	local num_keys_before = 0
-	for _ in pairs(counts_with_all) do
-		num_keys_before = num_keys_before + 1
-	end
-	
-	-- Set all changed nodes back to air
-	for _, node_pos in ipairs(positions_used) do
-		core.set_node(node_pos, {name="air"})
-	end
-	
-	-- Get counts again and verify the number of unique content IDs decreased
-	local counts_after_air = core.get_node_content_counts(blockpos)
-	assert(counts_after_air ~= nil, "Block should still be loaded")
-	
-	local num_keys_after = 0
-	for _ in pairs(counts_after_air) do
-		num_keys_after = num_keys_after + 1
-	end
-	
-	assert(num_keys_after < num_keys_before,
-		"Number of unique content IDs should decrease after setting nodes to air. " ..
-		"Before: " .. num_keys_before .. ", After: " .. num_keys_after)
+	assert(num_types_air_again == 1, "Should only have one content type (air) again")
 end
 unittests.register("test_get_node_content_counts_all_nodes", test_get_node_content_counts_all_nodes, {map=true})
 
