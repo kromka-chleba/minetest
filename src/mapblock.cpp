@@ -386,28 +386,6 @@ void MapBlock::correctBlockNodeIds(const NameIdMapping *nimap, MapNode *nodes,
 	}
 }
 
-// Build a mapping of global content IDs to node names for nodes present in this block
-// Unlike getBlockNodeIdMapping(), this doesn't renumber IDs or modify the node array
-void MapBlock::getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *nodedef) const
-{
-	nimap->clear();
-
-	// Use a set to track which content IDs we've already added
-	std::unordered_set<content_t> seen_ids;
-
-	// Iterate through all nodes in the block
-	const u32 count = m_is_mono_block ? 1 : nodecount;
-	for (u32 i = 0; i < count; i++) {
-		content_t content = data[i].getContent();
-
-		// Only process each unique content ID once
-		if (seen_ids.insert(content).second) {
-			const std::string &name = nodedef->get(content).name;
-			nimap->set(content, name);
-		}
-	}
-}
-
 // Count the number of nodes with each content type in this block
 std::unordered_map<content_t, u32> MapBlock::getContentCounts() const
 {
