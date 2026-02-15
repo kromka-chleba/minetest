@@ -226,6 +226,11 @@ private:
 	// get_translated_string(lang_code, string)
 	static int l_get_translated_string(lua_State * L);
 
+	// get_mapblock_data(blockpos)
+	// blockpos = {x=num, y=num, z=num}
+	// Get node ID to name mapping for a mapblock
+	static int l_get_node_id_mapping(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeClient(lua_State *L, int top);

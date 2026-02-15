@@ -1384,6 +1384,61 @@ int ModApiEnv::l_get_translated_string(lua_State * L)
 	return 1;
 }
 
+// get_node_id_mapping(blockpos)
+// blockpos = {x=num, y=num, z=num}
+// Returns a table mapping node content IDs to node names for all unique nodes
+// in the specified mapblock, or nil if the block doesn't exist
+int ModApiEnv::l_get_node_id_mapping(lua_State *L)
+{
+	GET_ENV_PTR;
+
+	v3s16 blockpos = read_v3s16(L, 1);
+	
+	// Get the map block - check memory first
+	Map &map = env->getMap();
+	MapBlock *block = map.getBlockNoCreateNoEx(blockpos);
+	
+	// If block is not in memory, try to load it from disk
+	if (!block) {
+		ServerMap *smap = dynamic_cast<ServerMap*>(&map);
+		if (smap) {
+			block = smap->loadBlock(blockpos);
+		}
+	}
+	
+	// Return nil if block doesn't exist and couldn't be loaded
+	if (!block) {
+		lua_pushnil(L);
+		return 1;
+	}
+	
+	// Get node definitions manager
+	const NodeDefManager *ndef = env->getGameDef()->ndef();
+	
+	// Create the mapping table to return directly
+	lua_newtable(L);
+	
+	// Use MapBlock's getNodeIdMapping to efficiently build the mapping
+	// This directly accesses the block's data array and builds a mapping
+	// of global content IDs to node names (without modifying the block data)
+	NameIdMapping nimap;
+	block->getNodeIdMapping(&nimap, ndef);
+	
+	// Convert NameIdMapping to Lua table
+	// Iterate through the ID->name mappings
+	for (const auto &pair : nimap.getIdToNameMap()) {
+		lua_pushinteger(L, pair.first);  // content ID
+		lua_pushstring(L, pair.second.c_str());  // node name
+		lua_settable(L, -3);
+	}
+
+	// Note: Loaded blocks are automatically managed by the game's block unloading
+	// system (Map::timerUpdate), which unloads blocks based on their usage timer
+	// after server_unload_unused_data_timeout seconds of inactivity.
+
+	return 1;
+}
+
 void ModApiEnv::Initialize(lua_State *L, int top)
 {
 	API_FCT(set_node);
@@ -1436,6 +1491,7 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(forceload_free_block);
 	API_FCT(compare_block_status);
 	API_FCT(get_translated_string);
+	API_FCT(get_node_id_mapping);
 }
 
 void ModApiEnv::InitializeClient(lua_State *L, int top)
