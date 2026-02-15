@@ -1392,12 +1392,9 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 
 	v3s16 blockpos = read_v3s16(L, 1);
 	
-	// Get the map block
+	// Get the map block - check memory first
 	Map &map = env->getMap();
 	MapBlock *block = map.getBlockNoCreateNoEx(blockpos);
-	
-	// Track if we loaded the block ourselves
-	bool was_loaded = (block != nullptr);
 	
 	// If block is not in memory, try to load it from disk
 	if (!block) {
@@ -1466,13 +1463,9 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_pushboolean(L, block->getIsUnderground());
 	lua_settable(L, -3);
 
-	// If we loaded the block ourselves, unload it now
-	if (!was_loaded) {
-		ServerMap *smap = dynamic_cast<ServerMap*>(&map);
-		if (smap) {
-			smap->deleteBlock(blockpos);
-		}
-	}
+	// Note: Loaded blocks are automatically managed by the game's block unloading
+	// system (Map::timerUpdate), which unloads blocks based on their usage timer
+	// after server_unload_unused_data_timeout seconds of inactivity.
 
 	return 1;
 }

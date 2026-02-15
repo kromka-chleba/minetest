@@ -7869,8 +7869,11 @@ Misc.
     * `blockpos`: Position of the mapblock (not node position). One mapblock is 16x16x16 nodes.
       For example, if a node is at position `{x=32, y=16, z=-16}`, the mapblock position
       is `{x=2, y=1, z=-1}` (calculated by dividing node coordinates by 16 and rounding down).
-    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded,
-      the data will be retrieved, and then the block will be unloaded.
+    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded
+      to retrieve the data. The game's automatic block management system will unload it later
+      based on the `server_unload_unused_data_timeout` setting (typically after 20+ seconds
+      of inactivity). Calling this function many times will not cause memory issues as the
+      game manages block memory automatically.
     * Returns a table with the following fields or `nil` if the block doesn't exist:
         * `pos`: The block position (same as input `blockpos`)
         * `node_mapping`: A table mapping node content IDs to node names.
