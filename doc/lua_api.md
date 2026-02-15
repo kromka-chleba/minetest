@@ -7864,8 +7864,8 @@ Misc.
         * `true`: Mapblock meets the requirement
         * `nil`: Unsupported `condition` value
 
-* `core.get_mapblock_data(blockpos)`
-    * Retrieves mapblock data at the given block position.
+* `core.get_node_id_mapping(blockpos)`
+    * Retrieves the node ID to name mapping for the specified mapblock.
     * `blockpos`: Position of the mapblock (not node position). One mapblock is 16x16x16 nodes.
       For example, if a node is at position `{x=32, y=16, z=-16}`, the mapblock position
       is `{x=2, y=1, z=-1}` (calculated by dividing node coordinates by 16 and rounding down).
@@ -7874,37 +7874,18 @@ Misc.
       based on the `server_unload_unused_data_timeout` setting (typically after 20+ seconds
       of inactivity). Calling this function many times will not cause memory issues as the
       game manages block memory automatically.
-    * Returns a table with the following fields or `nil` if the block doesn't exist:
-        * `pos`: The block position (same as input `blockpos`)
-        * `node_mapping`: A table mapping node content IDs to node names.
-          **This contains only the unique nodes that are actually present in this specific mapblock,
-          not all registered nodes.** The function scans all 4096 nodes in the block and returns
-          mappings only for content IDs found within it. This makes it efficient for analyzing
-          block composition.
-          Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
-        * `timestamp`: The block's timestamp in seconds. This is game time (not real time),
-          measured from when the server was started. The value `4294967295` (`0xffffffff`)
-          indicates an invalid or undefined timestamp, which may occur for newly generated
-          blocks that haven't been saved yet.
-        * `is_underground`: Boolean indicating if the block is underground
-          (used for lighting calculations).
-        * `generated`: Boolean indicating if the block has been generated. If false, the block
-          is mostly filled with `CONTENT_IGNORE` and may contain parts of structures from
-          neighboring blocks (e.g., trees).
-        * `lighting_complete`: A 16-bit integer containing lighting completion flags. Each bit
-          indicates whether lighting is correct at a particular side of the block for day or
-          night. Format: `0bXXXXNxNyNzNZNYNXDxDyDzDZDYDX` where N=night, D=day, and
-          x-,y-,z-,Z+,Y+,X+ represent the six directions. The four X bits are currently unused.
+    * Returns a table mapping node content IDs to node names, or `nil` if the block doesn't exist.
+      **This contains only the unique nodes that are actually present in this specific mapblock,
+      not all registered nodes.** The function scans the block's nodes and returns
+      mappings only for content IDs found within it.
+      Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
     * Example:
       ```lua
       local blockpos = {x = 0, y = 0, z = 0}
-      local data = core.get_mapblock_data(blockpos)
-      if data then
-          print("Block timestamp: " .. data.timestamp)
-          print("Generated: " .. tostring(data.generated))
-          print("Lighting complete: " .. string.format("0x%04x", data.lighting_complete))
-          print("Unique node types:")
-          for id, name in pairs(data.node_mapping) do
+      local mapping = core.get_node_id_mapping(blockpos)
+      if mapping then
+          print("Node types in block:")
+          for id, name in pairs(mapping) do
               print("  " .. id .. " -> " .. name)
           end
       else
