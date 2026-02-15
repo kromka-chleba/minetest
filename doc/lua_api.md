@@ -7869,7 +7869,9 @@ Misc.
     * `blockpos`: Position of the mapblock (not node position). One mapblock is 16x16x16 nodes.
       For example, if a node is at position `{x=32, y=16, z=-16}`, the mapblock position
       is `{x=2, y=1, z=-1}` (calculated by dividing node coordinates by 16 and rounding down).
-    * Returns a table with the following fields or `nil` if the block is not loaded:
+    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded,
+      the data will be retrieved, and then the block will be unloaded.
+    * Returns a table with the following fields or `nil` if the block doesn't exist:
         * `pos`: The block position (same as input `blockpos`)
         * `node_mapping`: A table mapping node content IDs to node names.
           This represents all unique nodes present in the mapblock.
@@ -7891,7 +7893,7 @@ Misc.
               print("  " .. id .. " -> " .. name)
           end
       else
-          print("Block not loaded")
+          print("Block doesn't exist (not generated yet)")
       end
       ```
 

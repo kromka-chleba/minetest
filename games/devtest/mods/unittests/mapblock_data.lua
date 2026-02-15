@@ -2,10 +2,10 @@
 
 local function test_get_mapblock_data_nil(_, pos)
 	-- Test that get_mapblock_data returns nil for non-existent block
-	-- Use a position far away that's unlikely to be loaded
+	-- Use a position far away that's unlikely to be generated
 	local far_blockpos = {x=10000, y=10000, z=10000}
 	local data = core.get_mapblock_data(far_blockpos)
-	assert(data == nil, "get_mapblock_data should return nil for non-existent block")
+	assert(data == nil, "get_mapblock_data should return nil for non-existent/ungenerated block")
 end
 unittests.register("test_get_mapblock_data_nil", test_get_mapblock_data_nil, {map=true})
 
@@ -17,9 +17,9 @@ local function test_get_mapblock_data_exists(_, pos)
 		z = math.floor(pos.z / 16)
 	}
 	
-	-- The test position should be in a loaded block
+	-- The test position should be in an existing block (loaded or on disk)
 	local data = core.get_mapblock_data(blockpos)
-	assert(data ~= nil, "get_mapblock_data should return data for loaded block")
+	assert(data ~= nil, "get_mapblock_data should return data for existing block")
 	assert(type(data) == "table", "get_mapblock_data should return a table")
 end
 unittests.register("test_get_mapblock_data_exists", test_get_mapblock_data_exists, {map=true})

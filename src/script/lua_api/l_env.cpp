@@ -1396,7 +1396,18 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	Map &map = env->getMap();
 	MapBlock *block = map.getBlockNoCreateNoEx(blockpos);
 	
-	// Return nil if block doesn't exist
+	// Track if we loaded the block ourselves
+	bool was_loaded = (block != nullptr);
+	
+	// If block is not in memory, try to load it from disk
+	if (!block) {
+		ServerMap *smap = dynamic_cast<ServerMap*>(&map);
+		if (smap) {
+			block = smap->loadBlock(blockpos);
+		}
+	}
+	
+	// Return nil if block doesn't exist and couldn't be loaded
 	if (!block) {
 		lua_pushnil(L);
 		return 1;
@@ -1454,6 +1465,14 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_pushstring(L, "is_underground");
 	lua_pushboolean(L, block->getIsUnderground());
 	lua_settable(L, -3);
+
+	// If we loaded the block ourselves, unload it now
+	if (!was_loaded) {
+		ServerMap *smap = dynamic_cast<ServerMap*>(&map);
+		if (smap) {
+			smap->deleteBlock(blockpos);
+		}
+	}
 
 	return 1;
 }
