@@ -1463,6 +1463,16 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_pushboolean(L, block->getIsUnderground());
 	lua_settable(L, -3);
 
+	// Add generated flag
+	lua_pushstring(L, "generated");
+	lua_pushboolean(L, block->isGenerated());
+	lua_settable(L, -3);
+
+	// Add lighting_complete flags
+	lua_pushstring(L, "lighting_complete");
+	lua_pushinteger(L, block->getLightingComplete());
+	lua_settable(L, -3);
+
 	// Note: Loaded blocks are automatically managed by the game's block unloading
 	// system (Map::timerUpdate), which unloads blocks based on their usage timer
 	// after server_unload_unused_data_timeout seconds of inactivity.

@@ -7885,12 +7885,21 @@ Misc.
           blocks that haven't been saved yet.
         * `is_underground`: Boolean indicating if the block is underground
           (used for lighting calculations).
+        * `generated`: Boolean indicating if the block has been generated. If false, the block
+          is mostly filled with `CONTENT_IGNORE` and may contain parts of structures from
+          neighboring blocks (e.g., trees).
+        * `lighting_complete`: A 16-bit integer containing lighting completion flags. Each bit
+          indicates whether lighting is correct at a particular side of the block for day or
+          night. Format: `0bXXXXNxNyNzNZNYNXDxDyDzDZDYDX` where N=night, D=day, and
+          x-,y-,z-,Z+,Y+,X+ represent the six directions. The four X bits are currently unused.
     * Example:
       ```lua
       local blockpos = {x = 0, y = 0, z = 0}
       local data = core.get_mapblock_data(blockpos)
       if data then
           print("Block timestamp: " .. data.timestamp)
+          print("Generated: " .. tostring(data.generated))
+          print("Lighting complete: " .. string.format("0x%04x", data.lighting_complete))
           print("Unique node types:")
           for id, name in pairs(data.node_mapping) do
               print("  " .. id .. " -> " .. name)

@@ -50,6 +50,12 @@ local function test_get_mapblock_data_fields(_, pos)
 	
 	assert(data.is_underground ~= nil, "data.is_underground should exist")
 	assert(type(data.is_underground) == "boolean", "data.is_underground should be a boolean")
+	
+	assert(data.generated ~= nil, "data.generated should exist")
+	assert(type(data.generated) == "boolean", "data.generated should be a boolean")
+	
+	assert(data.lighting_complete ~= nil, "data.lighting_complete should exist")
+	assert(type(data.lighting_complete) == "number", "data.lighting_complete should be a number")
 end
 unittests.register("test_get_mapblock_data_fields", test_get_mapblock_data_fields, {map=true})
 
