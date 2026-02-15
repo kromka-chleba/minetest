@@ -356,6 +356,14 @@ public:
 	}
 
 	////
+	//// Node mapping (for API access)
+	////
+
+	// Build a mapping of content IDs to node names for nodes present in this block
+	// This is useful for API functions that need to report block contents
+	void getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *nodedef) const;
+
+	////
 	//// Reference counting (different purposes on client vs. server)
 	////
 

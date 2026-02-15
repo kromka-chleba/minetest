@@ -1425,32 +1425,18 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_pushstring(L, "node_mapping");
 	lua_newtable(L);
 	
-	// Get all unique nodes in the block and create the mapping
-	// Note: This scans all 4096 nodes and returns ONLY the content IDs
-	// that are actually present in this mapblock, not all registered nodes.
-	// This makes the returned data block-specific and efficient.
-	std::unordered_set<content_t> seen_nodes;
-	const u32 node_count = MAP_BLOCKSIZE * MAP_BLOCKSIZE * MAP_BLOCKSIZE;
-	for (u32 i = 0; i < node_count; i++) {
-		v3s16 p(i % MAP_BLOCKSIZE,
-		        (i / MAP_BLOCKSIZE) % MAP_BLOCKSIZE,
-		        i / (MAP_BLOCKSIZE * MAP_BLOCKSIZE));
-		bool valid_pos;
-		MapNode node = block->getNode(p, &valid_pos);
-		if (valid_pos) {
-			content_t content = node.getContent();
-			if (seen_nodes.find(content) == seen_nodes.end()) {
-				seen_nodes.insert(content);
-				
-				// Get node name
-				const std::string &name = ndef->get(content).name;
-				
-				// Add to mapping table: id -> name
-				lua_pushinteger(L, content);
-				lua_pushstring(L, name.c_str());
-				lua_settable(L, -3);
-			}
-		}
+	// Use MapBlock's getNodeIdMapping to efficiently build the mapping
+	// This directly accesses the block's data array and builds a mapping
+	// of global content IDs to node names (without modifying the block data)
+	NameIdMapping nimap;
+	block->getNodeIdMapping(&nimap, ndef);
+	
+	// Convert NameIdMapping to Lua table
+	// Iterate through the ID->name mappings
+	for (const auto &pair : nimap.getIdToNameMap()) {
+		lua_pushinteger(L, pair.first);  // content ID
+		lua_pushstring(L, pair.second.c_str());  // node name
+		lua_settable(L, -3);
 	}
 	
 	// Set the node_mapping table
