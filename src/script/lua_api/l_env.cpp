@@ -1426,6 +1426,9 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_newtable(L);
 	
 	// Get all unique nodes in the block and create the mapping
+	// Note: This scans all 4096 nodes and returns ONLY the content IDs
+	// that are actually present in this mapblock, not all registered nodes.
+	// This makes the returned data block-specific and efficient.
 	std::unordered_set<content_t> seen_nodes;
 	const u32 node_count = MAP_BLOCKSIZE * MAP_BLOCKSIZE * MAP_BLOCKSIZE;
 	for (u32 i = 0; i < node_count; i++) {

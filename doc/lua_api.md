@@ -7877,7 +7877,10 @@ Misc.
     * Returns a table with the following fields or `nil` if the block doesn't exist:
         * `pos`: The block position (same as input `blockpos`)
         * `node_mapping`: A table mapping node content IDs to node names.
-          This represents all unique nodes present in the mapblock.
+          **This contains only the unique nodes that are actually present in this specific mapblock,
+          not all registered nodes.** The function scans all 4096 nodes in the block and returns
+          mappings only for content IDs found within it. This makes it efficient for analyzing
+          block composition.
           Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
         * `timestamp`: The block's timestamp in seconds. This is game time (not real time),
           measured from when the server was started. The value `4294967295` (`0xffffffff`)

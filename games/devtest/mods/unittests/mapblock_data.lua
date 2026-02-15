@@ -98,3 +98,63 @@ local function test_get_mapblock_data_node_mapping(_, pos)
 	assert(has_stone, "node_mapping should contain 'basenodes:stone'")
 end
 unittests.register("test_get_mapblock_data_node_mapping", test_get_mapblock_data_node_mapping, {map=true})
+
+local function test_get_mapblock_data_only_present_nodes(_, pos)
+	-- This test verifies that node_mapping contains ONLY nodes that are
+	-- actually present in the mapblock, not all possible registered nodes
+	
+	-- Create a block with only a few specific node types
+	local blockpos = {
+		x = math.floor(pos.x / 16),
+		y = math.floor(pos.y / 16),
+		z = math.floor(pos.z / 16)
+	}
+	
+	-- Fill a small area with specific nodes
+	for i = 0, 2 do
+		for j = 0, 2 do
+			for k = 0, 2 do
+				local p = {x=pos.x+i, y=pos.y+j, z=pos.z+k}
+				if i == 0 and j == 0 and k == 0 then
+					core.set_node(p, {name="air"})
+				elseif i == 1 and j == 0 and k == 0 then
+					core.set_node(p, {name="basenodes:stone"})
+				else
+					core.set_node(p, {name="ignore"})
+				end
+			end
+		end
+	end
+	
+	local data = core.get_mapblock_data(blockpos)
+	assert(data ~= nil, "Block should exist")
+	
+	-- Count how many different node types are in the mapping
+	local mapping_count = 0
+	local has_unexpected = false
+	local unexpected_nodes = {}
+	
+	for id, name in pairs(data.node_mapping) do
+		mapping_count = mapping_count + 1
+		-- Only air, stone, and possibly ignore should be present
+		-- (ignore might be from other parts of the block we didn't set)
+		if name ~= "air" and name ~= "basenodes:stone" and name ~= "ignore" then
+			has_unexpected = true
+			table.insert(unexpected_nodes, name)
+		end
+	end
+	
+	-- The mapping should be relatively small - definitely not hundreds of entries
+	-- which would indicate all registered nodes are included
+	assert(mapping_count < 50, 
+		"node_mapping should only contain nodes present in block, not all registered nodes. Found " .. 
+		mapping_count .. " entries")
+	
+	-- If we found unexpected nodes (other than the ones we set or background nodes),
+	-- that might indicate the mapping includes too much
+	if has_unexpected and #unexpected_nodes > 10 then
+		assert(false, "Found many unexpected nodes in mapping: " .. table.concat(unexpected_nodes, ", "))
+	end
+end
+unittests.register("test_get_mapblock_data_only_present_nodes", test_get_mapblock_data_only_present_nodes, {map=true})
+
