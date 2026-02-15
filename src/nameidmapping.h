@@ -69,6 +69,9 @@ public:
 	}
 	u16 size() const { return m_id_to_name.size(); }
 
+	// Get the internal ID->name map for iteration
+	const IdToNameMap &getIdToNameMap() const { return m_id_to_name; }
+
 private:
 	IdToNameMap m_id_to_name;
 	NameToIdMap m_name_to_id;
