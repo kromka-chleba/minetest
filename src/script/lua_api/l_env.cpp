@@ -1394,13 +1394,6 @@ int ModApiEnv::l_get_node_content_counts(lua_State *L)
 	MapBlock *block = map.getBlockNoCreateNoEx(blockpos);
 	
 	if (!block) {
-		ServerMap *smap = dynamic_cast<ServerMap*>(&map);
-		if (smap) {
-			block = smap->loadBlock(blockpos);
-		}
-	}
-	
-	if (!block) {
 		lua_pushnil(L);
 		return 1;
 	}

@@ -7866,13 +7866,10 @@ Misc.
 
 * `core.get_node_content_counts(blockpos)`
     * Returns node content counts for the specified mapblock.
-    * One mapblock is 16x16x16 nodes. Calculate blockpos by dividing node coordinates
-      by 16 and rounding down.
-    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded.
-      The game's automatic block management system will unload it later based on the
-      `server_unload_unused_data_timeout` setting.
+    * The mapblock must be loaded in memory. If it is not loaded, returns `nil`.
+      Use `core.load_area()` or `core.emerge_area()` to load blocks before calling this function.
     * Returns a table mapping node content IDs to counts (how many times each node type
-      appears in the mapblock), or `nil` if the block doesn't exist. Only includes content
+      appears in the mapblock), or `nil` if the block is not loaded. Only includes content
       IDs that are actually present in the mapblock.
 
 * `core.request_insecure_environment()`: returns an environment containing
