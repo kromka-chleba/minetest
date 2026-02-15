@@ -1384,6 +1384,80 @@ int ModApiEnv::l_get_translated_string(lua_State * L)
 	return 1;
 }
 
+// get_mapblock_data(blockpos)
+// blockpos = {x=num, y=num, z=num}
+int ModApiEnv::l_get_mapblock_data(lua_State *L)
+{
+	GET_ENV_PTR;
+
+	v3s16 blockpos = read_v3s16(L, 1);
+	
+	// Get the map block
+	Map &map = env->getMap();
+	MapBlock *block = map.getBlockNoCreateNoEx(blockpos);
+	
+	// Return nil if block doesn't exist
+	if (!block) {
+		lua_pushnil(L);
+		return 1;
+	}
+	
+	// Create a table to return
+	lua_newtable(L);
+	
+	// Add block position
+	lua_pushstring(L, "pos");
+	push_v3s16(L, blockpos);
+	lua_settable(L, -3);
+	
+	// Get node definitions manager
+	const NodeDefManager *ndef = env->getGameDef()->ndef();
+	
+	// Create name-id mapping table
+	lua_pushstring(L, "node_mapping");
+	lua_newtable(L);
+	
+	// Get all unique nodes in the block and create the mapping
+	std::unordered_map<content_t, bool> seen_nodes;
+	const u32 node_count = MAP_BLOCKSIZE * MAP_BLOCKSIZE * MAP_BLOCKSIZE;
+	for (u32 i = 0; i < node_count; i++) {
+		v3s16 p(i % MAP_BLOCKSIZE,
+		        (i / MAP_BLOCKSIZE) % MAP_BLOCKSIZE,
+		        i / (MAP_BLOCKSIZE * MAP_BLOCKSIZE));
+		bool valid_pos;
+		MapNode node = block->getNode(p, &valid_pos);
+		if (valid_pos) {
+			content_t content = node.getContent();
+			if (seen_nodes.find(content) == seen_nodes.end()) {
+				seen_nodes[content] = true;
+				
+				// Get node name
+				const std::string &name = ndef->get(content).name;
+				
+				// Add to mapping table: id -> name
+				lua_pushinteger(L, content);
+				lua_pushstring(L, name.c_str());
+				lua_settable(L, -3);
+			}
+		}
+	}
+	
+	// Set the node_mapping table
+	lua_settable(L, -3);
+	
+	// Add timestamp
+	lua_pushstring(L, "timestamp");
+	lua_pushinteger(L, block->getTimestamp());
+	lua_settable(L, -3);
+	
+	// Add is_underground flag
+	lua_pushstring(L, "is_underground");
+	lua_pushboolean(L, block->getIsUnderground());
+	lua_settable(L, -3);
+	
+	return 1;
+}
+
 void ModApiEnv::Initialize(lua_State *L, int top)
 {
 	API_FCT(set_node);
@@ -1436,6 +1510,7 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(forceload_free_block);
 	API_FCT(compare_block_status);
 	API_FCT(get_translated_string);
+	API_FCT(get_mapblock_data);
 }
 
 void ModApiEnv::InitializeClient(lua_State *L, int top)

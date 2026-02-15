@@ -226,6 +226,10 @@ private:
 	// get_translated_string(lang_code, string)
 	static int l_get_translated_string(lua_State * L);
 
+	// get_mapblock_data(blockpos)
+	// blockpos = {x=num, y=num, z=num}
+	static int l_get_mapblock_data(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeClient(lua_State *L, int top);
