@@ -7864,6 +7864,35 @@ Misc.
         * `true`: Mapblock meets the requirement
         * `nil`: Unsupported `condition` value
 
+* `core.get_mapblock_data(blockpos)`
+    * Retrieves mapblock data at the given block position.
+    * `blockpos`: Position of the mapblock (not node position). One mapblock is 16x16x16 nodes.
+      For example, if a node is at position `{x=32, y=16, z=-16}`, the mapblock position
+      is `{x=2, y=1, z=-1}` (calculated by dividing node coordinates by 16 and rounding down).
+    * Returns a table with the following fields or `nil` if the block is not loaded:
+        * `pos`: The block position (same as input `blockpos`)
+        * `node_mapping`: A table mapping node content IDs to node names.
+          This represents all unique nodes present in the mapblock.
+          Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
+        * `timestamp`: The timestamp when the block was last saved, as seconds from
+          starting the game. `0xffffffff` means invalid/unknown timestamp.
+        * `is_underground`: Boolean indicating if the block is underground
+          (used for lighting calculations).
+    * Example:
+      ```lua
+      local blockpos = {x = 0, y = 0, z = 0}
+      local data = core.get_mapblock_data(blockpos)
+      if data then
+          print("Block timestamp: " .. data.timestamp)
+          print("Unique node types:")
+          for id, name in pairs(data.node_mapping) do
+              print("  " .. id .. " -> " .. name)
+          end
+      else
+          print("Block not loaded")
+      end
+      ```
+
 * `core.request_insecure_environment()`: returns an environment containing
   insecure functions if the calling mod has been listed as trusted in the
   `secure.trusted_mods` setting or security is disabled, otherwise returns
