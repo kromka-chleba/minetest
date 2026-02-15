@@ -408,6 +408,28 @@ void MapBlock::getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *node
 	}
 }
 
+// Count the number of nodes with each content type in this block
+std::unordered_map<content_t, u32> MapBlock::getContentCounts() const
+{
+	std::unordered_map<content_t, u32> counts;
+	
+	if (!data)
+		return counts;  // Return empty map if data is not allocated
+	
+	if (m_is_mono_block) {
+		// For monoblocks, all nodecount nodes have the same content
+		counts[data[0].getContent()] = nodecount;
+	} else {
+		// Iterate through all nodes in the block
+		for (u32 i = 0; i < nodecount; i++) {
+			content_t content = data[i].getContent();
+			counts[content]++;
+		}
+	}
+	
+	return counts;
+}
+
 void MapBlock::serialize(std::ostream &os_compressed, u8 version, bool disk, int compression_level)
 {
 	if (!ser_ver_supported_write(version))
