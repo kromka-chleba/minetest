@@ -1,5 +1,36 @@
 -- Tests for core.get_node_content_counts()
 
+-- Helper function to clear all nodes in a mapblock to air using voxel manipulator
+local function clear_mapblock_to_air(blockpos)
+	-- Convert blockpos to world coordinates
+	-- A mapblock is 16x16x16, so multiply by 16 to get world position
+	local minp = {
+		x = blockpos.x * 16,
+		y = blockpos.y * 16,
+		z = blockpos.z * 16
+	}
+	local maxp = {
+		x = minp.x + 15,
+		y = minp.y + 15,
+		z = minp.z + 15
+	}
+	
+	-- Get voxel manipulator and load the area
+	local vm = core.get_voxel_manip(minp, maxp)
+	local data = vm:get_data()
+	local emin, emax = vm:get_emerged_area()
+	local va = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
+	
+	-- Set all nodes in the mapblock to air
+	for index in va:iterp(minp, maxp) do
+		data[index] = core.CONTENT_AIR
+	end
+	
+	-- Write the changes back to the map
+	vm:set_data(data)
+	vm:write_to_map()
+end
+
 -- Test 1: Check getting counts for not loaded or unexistent mapblock
 local function test_get_node_content_counts_unloaded(_, pos)
 	local far_blockpos = {x=10000, y=10000, z=10000}
@@ -15,6 +46,9 @@ local function test_get_node_content_counts_changes(_, pos)
 		y = math.floor(pos.y / 16),
 		z = math.floor(pos.z / 16)
 	}
+	
+	-- Clear the mapblock to air to ensure clean environment
+	clear_mapblock_to_air(blockpos)
 	
 	-- Get initial counts for the loaded block
 	local counts_before = core.get_node_content_counts(blockpos)
@@ -45,6 +79,9 @@ local function test_get_node_content_counts_all_nodes(_, pos)
 		y = math.floor(pos.y / 16),
 		z = math.floor(pos.z / 16)
 	}
+	
+	-- Clear the mapblock to air to ensure clean environment
+	clear_mapblock_to_air(blockpos)
 	
 	-- Collect all registered node names and their content IDs
 	local node_names = {}
