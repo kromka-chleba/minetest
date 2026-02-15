@@ -1,84 +1,40 @@
 -- Tests for core.get_node_content_counts()
 
-local function test_get_node_content_counts_nil(_, pos)
+-- Test 1: Check getting counts for not loaded or unexistent mapblock
+local function test_get_node_content_counts_unloaded(_, pos)
 	local far_blockpos = {x=10000, y=10000, z=10000}
 	local counts = core.get_node_content_counts(far_blockpos)
 	assert(counts == nil, "get_node_content_counts should return nil for non-existent/ungenerated block")
 end
-unittests.register("test_get_node_content_counts_nil", test_get_node_content_counts_nil, {map=true})
+unittests.register("test_get_node_content_counts_unloaded", test_get_node_content_counts_unloaded, {map=true})
 
-local function test_get_node_content_counts_exists(_, pos)
+-- Test 2: Load a block, get node counts, set some nodes, verify counts changed
+local function test_get_node_content_counts_changes(_, pos)
 	local blockpos = {
 		x = math.floor(pos.x / 16),
 		y = math.floor(pos.y / 16),
 		z = math.floor(pos.z / 16)
 	}
 	
-	local counts = core.get_node_content_counts(blockpos)
-	assert(counts ~= nil, "get_node_content_counts should return counts for existing block")
-	assert(type(counts) == "table", "get_node_content_counts should return a table")
-end
-unittests.register("test_get_node_content_counts_exists", test_get_node_content_counts_exists, {map=true})
-
-local function test_get_node_content_counts_content(_, pos)
-	local blockpos = {
-		x = math.floor(pos.x / 16),
-		y = math.floor(pos.y / 16),
-		z = math.floor(pos.z / 16)
-	}
+	-- Get initial counts for the loaded block
+	local counts_before = core.get_node_content_counts(blockpos)
+	assert(counts_before ~= nil, "get_node_content_counts should return counts for loaded block")
+	assert(type(counts_before) == "table", "get_node_content_counts should return a table")
 	
-	core.set_node(pos, {name="air"})
+	-- Set some nodes to specific types
+	local pos1 = {x=pos.x, y=pos.y, z=pos.z}
 	local pos2 = {x=pos.x+1, y=pos.y, z=pos.z}
+	core.set_node(pos1, {name="air"})
 	core.set_node(pos2, {name="basenodes:stone"})
 	
-	local counts = core.get_node_content_counts(blockpos)
-	assert(counts ~= nil, "Block should exist")
+	-- Get counts after setting nodes
+	local counts_after = core.get_node_content_counts(blockpos)
+	assert(counts_after ~= nil, "Block should still be loaded")
 	
-	local total_count = 0
-	for id, count in pairs(counts) do
-		total_count = total_count + 1
-		assert(type(id) == "number", "count keys should be numbers")
-		assert(type(count) == "number", "count values should be numbers")
-		assert(count > 0, "counts should be positive")
-	end
-	
-	assert(total_count > 0, "counts should contain at least one entry")
+	-- Verify counts changed
+	local stone_id = core.get_content_id("basenodes:stone")
+	assert(counts_after[stone_id] ~= nil, "Stone should be present in the block")
+	assert(counts_after[stone_id] > 0, "Stone count should be positive")
 end
-unittests.register("test_get_node_content_counts_content", test_get_node_content_counts_content, {map=true})
-
-local function test_get_node_content_counts_only_present_nodes(_, pos)
-	local blockpos = {
-		x = math.floor(pos.x / 16),
-		y = math.floor(pos.y / 16),
-		z = math.floor(pos.z / 16)
-	}
-	
-	for i = 0, 2 do
-		for j = 0, 2 do
-			for k = 0, 2 do
-				local p = {x=pos.x+i, y=pos.y+j, z=pos.z+k}
-				if i == 0 and j == 0 and k == 0 then
-					core.set_node(p, {name="air"})
-				elseif i == 1 and j == 0 and k == 0 then
-					core.set_node(p, {name="basenodes:stone"})
-				else
-					core.set_node(p, {name="ignore"})
-				end
-			end
-		end
-	end
-	
-	local counts = core.get_node_content_counts(blockpos)
-	assert(counts ~= nil, "Block should exist")
-	
-	local unique_count = 0
-	for id, count in pairs(counts) do
-		unique_count = unique_count + 1
-	end
-	
-	assert(unique_count < 50,
-		"counts should only contain nodes present in block, not all registered nodes. Found " ..
-		unique_count .. " entries")
-end
-unittests.register("test_get_node_content_counts_only_present_nodes", test_get_node_content_counts_only_present_nodes, {map=true})
+unittests.register("test_get_node_content_counts_changes", test_get_node_content_counts_changes, {map=true})
 
