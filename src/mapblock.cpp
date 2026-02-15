@@ -391,15 +391,15 @@ void MapBlock::correctBlockNodeIds(const NameIdMapping *nimap, MapNode *nodes,
 void MapBlock::getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *nodedef) const
 {
 	nimap->clear();
-	
+
 	// Use a set to track which content IDs we've already added
 	std::unordered_set<content_t> seen_ids;
-	
+
 	// Iterate through all nodes in the block
 	const u32 count = m_is_mono_block ? 1 : nodecount;
 	for (u32 i = 0; i < count; i++) {
 		content_t content = data[i].getContent();
-		
+
 		// Only process each unique content ID once
 		if (seen_ids.insert(content).second) {
 			const std::string &name = nodedef->get(content).name;
@@ -412,10 +412,10 @@ void MapBlock::getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *node
 std::unordered_map<content_t, u32> MapBlock::getContentCounts() const
 {
 	std::unordered_map<content_t, u32> counts;
-	
+
 	if (!data)
 		return counts;  // Return empty map if data is not allocated
-	
+
 	if (m_is_mono_block) {
 		// For monoblocks, all nodecount nodes have the same content
 		counts[data[0].getContent()] = nodecount;
@@ -426,7 +426,7 @@ std::unordered_map<content_t, u32> MapBlock::getContentCounts() const
 			counts[content]++;
 		}
 	}
-	
+
 	return counts;
 }
 
