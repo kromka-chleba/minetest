@@ -1418,7 +1418,7 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 	lua_newtable(L);
 	
 	// Get all unique nodes in the block and create the mapping
-	std::unordered_map<content_t, bool> seen_nodes;
+	std::unordered_set<content_t> seen_nodes;
 	const u32 node_count = MAP_BLOCKSIZE * MAP_BLOCKSIZE * MAP_BLOCKSIZE;
 	for (u32 i = 0; i < node_count; i++) {
 		v3s16 p(i % MAP_BLOCKSIZE,
@@ -1429,7 +1429,7 @@ int ModApiEnv::l_get_mapblock_data(lua_State *L)
 		if (valid_pos) {
 			content_t content = node.getContent();
 			if (seen_nodes.find(content) == seen_nodes.end()) {
-				seen_nodes[content] = true;
+				seen_nodes.insert(content);
 				
 				// Get node name
 				const std::string &name = ndef->get(content).name;

@@ -7874,8 +7874,10 @@ Misc.
         * `node_mapping`: A table mapping node content IDs to node names.
           This represents all unique nodes present in the mapblock.
           Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
-        * `timestamp`: The timestamp when the block was last saved, as seconds from
-          starting the game. `0xffffffff` means invalid/unknown timestamp.
+        * `timestamp`: The block's timestamp in seconds. This is game time (not real time),
+          measured from when the server was started. The value `4294967295` (`0xffffffff`)
+          indicates an invalid or undefined timestamp, which may occur for newly generated
+          blocks that haven't been saved yet.
         * `is_underground`: Boolean indicating if the block is underground
           (used for lighting calculations).
     * Example:
