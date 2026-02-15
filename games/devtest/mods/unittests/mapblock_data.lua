@@ -76,8 +76,8 @@ local function test_get_node_content_counts_only_present_nodes(_, pos)
 		unique_count = unique_count + 1
 	end
 	
-	assert(unique_count < 50, 
-		"counts should only contain nodes present in block, not all registered nodes. Found " .. 
+	assert(unique_count < 50,
+		"counts should only contain nodes present in block, not all registered nodes. Found " ..
 		unique_count .. " entries")
 end
 unittests.register("test_get_node_content_counts_only_present_nodes", test_get_node_content_counts_only_present_nodes, {map=true})
