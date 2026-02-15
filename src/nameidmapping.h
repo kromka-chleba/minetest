@@ -10,7 +10,6 @@
 #include <cassert>
 #include "irrlichttypes.h"
 
-typedef std::unordered_map<u16, std::string> IdToNameMap;
 typedef std::unordered_map<std::string, u16> NameToIdMap;
 
 class NameIdMapping
@@ -69,10 +68,7 @@ public:
 	}
 	u16 size() const { return m_id_to_name.size(); }
 
-	// Get the internal ID->name map for iteration
-	const IdToNameMap &getIdToNameMap() const { return m_id_to_name; }
-
 private:
-	IdToNameMap m_id_to_name;
+	std::unordered_map<u16, std::string> m_id_to_name;
 	NameToIdMap m_name_to_id;
 };
