@@ -102,7 +102,7 @@ local function test_get_node_content_counts_all_nodes(_, pos)
 	}
 	core.set_node(test_positions[1], {name="basenodes:stone"})
 	core.set_node(test_positions[2], {name="basenodes:dirt"})
-	core.set_node(test_positions[3], {name="basenodes:wood"})
+	core.set_node(test_positions[3], {name="basenodes:gravel"})
 	
 	-- Get counts with 3 non-air nodes
 	local counts_with_nodes = core.get_node_content_counts(blockpos)
@@ -111,11 +111,11 @@ local function test_get_node_content_counts_all_nodes(_, pos)
 	-- Verify the counts
 	local stone_id = core.get_content_id("basenodes:stone")
 	local dirt_id = core.get_content_id("basenodes:dirt")
-	local wood_id = core.get_content_id("basenodes:wood")
+	local gravel_id = core.get_content_id("basenodes:gravel")
 	
 	assert(counts_with_nodes[stone_id] == 1, "Should have 1 stone node")
 	assert(counts_with_nodes[dirt_id] == 1, "Should have 1 dirt node")
-	assert(counts_with_nodes[wood_id] == 1, "Should have 1 wood node")
+	assert(counts_with_nodes[gravel_id] == 1, "Should have 1 gravel node")
 	assert(counts_with_nodes[air_id] == 4093, "Should have 4093 air nodes (4096 - 3)")
 	
 	-- Count number of unique content IDs (should be 4 - air + 3 node types)
