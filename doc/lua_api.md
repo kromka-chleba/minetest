@@ -7864,34 +7864,16 @@ Misc.
         * `true`: Mapblock meets the requirement
         * `nil`: Unsupported `condition` value
 
-* `core.get_node_id_mapping(blockpos)`
-    * Retrieves the node ID to name mapping for the specified mapblock.
-    * `blockpos`: Position of the mapblock (not node position). One mapblock is 16x16x16 nodes.
-      For example, if a node is at position `{x=32, y=16, z=-16}`, the mapblock position
-      is `{x=2, y=1, z=-1}` (calculated by dividing node coordinates by 16 and rounding down).
-    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded
-      to retrieve the data. The game's automatic block management system will unload it later
-      based on the `server_unload_unused_data_timeout` setting (typically after 20+ seconds
-      of inactivity). Calling this function many times will not cause memory issues as the
-      game manages block memory automatically.
-    * Returns a table mapping node content IDs to node names, or `nil` if the block doesn't exist.
-      **This contains only the unique nodes that are actually present in this specific mapblock,
-      not all registered nodes.** The function scans the block's nodes and returns
-      mappings only for content IDs found within it.
-      Keys are numeric content IDs, values are node name strings (e.g., `"default:stone"`).
-    * Example:
-      ```lua
-      local blockpos = {x = 0, y = 0, z = 0}
-      local mapping = core.get_node_id_mapping(blockpos)
-      if mapping then
-          print("Node types in block:")
-          for id, name in pairs(mapping) do
-              print("  " .. id .. " -> " .. name)
-          end
-      else
-          print("Block doesn't exist (not generated yet)")
-      end
-      ```
+* `core.get_node_content_counts(blockpos)`
+    * Returns node content counts for the specified mapblock.
+    * One mapblock is 16x16x16 nodes. Calculate blockpos by dividing node coordinates
+      by 16 and rounding down.
+    * If the block is not loaded in memory but exists on disk, it will be temporarily loaded.
+      The game's automatic block management system will unload it later based on the
+      `server_unload_unused_data_timeout` setting.
+    * Returns a table mapping node content IDs to counts (how many times each node type
+      appears in the mapblock), or `nil` if the block doesn't exist. Only includes content
+      IDs that are actually present in the mapblock.
 
 * `core.request_insecure_environment()`: returns an environment containing
   insecure functions if the calling mod has been listed as trusted in the
