@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 #include "irr_v3d.h"
 #include "mapnode.h"
 #include "exceptions.h"
@@ -362,6 +363,10 @@ public:
 	// Build a mapping of content IDs to node names for nodes present in this block
 	// This is useful for API functions that need to report block contents
 	void getNodeIdMapping(NameIdMapping *nimap, const NodeDefManager *nodedef) const;
+
+	// Count the number of nodes with each content type in this block
+	// Returns a map of content_t to count
+	std::unordered_map<content_t, u32> getContentCounts() const;
 
 	////
 	//// Reference counting (different purposes on client vs. server)

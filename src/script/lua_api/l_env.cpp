@@ -1407,13 +1407,7 @@ int ModApiEnv::l_get_node_content_counts(lua_State *L)
 	
 	lua_newtable(L);
 	
-	std::unordered_map<content_t, u32> counts;
-	
-	const u32 nodecount = block->getNodeCount();
-	for (u32 i = 0; i < nodecount; i++) {
-		content_t content = block->getNodeUnsafe(i).getContent();
-		counts[content]++;
-	}
+	std::unordered_map<content_t, u32> counts = block->getContentCounts();
 	
 	for (const auto &pair : counts) {
 		lua_pushinteger(L, pair.first);
