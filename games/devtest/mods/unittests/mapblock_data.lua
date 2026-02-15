@@ -38,3 +38,79 @@ local function test_get_node_content_counts_changes(_, pos)
 end
 unittests.register("test_get_node_content_counts_changes", test_get_node_content_counts_changes, {map=true})
 
+-- Test 3: Iterate over all registered nodes, add them to mapblock, verify counts
+local function test_get_node_content_counts_all_nodes(_, pos)
+	local blockpos = {
+		x = math.floor(pos.x / 16),
+		y = math.floor(pos.y / 16),
+		z = math.floor(pos.z / 16)
+	}
+	
+	-- Collect all registered node names and their content IDs
+	local node_names = {}
+	local expected_ids = {}
+	for name, _ in pairs(core.registered_nodes) do
+		table.insert(node_names, name)
+		local id = core.get_content_id(name)
+		expected_ids[id] = true
+	end
+	
+	-- Place at least one of each node type in the mapblock
+	-- A mapblock is 16x16x16, so we have 4096 positions available
+	local positions_used = {}
+	local idx = 0
+	for x = 0, 15 do
+		for y = 0, 15 do
+			for z = 0, 15 do
+				if idx >= #node_names then
+					break
+				end
+				local node_pos = {x=pos.x+x, y=pos.y+y, z=pos.z+z}
+				core.set_node(node_pos, {name=node_names[idx+1]})
+				table.insert(positions_used, node_pos)
+				idx = idx + 1
+			end
+			if idx >= #node_names then
+				break
+			end
+		end
+		if idx >= #node_names then
+			break
+		end
+	end
+	
+	-- Get counts and verify all node IDs are present
+	local counts_with_all = core.get_node_content_counts(blockpos)
+	assert(counts_with_all ~= nil, "Block should be loaded")
+	
+	-- Verify all expected node IDs are in the counts
+	for id, _ in pairs(expected_ids) do
+		assert(counts_with_all[id] ~= nil, 
+			"Node ID " .. id .. " (" .. core.get_name_from_content_id(id) .. ") should be in counts")
+	end
+	
+	local num_keys_before = 0
+	for _ in pairs(counts_with_all) do
+		num_keys_before = num_keys_before + 1
+	end
+	
+	-- Set all changed nodes back to air
+	for _, node_pos in ipairs(positions_used) do
+		core.set_node(node_pos, {name="air"})
+	end
+	
+	-- Get counts again and verify the number of unique content IDs decreased
+	local counts_after_air = core.get_node_content_counts(blockpos)
+	assert(counts_after_air ~= nil, "Block should still be loaded")
+	
+	local num_keys_after = 0
+	for _ in pairs(counts_after_air) do
+		num_keys_after = num_keys_after + 1
+	end
+	
+	assert(num_keys_after < num_keys_before,
+		"Number of unique content IDs should decrease after setting nodes to air. " ..
+		"Before: " .. num_keys_before .. ", After: " .. num_keys_after)
+end
+unittests.register("test_get_node_content_counts_all_nodes", test_get_node_content_counts_all_nodes, {map=true})
+
