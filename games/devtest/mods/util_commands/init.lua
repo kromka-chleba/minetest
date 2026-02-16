@@ -304,50 +304,47 @@ core.register_chatcommand("set_saturation", {
 
 core.register_chatcommand("test_get_node_counts", {
 	params = "",
-	description = "Test: Get node content counts for the mapblock the player stands on",
+	description = "Test: Get node counts in an area around the player",
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then
 			return false, "No player."
 		end
 		local pos = player:get_pos()
-		-- Calculate mapblock position (divide by 16 and floor)
-		local blockpos = {
-			x = math.floor(pos.x / 16),
-			y = math.floor(pos.y / 16),
-			z = math.floor(pos.z / 16)
+		
+		-- Define a small area around the player (5x5x5 blocks)
+		local minp = {
+			x = math.floor(pos.x) - 2,
+			y = math.floor(pos.y) - 2,
+			z = math.floor(pos.z) - 2
+		}
+		local maxp = {
+			x = math.floor(pos.x) + 2,
+			y = math.floor(pos.y) + 2,
+			z = math.floor(pos.z) + 2
 		}
 
-		-- Get node content counts for this mapblock
-		local counts = core.get_node_content_counts(blockpos)
-
-		if not counts then
-			return false, string.format("Mapblock at (%d, %d, %d) is not loaded.",
-				blockpos.x, blockpos.y, blockpos.z)
+		-- Get all unique node names in the area first
+		local positions_table, counts_table = core.find_nodes_in_area(minp, maxp, {"group:stone", "group:soil", "air"})
+		
+		if not counts_table then
+			return false, string.format("Could not get nodes in area around (%d, %d, %d).",
+				math.floor(pos.x), math.floor(pos.y), math.floor(pos.z))
 		end
 
 		-- Build result string with node names and counts
 		local result = {}
 		local total_nodes = 0
 
-		-- Sort by content ID for consistent output
-		local sorted_ids = {}
-		for content_id, count in pairs(counts) do
-			table.insert(sorted_ids, content_id)
+		table.insert(result, string.format("Node counts in area around (%d, %d, %d):",
+			math.floor(pos.x), math.floor(pos.y), math.floor(pos.z)))
+
+		for node_name, count in pairs(counts_table) do
+			table.insert(result, string.format("  %s: %d", node_name, count))
 			total_nodes = total_nodes + count
 		end
-		table.sort(sorted_ids)
 
-		table.insert(result, string.format("Node counts for mapblock (%d, %d, %d):",
-			blockpos.x, blockpos.y, blockpos.z))
-
-		for _, content_id in ipairs(sorted_ids) do
-			local count = counts[content_id]
-			local node_name = core.get_name_from_content_id(content_id)
-			table.insert(result, string.format("  %s: %d", node_name, count))
-		end
-
-		table.insert(result, string.format("Total: %d nodes", total_nodes))
+		table.insert(result, string.format("Total counted: %d nodes", total_nodes))
 
 		return true, table.concat(result, "\n")
 	end,
