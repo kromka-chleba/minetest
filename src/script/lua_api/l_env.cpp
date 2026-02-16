@@ -1432,16 +1432,16 @@ int ModApiEnv::l_get_node_counts_in_area(lua_State *L)
 
 	checkArea(minp, maxp);
 
-	std::vector<content_t> filter;
+	std::vector<content_t> filter_vec;
 	// If nodenames parameter is provided (not nil), collect the node IDs to filter
 	if (!lua_isnil(L, 3)) {
-		collectNodeIds(L, 3, ndef, filter);
+		collectNodeIds(L, 3, ndef, filter_vec);
 	}
 
 	// Count nodes by content type
 	std::unordered_map<content_t, u32> counts;
 
-	if (filter.empty()) {
+	if (filter_vec.empty()) {
 		// No filter: count all nodes
 		map.forEachNodeInArea(minp, maxp, [&](v3s16 p, MapNode n) -> bool {
 			counts[n.getContent()]++;
@@ -1449,9 +1449,11 @@ int ModApiEnv::l_get_node_counts_in_area(lua_State *L)
 		});
 	} else {
 		// Filter: count only specified nodes
+		// Use unordered_set for O(1) lookup performance
+		std::unordered_set<content_t> filter(filter_vec.begin(), filter_vec.end());
 		map.forEachNodeInArea(minp, maxp, [&](v3s16 p, MapNode n) -> bool {
 			content_t c = n.getContent();
-			if (std::find(filter.begin(), filter.end(), c) != filter.end()) {
+			if (filter.count(c) > 0) {
 				counts[c]++;
 			}
 			return true;
