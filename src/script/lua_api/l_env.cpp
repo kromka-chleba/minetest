@@ -1411,6 +1411,64 @@ int ModApiEnv::l_get_node_content_counts(lua_State *L)
 	return 1;
 }
 
+// get_node_counts_in_area(minp, maxp, nodenames)
+int ModApiEnv::l_get_node_counts_in_area(lua_State *L)
+{
+	GET_PLAIN_ENV_PTR;
+
+	v3s16 minp = read_v3s16(L, 1);
+	v3s16 maxp = read_v3s16(L, 2);
+	sortBoxVerticies(minp, maxp);
+
+	const NodeDefManager *ndef = env->getGameDef()->ndef();
+	Map &map = env->getMap();
+
+#if CHECK_CLIENT_BUILD()
+	if (Client *client = getClient(L)) {
+		minp = client->CSMClampPos(minp);
+		maxp = client->CSMClampPos(maxp);
+	}
+#endif
+
+	checkArea(minp, maxp);
+
+	std::vector<content_t> filter;
+	// If nodenames parameter is provided (not nil), collect the node IDs to filter
+	if (!lua_isnil(L, 3)) {
+		collectNodeIds(L, 3, ndef, filter);
+	}
+
+	// Count nodes by content type
+	std::unordered_map<content_t, u32> counts;
+
+	if (filter.empty()) {
+		// No filter: count all nodes
+		map.forEachNodeInArea(minp, maxp, [&](v3s16 p, MapNode n) -> bool {
+			counts[n.getContent()]++;
+			return true;
+		});
+	} else {
+		// Filter: count only specified nodes
+		map.forEachNodeInArea(minp, maxp, [&](v3s16 p, MapNode n) -> bool {
+			content_t c = n.getContent();
+			if (std::find(filter.begin(), filter.end(), c) != filter.end()) {
+				counts[c]++;
+			}
+			return true;
+		});
+	}
+
+	// Return the counts table
+	lua_newtable(L);
+	for (const auto &pair : counts) {
+		lua_pushinteger(L, pair.first);
+		lua_pushinteger(L, pair.second);
+		lua_settable(L, -3);
+	}
+
+	return 1;
+}
+
 void ModApiEnv::Initialize(lua_State *L, int top)
 {
 	API_FCT(set_node);
@@ -1464,6 +1522,7 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(compare_block_status);
 	API_FCT(get_translated_string);
 	API_FCT(get_node_content_counts);
+	API_FCT(get_node_counts_in_area);
 }
 
 void ModApiEnv::InitializeClient(lua_State *L, int top)
