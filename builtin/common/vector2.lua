@@ -135,21 +135,19 @@ function vector2.direction(pos1, pos2)
 	return vector2.subtract(pos2, pos1):normalize()
 end
 
+function vector2.angle_to(a, b)
+	local dotp = vector2.dot(a, b)
+	local crossplen = math.abs(a.x * b.y - a.y * b.x)
+	return math.atan2(crossplen, dotp)
+end
+
 function vector2.angle(a, b)
 	-- If b is not provided, return the unary angle (atan2(y, x))
 	if b == nil then
 		return math.atan2(a.y, a.x)
 	end
 	-- Otherwise, deprecated: use angle_to for binary operation
-	local dotp = vector2.dot(a, b)
-	local crossplen = math.abs(a.x * b.y - a.y * b.x)
-	return math.atan2(crossplen, dotp)
-end
-
-function vector2.angle_to(a, b)
-	local dotp = vector2.dot(a, b)
-	local crossplen = math.abs(a.x * b.y - a.y * b.x)
-	return math.atan2(crossplen, dotp)
+	return vector2.angle_to(a, b)
 end
 
 function vector2.signed_angle(a, b)
