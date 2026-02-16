@@ -49,12 +49,6 @@ function vector2.from_angle(angle)
 	return fast_new(math.cos(angle), math.sin(angle))
 end
 
--- Deprecated: Use radius * vector2.from_angle(angle) instead
-function vector2.from_polar(radius, angle)
-	assert(radius and angle, "Invalid arguments for vector2.from_polar()")
-	return fast_new(radius * math.cos(angle), radius * math.sin(angle))
-end
-
 function vector2.from_string(s, init)
 	local x, y, np = string.match(s, "^%s*%(%s*([^%s,]+)%s*[,%s]%s*([^%s,]+)%s*,?%s*%)()", init)
 	x = tonumber(x)
@@ -86,11 +80,6 @@ end
 
 function vector2.to_angle(v)
 	return math.atan2(v.y, v.x)
-end
-
--- Deprecated: Use v:length(), v:to_angle() instead
-function vector2.to_polar(v)
-	return vector2.length(v), math.atan2(v.y, v.x)
 end
 
 function vector2.normalize(v)
@@ -152,7 +141,6 @@ function vector2.angle(a, b)
 	return math.atan2(crossplen, dotp)
 end
 
--- Deprecated: Use b:to_angle() - a:to_angle() instead (optionally with % (2 * math.pi) normalization)
 function vector2.signed_angle(a, b)
 	local angle = math.atan2(b.y, b.x) - math.atan2(a.y, a.x)
 	-- Normalize to (-pi, pi]
