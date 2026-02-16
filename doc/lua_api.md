@@ -7888,7 +7888,8 @@ Misc.
         * Is more suitable for ABM/LBM-like systems where you need to count specific nodes
     * Example use cases:
         * Check ore density: `local counts = core.get_node_counts_in_area(pos1, pos2, {"default:stone_with_iron"})`
-          returns `{[iron_id] = 42}` without allocating position vectors
+          returns `{[<content_id>] = 42}` where `<content_id>` is the numeric content ID for iron ore,
+          without allocating position vectors
         * Compare with `core.find_nodes_in_area`: Use `find_nodes_in_area` when you need positions,
           use `get_node_counts_in_area` when you only need counts (faster, less memory)
 
