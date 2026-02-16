@@ -235,17 +235,17 @@ describe("vector2", function()
 			-- East (positive x-axis)
 			assert.number_close(0, vector2.angle(vector2.new(1, 0)))
 			assert.number_close(0, vector2.new(1, 0):angle())
-			
+
 			-- North (positive y-axis)
 			assert.number_close(math.pi / 2, vector2.angle(vector2.new(0, 1)))
 			assert.number_close(math.pi / 2, vector2.new(0, 1):angle())
-			
+
 			-- West (negative x-axis)
 			assert.number_close(math.pi, math.abs(vector2.angle(vector2.new(-1, 0))))
-			
+
 			-- South (negative y-axis)
 			assert.number_close(-math.pi / 2, vector2.angle(vector2.new(0, -1)))
-			
+
 			-- 45 degrees
 			assert.number_close(math.pi / 4, vector2.angle(vector2.new(1, 1)))
 		end)
