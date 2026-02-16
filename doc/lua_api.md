@@ -7865,12 +7865,33 @@ Misc.
         * `nil`: Unsupported `condition` value
 
 * `core.get_node_content_counts(blockpos)`
+    * **Deprecated:** Use `core.get_node_counts_in_area` instead, which works with arbitrary areas.
     * Returns node content counts for the specified mapblock.
     * The mapblock must be loaded in memory. If it is not loaded, returns `nil`.
       Use `core.load_area()` or `core.emerge_area()` to load blocks before calling this function.
     * Returns a table mapping node content IDs to counts (how many times each node type
       appears in the mapblock), or `nil` if the block is not loaded. Only includes content
       IDs that are actually present in the mapblock.
+
+* `core.get_node_counts_in_area(pos1, pos2, nodenames)`
+    * Returns node content counts for nodes in the specified area.
+    * `pos1` and `pos2` are the min and max positions of the area to analyze.
+    * `nodenames`: Optional. Can be:
+        * `nil` or omitted: Count all nodes in the area
+        * A string: e.g. `"default:stone"` - count only this node
+        * A table: e.g. `{"default:stone", "group:tree"}` - count only these nodes
+    * Area volume is limited to 150,000,000 nodes
+    * Returns a table mapping node content IDs to counts.
+    * More flexible than `get_node_content_counts` as it:
+        * Works with arbitrary-sized areas (not restricted to mapblock boundaries)
+        * Allows filtering by specific node types for better performance
+        * Is more suitable for ABM/LBM-like systems where you need to count specific nodes
+    * Example use cases:
+        * Check ore density: `local counts = core.get_node_counts_in_area(pos1, pos2, {"default:stone_with_iron"})`
+          returns `{[<content_id>] = 42}` where `<content_id>` is the numeric content ID for iron ore,
+          without allocating position vectors
+        * Compare with `core.find_nodes_in_area`: Use `find_nodes_in_area` when you need positions,
+          use `get_node_counts_in_area` when you only need counts (faster, less memory)
 
 * `core.request_insecure_environment()`: returns an environment containing
   insecure functions if the calling mod has been listed as trusted in the

@@ -228,6 +228,9 @@ private:
 
 	static int l_get_node_content_counts(lua_State *L);
 
+	// get_node_counts_in_area(minp, maxp, nodenames)
+	static int l_get_node_counts_in_area(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeClient(lua_State *L, int top);
