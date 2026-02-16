@@ -303,49 +303,63 @@ core.register_chatcommand("set_saturation", {
 })
 
 core.register_chatcommand("test_get_node_counts", {
-	params = "",
-	description = "Test: Get node counts in an area around the player",
+	params = "<minp> <maxp> <nodenames>",
+	description = "Test: Get node counts in a specified area. Example: /test_get_node_counts (0,0,0) (10,10,10) basenodes:stone,air",
 	func = function(name, param)
-		local player = core.get_player_by_name(name)
-		if not player then
-			return false, "No player."
-		end
-		local pos = player:get_pos()
+		-- Parse parameters: minp maxp nodenames
+		local minp_str, maxp_str, nodenames_str = param:match("%(([%d%-%s,]+)%)%s*%(([%d%-%s,]+)%)%s*(.+)")
 		
-		-- Define a small area around the player (5x5x5 blocks)
-		local minp = {
-			x = math.floor(pos.x) - 2,
-			y = math.floor(pos.y) - 2,
-			z = math.floor(pos.z) - 2
-		}
-		local maxp = {
-			x = math.floor(pos.x) + 2,
-			y = math.floor(pos.y) + 2,
-			z = math.floor(pos.z) + 2
-		}
-
-		-- Get all unique node names in the area first
-		local positions_table, counts_table = core.find_nodes_in_area(minp, maxp, {"group:stone", "group:soil", "air"})
-		
-		if not counts_table then
-			return false, string.format("Could not get nodes in area around (%d, %d, %d).",
-				math.floor(pos.x), math.floor(pos.y), math.floor(pos.z))
+		if not minp_str or not maxp_str or not nodenames_str then
+			return false, "Invalid parameters. Use format: (x,y,z) (x,y,z) nodename1,nodename2,..."
 		end
-
-		-- Build result string with node names and counts
+		
+		-- Parse position vectors
+		local function parse_pos(str)
+			local x, y, z = str:match("([%d%-]+)%s*,%s*([%d%-]+)%s*,%s*([%d%-]+)")
+			if not x or not y or not z then
+				return nil
+			end
+			return {x = tonumber(x), y = tonumber(y), z = tonumber(z)}
+		end
+		
+		local minp = parse_pos(minp_str)
+		local maxp = parse_pos(maxp_str)
+		
+		if not minp or not maxp then
+			return false, "Could not parse positions"
+		end
+		
+		-- Parse node names
+		local nodenames = {}
+		for name in nodenames_str:gmatch("[^,]+") do
+			table.insert(nodenames, name:match("^%s*(.-)%s*$"))  -- trim whitespace
+		end
+		
+		if #nodenames == 0 then
+			return false, "No node names specified"
+		end
+		
+		-- Get node counts using the new API
+		local counts = core.get_node_counts_in_area(minp, maxp, nodenames)
+		
+		if not counts then
+			return false, "Could not get node counts for specified area"
+		end
+		
+		-- Build result string
 		local result = {}
 		local total_nodes = 0
-
-		table.insert(result, string.format("Node counts in area around (%d, %d, %d):",
-			math.floor(pos.x), math.floor(pos.y), math.floor(pos.z)))
-
-		for node_name, count in pairs(counts_table) do
+		
+		table.insert(result, string.format("Node counts in area from (%d,%d,%d) to (%d,%d,%d):",
+			minp.x, minp.y, minp.z, maxp.x, maxp.y, maxp.z))
+		
+		for node_name, count in pairs(counts) do
 			table.insert(result, string.format("  %s: %d", node_name, count))
 			total_nodes = total_nodes + count
 		end
-
+		
 		table.insert(result, string.format("Total counted: %d nodes", total_nodes))
-
+		
 		return true, table.concat(result, "\n")
 	end,
 })
