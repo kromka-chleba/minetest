@@ -355,6 +355,44 @@ describe("vector2", function()
 		assert.is_nil(vector2.from_string("nothing"))
 	end)
 
+	describe("from_angle()", function()
+		it("creates unit vector from angle", function()
+			-- 0 degrees points right (positive x-axis)
+			local v1 = vector2.from_angle(0)
+			assert.vector2_close(vector2.new(1, 0), v1)
+
+			-- 90 degrees (pi/2) points up (positive y-axis)
+			local v2 = vector2.from_angle(math.pi / 2)
+			assert.vector2_close(vector2.new(0, 1), v2)
+
+			-- 180 degrees (pi) points left (negative x-axis)
+			local v3 = vector2.from_angle(math.pi)
+			assert.vector2_close(vector2.new(-1, 0), v3)
+
+			-- -90 degrees (-pi/2) points down (negative y-axis)
+			local v4 = vector2.from_angle(-math.pi / 2)
+			assert.vector2_close(vector2.new(0, -1), v4)
+
+			-- 45 degrees (pi/4)
+			local v5 = vector2.from_angle(math.pi / 4)
+			assert.vector2_close(vector2.new(math.sqrt(2)/2, math.sqrt(2)/2), v5)
+		end)
+
+		it("creates unit vectors (length = 1)", function()
+			for i = 0, 10 do
+				local angle = math.random() * 2 * math.pi
+				local v = vector2.from_angle(angle)
+				assert.number_close(1, vector2.length(v))
+			end
+		end)
+
+		it("throws on invalid input", function()
+			assert.has.errors(function()
+				vector2.from_angle()
+			end)
+		end)
+	end)
+
 	describe("from_polar()", function()
 		it("creates vector from polar coordinates", function()
 			local v = vector2.from_polar(5, math.pi / 4)
@@ -372,6 +410,54 @@ describe("vector2", function()
 			assert.has.errors(function()
 				vector2.from_polar()
 			end)
+		end)
+	end)
+
+	describe("to_angle()", function()
+		it("returns angle of vector", function()
+			-- Positive x-axis (0 degrees)
+			assert.number_close(0, vector2.to_angle(vector2.new(1, 0)))
+			assert.number_close(0, vector2.new(5, 0):to_angle())
+
+			-- Positive y-axis (90 degrees)
+			assert.number_close(math.pi / 2, vector2.to_angle(vector2.new(0, 1)))
+			assert.number_close(math.pi / 2, vector2.new(0, 3):to_angle())
+
+			-- Negative x-axis (180 degrees)
+			local angle_neg_x = vector2.to_angle(vector2.new(-1, 0))
+			assert.number_close(math.pi, math.abs(angle_neg_x))
+
+			-- Negative y-axis (-90 degrees)
+			assert.number_close(-math.pi / 2, vector2.to_angle(vector2.new(0, -1)))
+
+			-- 45 degrees
+			assert.number_close(math.pi / 4, vector2.to_angle(vector2.new(1, 1)))
+
+			-- -45 degrees  
+			assert.number_close(-math.pi / 4, vector2.to_angle(vector2.new(1, -1)))
+		end)
+
+		it("is independent of vector length", function()
+			local angle = math.pi / 3
+			local v1 = vector2.from_angle(angle)
+			local v2 = v1 * 5
+			local v3 = v1 * 0.1
+			assert.number_close(angle, vector2.to_angle(v1))
+			assert.number_close(angle, vector2.to_angle(v2))
+			assert.number_close(angle, vector2.to_angle(v3))
+		end)
+
+		it("handles zero vector", function()
+			assert.number_close(0, vector2.to_angle(vector2.zero()))
+		end)
+
+		it("is inverse of from_angle for unit vectors", function()
+			for i = 0, 10 do
+				local angle = (math.random() - 0.5) * 2 * math.pi  -- Random angle in [-pi, pi]
+				local v = vector2.from_angle(angle)
+				local angle2 = vector2.to_angle(v)
+				assert.number_close(angle, angle2)
+			end
 		end)
 	end)
 
@@ -439,6 +525,43 @@ describe("vector2", function()
 			local v = vector2.new(3, 4)
 			local rotated = vector2.rotate(v, math.pi / 3)
 			assert.number_close(vector2.length(v), vector2.length(rotated))
+		end)
+	end)
+
+	describe("from_angle() and to_angle() symmetry", function()
+		it("from_angle(v:to_angle()) normalizes vectors", function()
+			local v = vector2.new(3, 4)
+			local normalized = vector2.from_angle(v:to_angle())
+			assert.number_close(1, vector2.length(normalized))
+			-- Check direction is preserved
+			local expected_normalized = vector2.normalize(v)
+			assert.vector2_close(expected_normalized, normalized)
+		end)
+
+		it("radius * from_angle(angle) replaces from_polar(radius, angle)", function()
+			local radius = 5
+			local angle = math.pi / 3
+			
+			-- Old way
+			local v1 = vector2.from_polar(radius, angle)
+			
+			-- New way
+			local v2 = radius * vector2.from_angle(angle)
+			
+			assert.vector2_close(v1, v2)
+		end)
+
+		it("signed_angle can be replaced by to_angle difference", function()
+			local a = vector2.new(1, 0)
+			local b = vector2.new(0, 1)
+			
+			-- Old way
+			local angle1 = vector2.signed_angle(a, b)
+			
+			-- New way (without normalization)
+			local angle2 = b:to_angle() - a:to_angle()
+			
+			assert.number_close(angle1, angle2)
 		end)
 	end)
 
