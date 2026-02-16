@@ -146,7 +146,6 @@ function vector2.angle(a, b)
 	if b == nil then
 		return math.atan2(a.y, a.x)
 	end
-	-- Otherwise, deprecated: use angle_to for binary operation
 	return vector2.angle_to(a, b)
 end
 

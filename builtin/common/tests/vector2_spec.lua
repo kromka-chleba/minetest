@@ -250,7 +250,7 @@ describe("vector2", function()
 			assert.number_close(math.pi / 4, vector2.angle(vector2.new(1, 1)))
 		end)
 
-		it("returns angle between two vectors (deprecated binary form)", function()
+		it("returns angle between two vectors (binary form)", function()
 			assert.number_close(math.pi, vector2.angle(vector2.new(-1, -2), vector2.new(1, 2)))
 			assert.number_close(math.pi/2, vector2.new(0, 1):angle(vector2.new(1, 0)))
 		end)

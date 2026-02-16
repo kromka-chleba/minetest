@@ -4291,7 +4291,6 @@ vectors are written like this: `(x, y)`:
     * Example: `vector2.angle(vector2.new(0, 1))` returns `math.pi / 2`.
     * Example: `vector2.angle(vector2.new(1, 0))` returns `0`.
 * `vector2.angle(v1, v2)`:
-    * **Deprecated**: Use `vector2.angle_to(v1, v2)` instead.
     * Returns the angle between `v1` and `v2` in radians.
     * This is always a positive value (unsigned angle).
 * `vector2.angle_to(v1, v2)`:
