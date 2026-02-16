@@ -108,7 +108,7 @@ local function example_build_checker(build_area_min, build_area_max)
 	print(string.format("Build area is %.1f%% clear (%d/%d air nodes)",
 		percent_clear, air_count, total_volume))
 	
-	return percent_clear == 100
+	return air_count == total_volume
 end
 
 -- Example 5: Resource density calculation
