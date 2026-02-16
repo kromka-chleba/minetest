@@ -141,12 +141,8 @@ function vector2.angle_to(a, b)
 	return math.atan2(crossplen, dotp)
 end
 
-function vector2.angle(a, b)
-	-- If b is not provided, return the unary angle (atan2(y, x))
-	if b == nil then
-		return math.atan2(a.y, a.x)
-	end
-	return vector2.angle_to(a, b)
+function vector2.angle(v)
+	return math.atan2(v.y, v.x)
 end
 
 function vector2.signed_angle(a, b)
