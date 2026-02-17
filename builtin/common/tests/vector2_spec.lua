@@ -333,9 +333,6 @@ describe("vector2", function()
 		assert.same("(-1, -2)", vector2.to_string(vector2.new(-1, -2)))
 		assert.same("(0.0001, 1e+10)", vector2.to_string(vector2.new(0.0001, 1e10)))
 		assert.same("(3.14159, 1.41421)", vector2.to_string(vector2.new(math.pi, math.sqrt(2))))
-
-		-- Note: Roundtrip is not guaranteed with %g format (precision is lost)
-		-- For exact precision, use core.serialize instead
 	end)
 
 	it("from_string()", function()
