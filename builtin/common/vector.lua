@@ -66,8 +66,6 @@ function vector.from_string(s, init)
 end
 
 function vector.to_string(v)
-	-- Note: This loses precision. For exact precision, use core.serialize instead.
-	-- Note: Precision may increase in future versions.
 	return string.format("(%g, %g, %g)", v.x, v.y, v.z)
 end
 metatable.__tostring = vector.to_string
