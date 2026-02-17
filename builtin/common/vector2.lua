@@ -60,7 +60,7 @@ function vector2.from_string(s, init)
 end
 
 function vector2.to_string(v)
-	-- Uses general format (g) like vector.to_string
+	-- Uses general format (g) like vector.to_string.
 	-- Note: This loses precision. For exact precision, use core.serialize instead.
 	return string.format("(%g, %g)", v.x, v.y)
 end
