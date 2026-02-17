@@ -62,6 +62,7 @@ end
 function vector2.to_string(v)
 	-- Uses general format (g) like vector.to_string.
 	-- Note: This loses precision. For exact precision, use core.serialize instead.
+	-- Note: Precision may increase in future versions.
 	return string.format("(%g, %g)", v.x, v.y)
 end
 metatable.__tostring = vector2.to_string
