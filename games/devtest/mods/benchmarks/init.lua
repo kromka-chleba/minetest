@@ -390,15 +390,34 @@ core.register_chatcommand("bench_find_vs_count_nodes", {
 		
 		core.chat_send_player(name, "Warming up finished, now benchmarking...")
 		
-		-- Benchmark find_nodes_in_area with grouped=true
-		local start_time = core.get_us_time()
-		local found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
-		local find_time = core.get_us_time() - start_time
+		-- Randomize execution order to avoid mapblock loading bias
+		local find_time, count_time
+		local found_nodes, node_counts
+		local run_find_first = math.random() < 0.5
 		
-		-- Benchmark get_node_counts_in_area
-		start_time = core.get_us_time()
-		local node_counts = core.get_node_counts_in_area(minp, maxp, nodenames)
-		local count_time = core.get_us_time() - start_time
+		if run_find_first then
+			core.chat_send_player(name, "Running find_nodes_in_area first...")
+			-- Benchmark find_nodes_in_area with grouped=true
+			local start_time = core.get_us_time()
+			found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
+			find_time = core.get_us_time() - start_time
+			
+			-- Benchmark get_node_counts_in_area
+			start_time = core.get_us_time()
+			node_counts = core.get_node_counts_in_area(minp, maxp, nodenames)
+			count_time = core.get_us_time() - start_time
+		else
+			core.chat_send_player(name, "Running get_node_counts_in_area first...")
+			-- Benchmark get_node_counts_in_area
+			local start_time = core.get_us_time()
+			node_counts = core.get_node_counts_in_area(minp, maxp, nodenames)
+			count_time = core.get_us_time() - start_time
+			
+			-- Benchmark find_nodes_in_area with grouped=true
+			start_time = core.get_us_time()
+			found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
+			find_time = core.get_us_time() - start_time
+		end
 		
 		-- Calculate total nodes found/counted
 		local find_total = 0
@@ -416,10 +435,11 @@ core.register_chatcommand("bench_find_vs_count_nodes", {
 		end
 		
 		local msg = string.format(
-			"Results:\n" ..
+			"Results (ran %s first):\n" ..
 			"  find_nodes_in_area (grouped=true): %.2f ms (%d nodes found)\n" ..
 			"  get_node_counts_in_area: %.2f ms (%d nodes counted)\n" ..
 			"  Speedup: %.2fx %s",
+			run_find_first and "find_nodes_in_area" or "get_node_counts_in_area",
 			find_time / 1000, find_total,
 			count_time / 1000, count_total,
 			find_time / count_time,
