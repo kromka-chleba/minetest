@@ -351,7 +351,7 @@ core.register_chatcommand("bench_bulk_swap_node", {
 
 core.register_chatcommand("bench_find_vs_count_nodes", {
 	params = "",
-	description = "Benchmark: Compare core.find_nodes_in_area (grouped) vs core.get_node_counts_in_area",
+	description = "Benchmark: Compare core.find_nodes_in_area (grouped=false) vs core.get_node_counts_in_area",
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
 		if not player then
@@ -385,21 +385,22 @@ core.register_chatcommand("bench_find_vs_count_nodes", {
 		core.chat_send_player(name, "Warming up...")
 		
 		-- Warm-up runs
-		local _ = core.find_nodes_in_area(minp, maxp, nodenames, true)
+		local _ = core.find_nodes_in_area(minp, maxp, nodenames, false)
 		_ = core.get_node_counts_in_area(minp, maxp, nodenames)
 		
 		core.chat_send_player(name, "Warming up finished, now benchmarking...")
 		
 		-- Randomize execution order to avoid mapblock loading bias
 		local find_time, count_time
-		local found_nodes, node_counts
+		local found_nodes, find_counts, node_counts
 		local run_find_first = math.random() < 0.5
 		
 		if run_find_first then
 			core.chat_send_player(name, "Running find_nodes_in_area first...")
-			-- Benchmark find_nodes_in_area with grouped=true
+			-- Benchmark find_nodes_in_area with grouped=false
+			-- Returns: positions table, counts table
 			local start_time = core.get_us_time()
-			found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
+			found_nodes, find_counts = core.find_nodes_in_area(minp, maxp, nodenames, false)
 			find_time = core.get_us_time() - start_time
 			
 			-- Benchmark get_node_counts_in_area
@@ -413,17 +414,18 @@ core.register_chatcommand("bench_find_vs_count_nodes", {
 			node_counts = core.get_node_counts_in_area(minp, maxp, nodenames)
 			count_time = core.get_us_time() - start_time
 			
-			-- Benchmark find_nodes_in_area with grouped=true
+			-- Benchmark find_nodes_in_area with grouped=false
+			-- Returns: positions table, counts table
 			start_time = core.get_us_time()
-			found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
+			found_nodes, find_counts = core.find_nodes_in_area(minp, maxp, nodenames, false)
 			find_time = core.get_us_time() - start_time
 		end
 		
 		-- Calculate total nodes found/counted
 		local find_total = 0
-		if found_nodes then
-			for node_name, positions in pairs(found_nodes) do
-				find_total = find_total + #positions
+		if find_counts then
+			for node_name, count in pairs(find_counts) do
+				find_total = find_total + count
 			end
 		end
 		
@@ -436,7 +438,7 @@ core.register_chatcommand("bench_find_vs_count_nodes", {
 		
 		local msg = string.format(
 			"Results (ran %s first):\n" ..
-			"  find_nodes_in_area (grouped=true): %.2f ms (%d nodes found)\n" ..
+			"  find_nodes_in_area (grouped=false): %.2f ms (%d nodes found)\n" ..
 			"  get_node_counts_in_area: %.2f ms (%d nodes counted)\n" ..
 			"  Speedup: %.2fx %s",
 			run_find_first and "find_nodes_in_area" or "get_node_counts_in_area",
