@@ -348,3 +348,85 @@ core.register_chatcommand("bench_bulk_swap_node", {
 		return true, msg
 	end,
 })
+
+core.register_chatcommand("bench_find_vs_count_nodes", {
+	params = "",
+	description = "Benchmark: Compare core.find_nodes_in_area (grouped) vs core.get_node_counts_in_area",
+	func = function(name, param)
+		local player = core.get_player_by_name(name)
+		if not player then
+			return false, "No player."
+		end
+		
+		local pos = player:get_pos()
+		
+		-- Define a relatively large area around the player
+		-- 5x5x5 mapblocks = 80x80x80 nodes (512,000 nodes total)
+		local radius = 40
+		local minp = {
+			x = math.floor(pos.x) - radius,
+			y = math.floor(pos.y) - radius,
+			z = math.floor(pos.z) - radius
+		}
+		local maxp = {
+			x = math.floor(pos.x) + radius,
+			y = math.floor(pos.y) + radius,
+			z = math.floor(pos.z) + radius
+		}
+		
+		-- Common node types to search for
+		local nodenames = {"air", "mapgen_stone", "group:stone", "group:soil", "group:tree"}
+		
+		core.chat_send_player(name, string.format(
+			"Benchmarking node area functions on area (%d,%d,%d) to (%d,%d,%d) [%d nodes]",
+			minp.x, minp.y, minp.z, maxp.x, maxp.y, maxp.z,
+			(maxp.x - minp.x + 1) * (maxp.y - minp.y + 1) * (maxp.z - minp.z + 1)
+		))
+		core.chat_send_player(name, "Warming up...")
+		
+		-- Warm-up runs
+		local _ = core.find_nodes_in_area(minp, maxp, nodenames, true)
+		_ = core.get_node_counts_in_area(minp, maxp, nodenames)
+		
+		core.chat_send_player(name, "Warming up finished, now benchmarking...")
+		
+		-- Benchmark find_nodes_in_area with grouped=true
+		local start_time = core.get_us_time()
+		local found_nodes = core.find_nodes_in_area(minp, maxp, nodenames, true)
+		local find_time = core.get_us_time() - start_time
+		
+		-- Benchmark get_node_counts_in_area
+		start_time = core.get_us_time()
+		local node_counts = core.get_node_counts_in_area(minp, maxp, nodenames)
+		local count_time = core.get_us_time() - start_time
+		
+		-- Calculate total nodes found/counted
+		local find_total = 0
+		if found_nodes then
+			for node_name, positions in pairs(found_nodes) do
+				find_total = find_total + #positions
+			end
+		end
+		
+		local count_total = 0
+		if node_counts then
+			for node_name, count in pairs(node_counts) do
+				count_total = count_total + count
+			end
+		end
+		
+		local msg = string.format(
+			"Results:\n" ..
+			"  find_nodes_in_area (grouped=true): %.2f ms (%d nodes found)\n" ..
+			"  get_node_counts_in_area: %.2f ms (%d nodes counted)\n" ..
+			"  Speedup: %.2fx %s",
+			find_time / 1000, find_total,
+			count_time / 1000, count_total,
+			find_time / count_time,
+			count_time < find_time and "(get_node_counts_in_area is faster)" or "(find_nodes_in_area is faster)"
+		)
+		
+		print(msg)
+		return true, msg
+	end,
+})
