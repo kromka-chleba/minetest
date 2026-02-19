@@ -41,6 +41,8 @@ private:
 
 	static int l_get_param2_data(lua_State *L);
 	static int l_set_param2_data(lua_State *L);
+	static int l_get_param3_data(lua_State *L);
+	static int l_set_param3_data(lua_State *L);
 
 	static int l_was_modified(lua_State *L);
 	static int l_get_emerged_area(lua_State *L);

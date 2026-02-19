@@ -150,7 +150,8 @@ void GameUI::update(const RunStats &stats, Client *client, MapDrawControl *draw_
 				} else {
 					os << ", pointed: " << nodedef->get(n).name;
 				}
-				os << ", param2: " << (u64) n.getParam2();
+				os << ", param2: " << (u64) n.getParam2()
+					<< ", param3: " << (u64) n.getParam3();
 			}
 		}
 
