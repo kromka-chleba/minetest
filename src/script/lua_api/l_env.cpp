@@ -264,7 +264,7 @@ int ModApiEnv::l_bulk_swap_node(lua_State *L)
 	return 1;
 }
 
-// get_node_raw(x, y, z) -> content, param1, param2, pos_ok
+// get_node_raw(x, y, z) -> content, param1, param2, pos_ok, param3
 int ModApiEnv::l_get_node_raw(lua_State *L)
 {
 	GET_PLAIN_ENV_PTR;
