@@ -66,6 +66,50 @@ core.register_tool("testtools:param2tool", {
 	end,
 })
 
+core.register_tool("testtools:param3tool", {
+	description = S("Param3 Tool") .."\n"..
+		S("Modify param3 value of nodes") .."\n"..
+		S("Punch: +1") .."\n"..
+		S("Sneak+Punch: +8") .."\n"..
+		S("Place: -1") .."\n"..
+		S("Sneak+Place: -8"),
+	inventory_image = "testtools_param3tool.png",
+	groups = { testtool = 1, disable_repair = 1 },
+	pointabilities = pointabilities_nodes,
+	on_use = function(itemstack, user, pointed_thing)
+		local pos = core.get_pointed_thing_position(pointed_thing)
+		if pointed_thing.type ~= "node" or (not pos) then
+			return
+		end
+		local add = 1
+		if user then
+			local ctrl = user:get_player_control()
+			if ctrl.sneak then
+				add = 8
+			end
+		end
+		local node = core.get_node(pos)
+		node.param3 = (node.param3 or 0) + add
+		core.swap_node(pos, node)
+	end,
+	on_place = function(itemstack, user, pointed_thing)
+		local pos = core.get_pointed_thing_position(pointed_thing)
+		if pointed_thing.type ~= "node" or (not pos) then
+			return
+		end
+		local add = -1
+		if user then
+			local ctrl = user:get_player_control()
+			if ctrl.sneak then
+				add = -8
+			end
+		end
+		local node = core.get_node(pos)
+		node.param3 = (node.param3 or 0) + add
+		core.swap_node(pos, node)
+	end,
+})
+
 core.register_tool("testtools:node_setter", {
 	description = S("Node Setter") .."\n"..
 		S("Replace pointed node with something else") .."\n"..
