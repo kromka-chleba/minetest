@@ -417,7 +417,7 @@ void MapBlock::serialize(std::ostream &os_compressed, u8 version, bool disk, int
 	NameIdMapping nimap;
 	Buffer<u8> buf;
 	const u8 content_width = 2;
-	const u8 params_width = 2;
+	const u8 params_width = version >= 30 ? 3 : 2;
 	if(disk)
 	{
 		const size_t size = m_is_mono_block ? 1 : nodecount;
@@ -523,7 +523,6 @@ void MapBlock::deSerialize(std::istream &in_compressed, u8 version, bool disk)
 
 	u8 flags = readU8(is);
 	is_underground = (flags & 0x01) != 0;
-	// IMPORTANT: when the version is bumped to 30 we can read m_is_air from here
 	// m_is_air = (flags & 0x02) == 0;
 
 	if (version < 27)
@@ -552,7 +551,7 @@ void MapBlock::deSerialize(std::istream &in_compressed, u8 version, bool disk)
 	u8 params_width = readU8(is);
 	if(content_width != 1 && content_width != 2)
 		throw SerializationError("MapBlock::deSerialize(): invalid content_width");
-	if(params_width != 2)
+	if(params_width != 2 && params_width != 3)
 		throw SerializationError("MapBlock::deSerialize(): invalid params_width");
 
 	/*

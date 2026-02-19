@@ -134,19 +134,27 @@ struct alignas(u32) MapNode
 	*/
 	u8 param2;
 
+	/*
+		The third parameter. Initialized to 0.
+		Generic modder-accessible property, analogous to param2.
+	*/
+	u8 param3;
+
 	MapNode() = default;
 
-	constexpr MapNode(content_t content, u8 a_param1=0, u8 a_param2=0) noexcept
+	constexpr MapNode(content_t content, u8 a_param1=0, u8 a_param2=0, u8 a_param3=0) noexcept
 		: param0(content),
 		  param1(a_param1),
-		  param2(a_param2)
+		  param2(a_param2),
+		  param3(a_param3)
 	{ }
 
 	bool operator==(const MapNode &other) const noexcept
 	{
 		return (param0 == other.param0
 				&& param1 == other.param1
-				&& param2 == other.param2);
+				&& param2 == other.param2
+				&& param3 == other.param3);
 	}
 	bool operator!=(const MapNode &other) const noexcept
 	{
@@ -177,6 +185,14 @@ struct alignas(u32) MapNode
 	void setParam2(u8 p) noexcept
 	{
 		param2 = p;
+	}
+	u8 getParam3() const noexcept
+	{
+		return param3;
+	}
+	void setParam3(u8 p) noexcept
+	{
+		param3 = p;
 	}
 
 	inline void setLight(LightBank bank, u8 a_light, ContentLightingFlags f) noexcept

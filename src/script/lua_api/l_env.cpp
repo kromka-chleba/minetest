@@ -290,7 +290,8 @@ int ModApiEnv::l_get_node_raw(lua_State *L)
 	lua_pushinteger(L, n.getParam1());
 	lua_pushinteger(L, n.getParam2());
 	lua_pushboolean(L, pos_ok);
-	return 4;
+	lua_pushinteger(L, n.getParam3());
+	return 5;
 }
 
 // get_node_light(pos, timeofday)

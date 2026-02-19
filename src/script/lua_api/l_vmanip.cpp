@@ -345,6 +345,54 @@ int LuaVoxelManip::l_set_param2_data(lua_State *L)
 	return 0;
 }
 
+int LuaVoxelManip::l_get_param3_data(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	bool use_buffer  = lua_istable(L, 2);
+
+	MMVManip *vm = o->vm;
+	const u32 volume = vm->m_area.getVolume();
+
+	if (use_buffer)
+		lua_pushvalue(L, 2);
+	else
+		lua_createtable(L, volume, 0);
+
+	for (u32 i = 0; i != volume; i++) {
+		lua_Integer param3 = (vm->m_flags[i] & VOXELFLAG_NO_DATA) ? 0 : vm->m_data[i].getParam3();
+		lua_pushinteger(L, param3);
+		lua_rawseti(L, -2, i + 1);
+	}
+
+	return 1;
+}
+
+int LuaVoxelManip::l_set_param3_data(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+
+	if (!lua_istable(L, 2))
+		throw LuaError("VoxelManip:set_param3_data called with missing "
+				"parameter");
+
+	u32 volume = vm->m_area.getVolume();
+	for (u32 i = 0; i != volume; i++) {
+		lua_rawgeti(L, 2, i + 1);
+		u8 param3 = lua_tointeger(L, -1);
+
+		vm->m_data[i].param3 = param3;
+
+		lua_pop(L, 1);
+	}
+
+	return 0;
+}
+
 int LuaVoxelManip::l_update_map(lua_State *L)
 {
 	return 0;
@@ -496,6 +544,8 @@ const luaL_Reg LuaVoxelManip::methods[] = {
 	luamethod(LuaVoxelManip, set_light_data),
 	luamethod(LuaVoxelManip, get_param2_data),
 	luamethod(LuaVoxelManip, set_param2_data),
+	luamethod(LuaVoxelManip, get_param3_data),
+	luamethod(LuaVoxelManip, set_param3_data),
 	luamethod(LuaVoxelManip, was_modified),
 	luamethod(LuaVoxelManip, get_emerged_area),
 	luamethod(LuaVoxelManip, close),

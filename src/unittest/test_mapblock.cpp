@@ -38,6 +38,9 @@ public:
 
 	// Tests blocks with a single recurring node
 	void testMonoblock(IGameDef *gamedef);
+
+	// Tests that param3 round-trips correctly in version 30
+	void testParam3(IGameDef *gamedef);
 };
 
 static TestMapBlock g_test_instance;
@@ -51,6 +54,7 @@ void TestMapBlock::runTests(IGameDef *gamedef)
 	TEST(testLoad20, gamedef);
 	TEST(testLoadNonStd, gamedef);
 	TEST(testMonoblock, gamedef);
+	TEST(testParam3, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -470,4 +474,57 @@ void TestMapBlock::testLoadNonStd(IGameDef *gamedef)
 		UASSERTEQ(int, block.getNodeNoEx({i, 0, 0}).param2, data_hi[i]);
 	for (s16 i = 0; i < 16; i++)
 		UASSERTEQ(int, block.getNodeNoEx({i, 1, 0}).param2, data_lo[i]);
+}
+
+void TestMapBlock::testParam3(IGameDef *gamedef)
+{
+	// Test that param3 round-trips correctly in version 30
+	constexpr u64 seed = 0xABCDEF1234567890ULL;
+	std::stringstream ss;
+	{
+		MapBlock block({}, gamedef);
+		PcgRandom r(seed);
+		for (s16 z = 0; z < MAP_BLOCKSIZE; z++)
+		for (s16 y = 0; y < MAP_BLOCKSIZE; y++)
+		for (s16 x = 0; x < MAP_BLOCKSIZE; x++) {
+			u32 rval = r.next();
+			u32 rval2 = r.next();
+			block.setNodeNoCheck(x, y, z,
+				MapNode(0, rval & 0xff, (rval >> 8) & 0xff, rval2 & 0xff));
+		}
+		block.serialize(ss, 30, true, -1);
+	}
+	{
+		MapBlock block({}, gamedef);
+		block.deSerialize(ss, 30, true);
+
+		PcgRandom r(seed);
+		for (s16 z = 0; z < MAP_BLOCKSIZE; z++)
+		for (s16 y = 0; y < MAP_BLOCKSIZE; y++)
+		for (s16 x = 0; x < MAP_BLOCKSIZE; x++) {
+			u32 rval = r.next();
+			u32 rval2 = r.next();
+			MapNode n = block.getNodeNoCheck(x, y, z);
+			UASSERTEQ(int, n.getParam1(), rval & 0xff);
+			UASSERTEQ(int, n.getParam2(), (rval >> 8) & 0xff);
+			UASSERTEQ(int, n.getParam3(), rval2 & 0xff);
+		}
+	}
+
+	// Test that param3 defaults to 0 when loading a version 29 block
+	std::stringstream ss29;
+	{
+		MapBlock block({}, gamedef);
+		block.setNode({3, 3, 3}, MapNode(0, 0x12, 0x34, 0xFF));
+		block.serialize(ss29, 29, true, -1);
+	}
+	{
+		MapBlock block({}, gamedef);
+		block.deSerialize(ss29, 29, true);
+		MapNode n = block.getNodeNoEx({3, 3, 3});
+		UASSERTEQ(int, n.getParam1(), 0x12);
+		UASSERTEQ(int, n.getParam2(), 0x34);
+		// param3 must be zero when loaded from version 29 (no param3 in format)
+		UASSERTEQ(int, n.getParam3(), 0);
+	}
 }
