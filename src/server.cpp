@@ -2412,8 +2412,8 @@ void Server::sendAddNode(v3s16 p, MapNode n, std::unordered_set<u16> *far_player
 	v3f p_f = intToFloat(p, BS);
 	v3s16 block_pos = getNodeBlockPos(p);
 
-	NetworkPacket pkt(TOCLIENT_ADDNODE, 6 + 2 + 1 + 1 + 1);
-	pkt << p << n.param0 << n.param1 << n.param2
+	NetworkPacket pkt(TOCLIENT_ADDNODE, 6 + 2 + 1 + 1 + 1 + 1);
+	pkt << p << n.param0 << n.param1 << n.param2 << n.param3
 			<< (u8) (remove_metadata ? 0 : 1);
 	sendNodeChangePkt(pkt, block_pos, p_f, far_d_nodes, far_players);
 }
