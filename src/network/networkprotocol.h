@@ -701,7 +701,15 @@ enum ToClientCommand : u16
 			u8[len] serialized ParticleParameters
 	*/
 
-	TOCLIENT_NUM_MSG_TYPES = 0x65,
+	TOCLIENT_LICENSE = 0x65,
+	/*
+		Sent before TOCLIENT_AUTH_ACCEPT when the game has licensing files.
+		u16 num_files
+		For each file:
+			std::string content
+	*/
+
+	TOCLIENT_NUM_MSG_TYPES = 0x66,
 };
 
 enum ToServerCommand : u16

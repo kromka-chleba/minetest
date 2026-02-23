@@ -142,6 +142,11 @@ void Client::handleCommand_AuthAccept(NetworkPacket* pkt)
 	infostream << "Client: received recommended send interval "
 					<< m_recommended_send_interval<<std::endl;
 
+	if (m_license_pending) {
+		// Defer sending TOSERVER_INIT2 until the user accepts the license
+		return;
+	}
+
 	// Reply to server
 	/* TRANSLATORS: DO NOT TRANSLATE THIS LITERALLY!
 	This is a special string which needs to contain the translation's
@@ -163,6 +168,26 @@ void Client::handleCommand_AuthAccept(NetworkPacket* pkt)
 		remote.print(actionstream);
 		actionstream << ")" << std::endl;
 	}
+}
+
+void Client::handleCommand_License(NetworkPacket *pkt)
+{
+	u16 num_files;
+	*pkt >> num_files;
+
+	m_license_content.clear();
+	for (u16 i = 0; i < num_files; i++) {
+		std::string content;
+		*pkt >> content;
+		if (!m_license_content.empty())
+			m_license_content += "\n\n---\n\n";
+		m_license_content += content;
+	}
+
+	// Only show the license dialog if there are actually license files.
+	// If the game has no licensing/ folder or it's empty, num_files is 0
+	// and the connection proceeds normally without interruption.
+	m_license_pending = (num_files > 0);
 }
 
 void Client::handleCommand_AcceptSudoMode(NetworkPacket* pkt)

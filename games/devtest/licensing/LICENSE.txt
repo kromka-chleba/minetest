@@ -1,0 +1,9 @@
+DevTest Game License Agreement
+
+This is a test license for the devtest game.
+
+By playing this game, you agree to the following terms:
+1. This is a test game for development purposes.
+2. All content is for testing only.
+3. No warranty is provided.
+
