@@ -998,11 +998,13 @@ void Hud::drawEntityCollisionBoxes()
 
 	v3f cam_offset = intToFloat(client->getCamera()->getOffset(), BS);
 
+	// Use a distance large enough to cover all server-sent active objects.
+	// Servers limit the range of sent objects; this covers the maximum possible
+	// send range (255 map-blocks * MAP_BLOCKSIZE nodes * BS units/node).
+	static constexpr f32 MAX_ACTIVE_OBJECT_RANGE = 255.0f * MAP_BLOCKSIZE * BS;
 	std::vector<DistanceSortedActiveObject> nearby_objects;
-	// Use a large max_d to get all active objects (server already limits
-	// which objects are sent to the client based on view range)
 	client->getEnv().getActiveObjects(player->getPosition(),
-			100000 * BS, nearby_objects);
+			MAX_ACTIVE_OBJECT_RANGE, nearby_objects);
 
 	driver->setMaterial(m_collisionbox_material);
 	const core::matrix4 oldtransform = driver->getTransform(video::ETS_WORLD);

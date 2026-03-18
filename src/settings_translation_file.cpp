@@ -196,6 +196,8 @@ fake_function() {
 	gettext("Method used to highlight selected object.");
 	gettext("Show entity selection boxes");
 	gettext("Show entity selection boxes\nA restart is required after changing this.");
+	gettext("Show entity collision boxes");
+	gettext("Show entity collision boxes\nA restart is required after changing this.");
 	gettext("Selection box color");
 	gettext("Selection box border color (R,G,B).");
 	gettext("Selection box width");
