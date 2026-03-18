@@ -45,6 +45,7 @@ std::string ObjectProperties::dump() const
 	os << ", physical=" << physical;
 	os << ", collideWithObjects=" << collideWithObjects;
 	os << ", collisionbox=" << collisionbox.MinEdge << "," << collisionbox.MaxEdge;
+	os << ", rotate_collisionbox=" << rotate_collisionbox;
 	os << ", visual=" << enum_to_string(es_ObjectVisual, visual);
 	os << ", mesh=" << mesh;
 	os << ", visual_size=" << visual_size;
@@ -104,7 +105,7 @@ static inline auto tie(const ObjectProperties &o)
 	o.stepheight, o.automatic_rotate, o.automatic_face_movement_dir_offset,
 	o.automatic_face_movement_max_rotation_per_sec, o.eye_height, o.zoom_fov,
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
-	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
+	o.collideWithObjects, o.rotate_selectionbox, o.rotate_collisionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
 	o.shaded, o.show_on_minimap, o.nametag_scale_z
 	);
@@ -217,6 +218,8 @@ void ObjectProperties::serialize(std::ostream &os) const
 
 	writeU8(os, nametag_scale_z);
 
+	writeU8(os, rotate_collisionbox);
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -318,6 +321,12 @@ void ObjectProperties::deSerialize(std::istream &is)
 	else
 		nametag_fontsize = std::nullopt;
 	nametag_scale_z = readU8(is);
+
+	if (!canRead(is))
+		return;
+	// >= 5.16.0-dev
+
+	rotate_collisionbox = readU8(is);
 
 	//if (!canRead(is))
 	//	return;
