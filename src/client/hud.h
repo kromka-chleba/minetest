@@ -67,6 +67,7 @@ public:
 	void drawCrosshair();
 	void drawSelectionMesh();
 	void updateSelectionMesh(const v3s16 &camera_offset);
+	void drawEntityCollisionBoxes();
 
 	std::vector<aabb3f> *getSelectionBoxes() { return &m_selection_boxes; }
 
@@ -143,6 +144,7 @@ private:
 
 	video::SMaterial m_selection_material;
 	video::SMaterial m_block_bounds_material;
+	video::SMaterial m_collisionbox_material;
 
 	irr_ptr<scene::SMeshBuffer> m_rotation_mesh_buffer;
 
