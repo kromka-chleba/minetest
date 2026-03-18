@@ -358,8 +358,10 @@ void read_object_properties(lua_State *L, int index,
 
 	lua_getfield(L, -1, "collisionbox");
 	bool collisionbox_defined = lua_istable(L, -1);
-	if (collisionbox_defined)
+	if (collisionbox_defined) {
+		getboolfield(L, -1, "rotate", prop->rotate_collisionbox);
 		prop->collisionbox = read_aabb3f(L, -1, 1.0);
+	}
 	lua_pop(L, 1);
 
 	lua_getfield(L, -1, "selectionbox");
@@ -536,6 +538,8 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_pushboolean(L, prop->collideWithObjects);
 	lua_setfield(L, -2, "collide_with_objects");
 	push_aabb3f(L, prop->collisionbox);
+	lua_pushboolean(L, prop->rotate_collisionbox);
+	lua_setfield(L, -2, "rotate");
 	lua_setfield(L, -2, "collisionbox");
 	push_aabb3f(L, prop->selectionbox);
 	lua_pushboolean(L, prop->rotate_selectionbox);

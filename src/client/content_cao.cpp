@@ -268,6 +268,12 @@ bool GenericCAO::getCollisionBox(aabb3f *toset) const
 		toset->MinEdge = m_prop.collisionbox.MinEdge * BS;
 		toset->MaxEdge = m_prop.collisionbox.MaxEdge * BS;
 
+		if (m_prop.rotate_collisionbox) {
+			core::matrix4 rot_mat;
+			setPitchYawRoll(rot_mat, -m_rotation);
+			*toset = getRotatedAABB(*toset, rot_mat);
+		}
+
 		toset->MinEdge += m_position;
 		toset->MaxEdge += m_position;
 

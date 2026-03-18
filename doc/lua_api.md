@@ -9289,8 +9289,9 @@ or `core.raycast(pos1, pos2, objects, liquids, pointabilities)` where:
 
 Raycasts don't always work properly for attached objects as the server has no knowledge of models & bones.
 
-**Rotated selectionboxes paired with `automatic_rotate` are not reliable** either since the server
-can't reliably know the total rotation of the objects on different clients (which may differ on a per-client basis).
+**Rotated selectionboxes and collisionboxes paired with `automatic_rotate` are not reliable**
+either since the server can't reliably know the total rotation of the objects on different
+clients (which may differ on a per-client basis).
 The server calculates the total rotation incurred through `automatic_rotate` as a "best guess"
 assuming the object was active & rotating on the client all the time since its creation.
 This may be significantly out of sync with what clients see.
@@ -9521,13 +9522,15 @@ Player properties need to be saved manually.
     collide_with_objects = true,
     -- Collide with other objects if physical = true
 
-    collisionbox = { -0.5, -0.5, -0.5, 0.5, 0.5, 0.5 },  -- default
+    collisionbox = { -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, rotate = false },
     selectionbox = { -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, rotate = false },
     -- { xmin, ymin, zmin, xmax, ymax, zmax } in nodes from object position.
-    -- Collision boxes cannot rotate, setting `rotate = true` on it has no effect.
     -- If not set, the selection box copies the collision box, and will also not rotate.
-    -- If `rotate = false`, the selection box will not rotate with the object itself, remaining fixed to the axes.
-    -- If `rotate = true`, it will match the object's rotation and any attachment rotations.
+    -- If `rotate = false`, the box will not rotate with the object itself, remaining fixed to the axes.
+    -- If `rotate = true`, it will match the object's rotation.
+    -- Note: When `rotate = true` on the collision box, the physics engine uses the
+    --   axis-aligned bounding box (AABB) that encloses the rotated box. This means the
+    --   effective collision area may be slightly larger than the visual model when rotated.
     -- Raycasts use the selection box and object's rotation, but do *not* obey attachment rotations.
     -- For server-side raycasts to work correctly,
     -- the selection box should extend at most 5 units in each direction.

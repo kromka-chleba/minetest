@@ -477,6 +477,19 @@ inline v3f getPitchYawRoll(const core::matrix4 &m)
 	return getPitchYawRollRad(m) * core::RADTODEG;
 }
 
+/// Computes the axis-aligned bounding box (AABB) that encloses the
+/// oriented bounding box (OBB) formed by rotating @p box with @p rot_mat.
+/// Useful for computing a conservative AABB for a rotated entity hitbox.
+/// @param box Input AABB in local (object) space
+/// @param rot_mat Rotation-only matrix (no translation/scale)
+/// @return The enclosing AABB after rotation
+inline aabb3f getRotatedAABB(const aabb3f &box, const core::matrix4 &rot_mat)
+{
+	aabb3f result = box;
+	rot_mat.transformBoxEx(result);
+	return result;
+}
+
 // Muliply the RGB value of a color linearly, and clamp to black/white
 inline video::SColor multiplyColorValue(const video::SColor &color, float mod)
 {

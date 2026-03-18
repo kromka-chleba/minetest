@@ -10,6 +10,7 @@
 #include "server.h"
 #include "serverenvironment.h"
 #include "settings.h"
+#include "util/numeric.h"
 #include "util/serialize.h"
 
 PlayerSAO::PlayerSAO(ServerEnvironment *env_, RemotePlayer *player_, session_t peer_id_,
@@ -745,6 +746,12 @@ bool PlayerSAO::getCollisionBox(aabb3f *toset) const
 	//update collision box
 	toset->MinEdge = m_prop.collisionbox.MinEdge * BS;
 	toset->MaxEdge = m_prop.collisionbox.MaxEdge * BS;
+
+	if (m_prop.rotate_collisionbox) {
+		core::matrix4 rot_mat;
+		setPitchYawRoll(rot_mat, -m_rotation);
+		*toset = getRotatedAABB(*toset, rot_mat);
+	}
 
 	toset->MinEdge += getBasePosition();
 	toset->MaxEdge += getBasePosition();

@@ -269,3 +269,23 @@ local function test_entity_guid(_, pos)
 	obj1:remove()
 end
 unittests.register("test_entity_guid", test_entity_guid, {map=true})
+
+local function test_rotate_collisionbox(_, pos)
+	local obj = core.add_entity(pos, "unittests:dummy")
+	assert(obj and obj:is_valid())
+
+	-- Verify rotate = true round-trips through set/get_properties
+	obj:set_properties({collisionbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5, rotate = true}})
+	local props = obj:get_properties()
+	assert(props.collisionbox.rotate == true,
+		"collisionbox.rotate should be true")
+
+	-- Verify rotate = false round-trips
+	obj:set_properties({collisionbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5, rotate = false}})
+	props = obj:get_properties()
+	assert(props.collisionbox.rotate == false,
+		"collisionbox.rotate should be false")
+
+	obj:remove()
+end
+unittests.register("test_rotate_collisionbox", test_rotate_collisionbox, {map=true})

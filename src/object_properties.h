@@ -66,6 +66,7 @@ struct ObjectProperties
 	bool physical = false;
 	bool collideWithObjects = true;
 	bool rotate_selectionbox = false;
+	bool rotate_collisionbox = false;
 	bool is_visible = true;
 	bool makes_footstep_sound = false;
 	bool automatic_face_movement_dir = false;
