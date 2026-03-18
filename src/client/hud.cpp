@@ -108,6 +108,11 @@ Hud::Hud(Client *client, LocalPlayer *player,
 	m_block_bounds_material.Thickness =
 			rangelim(g_settings->getS16("selectionbox_width"), 1, 5);
 
+	// Initialize m_collisionbox_material
+	m_collisionbox_material.MaterialType = video::EMT_SOLID;
+	m_collisionbox_material.Thickness =
+			rangelim(g_settings->getS16("selectionbox_width"), 1, 5);
+
 	// Prepare mesh for compass drawing
 	m_rotation_mesh_buffer.reset(new scene::SMeshBuffer());
 	auto *b = m_rotation_mesh_buffer.get();
@@ -982,6 +987,37 @@ void Hud::drawBlockBounds()
 			choose_color(block_pos.Y, block_pos.Z)
 		);
 	}
+}
+
+void Hud::drawEntityCollisionBoxes()
+{
+	static thread_local const bool show_entity_collisionbox =
+			g_settings->getBool("show_entity_collisionbox");
+	if (!show_entity_collisionbox)
+		return;
+
+	v3f cam_offset = intToFloat(client->getCamera()->getOffset(), BS);
+
+	std::vector<DistanceSortedActiveObject> nearby_objects;
+	// Use a large max_d to get all active objects (server already limits
+	// which objects are sent to the client based on view range)
+	client->getEnv().getActiveObjects(player->getPosition(),
+			100000 * BS, nearby_objects);
+
+	driver->setMaterial(m_collisionbox_material);
+	const core::matrix4 oldtransform = driver->getTransform(video::ETS_WORLD);
+	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+
+	for (const auto &sao : nearby_objects) {
+		aabb3f collision_box{{0.0f, 0.0f, 0.0f}};
+		if (!sao.obj->getCollisionBox(&collision_box))
+			continue;
+		collision_box.MinEdge -= cam_offset;
+		collision_box.MaxEdge -= cam_offset;
+		driver->draw3DBox(collision_box, video::SColor(255, 255, 0, 0));
+	}
+
+	driver->setTransform(video::ETS_WORLD, oldtransform);
 }
 
 void Hud::updateSelectionMesh(const v3s16 &camera_offset)

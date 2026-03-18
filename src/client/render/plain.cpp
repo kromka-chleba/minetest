@@ -26,6 +26,7 @@ void Draw3D::run(PipelineContext &context)
 		return;
 	context.hud->drawBlockBounds();
 	context.hud->drawSelectionMesh();
+	context.hud->drawEntityCollisionBoxes();
 }
 
 void DrawWield::run(PipelineContext &context)

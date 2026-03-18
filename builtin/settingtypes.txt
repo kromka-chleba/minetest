@@ -554,6 +554,9 @@ node_highlighting (Node highlighting) enum box box,halo,none
 #    A restart is required after changing this.
 show_entity_selectionbox (Show entity selection boxes) bool false
 
+#    Show entity collision boxes
+show_entity_collisionbox (Show entity collision boxes) bool false
+
 #    Selection box border color (R,G,B).
 selectionbox_color (Selection box color) string (0,0,0)
 
