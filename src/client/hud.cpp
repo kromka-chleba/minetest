@@ -19,6 +19,7 @@
 #include "fontengine.h"
 #include "guiscalingfilter.h"
 #include "mesh.h"
+#include "client/content_cao.h"
 #include "client/renderingengine.h"
 #include "client/minimap.h"
 #include "client/texturesource.h"
@@ -1011,12 +1012,34 @@ void Hud::drawEntityCollisionBoxes()
 	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
 
 	for (const auto &sao : nearby_objects) {
-		aabb3f collision_box{{0.0f, 0.0f, 0.0f}};
-		if (!sao.obj->getCollisionBox(&collision_box))
-			continue;
-		collision_box.MinEdge -= cam_offset;
-		collision_box.MaxEdge -= cam_offset;
-		driver->draw3DBox(collision_box, video::SColor(255, 255, 0, 0));
+		GenericCAO *gcao = dynamic_cast<GenericCAO*>(sao.obj);
+		if (gcao && gcao->getProperties().rotate_collisionbox) {
+			// Draw the oriented bounding box (OBB) using the entity's rotation,
+			// matching the approach used by drawSelectionMesh() for the selectionbox.
+			aabb3f local_box = gcao->getProperties().collisionbox;
+			local_box.MinEdge *= BS;
+			local_box.MaxEdge *= BS;
+
+			const v3f pos = gcao->getPosition() - cam_offset;
+			scene::ISceneNode *node = gcao->getSceneNode();
+			const v3f rotation_radians = node
+					? node->getAbsoluteTransformation().getRotationRadians()
+					: v3f(0.0f, 0.0f, 0.0f);
+
+			core::matrix4 translate, rotation;
+			translate.setTranslation(pos);
+			rotation.setRotationRadians(rotation_radians);
+			driver->setTransform(video::ETS_WORLD, translate * rotation);
+			driver->draw3DBox(local_box, video::SColor(255, 255, 0, 0));
+			driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+		} else {
+			aabb3f collision_box{{0.0f, 0.0f, 0.0f}};
+			if (!sao.obj->getCollisionBox(&collision_box))
+				continue;
+			collision_box.MinEdge -= cam_offset;
+			collision_box.MaxEdge -= cam_offset;
+			driver->draw3DBox(collision_box, video::SColor(255, 255, 0, 0));
+		}
 	}
 
 	driver->setTransform(video::ETS_WORLD, oldtransform);
