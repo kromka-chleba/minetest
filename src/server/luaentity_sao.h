@@ -21,7 +21,7 @@ public:
 
 	ActiveObjectType getType() const { return ACTIVEOBJECT_TYPE_LUAENTITY; }
 	ActiveObjectType getSendType() const { return ACTIVEOBJECT_TYPE_GENERIC; }
-	virtual void addedToEnvironment(u32 dtime_s);
+	virtual void addedToEnvironment(u32 dtime_s, u32 last_unload_time);
 	void step(float dtime, bool send_recommended);
 	std::string getClientInitializationData(u16 protocol_version);
 

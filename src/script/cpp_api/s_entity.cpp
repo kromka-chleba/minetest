@@ -56,7 +56,7 @@ bool ScriptApiEntity::luaentity_Add(u16 id, const char *name)
 }
 
 void ScriptApiEntity::luaentity_Activate(u16 id,
-		const std::string &staticdata, u32 dtime_s)
+		const std::string &staticdata, u32 dtime_s, u32 last_unload_time)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
@@ -73,9 +73,10 @@ void ScriptApiEntity::luaentity_Activate(u16 id,
 		lua_pushvalue(L, object); // self
 		lua_pushlstring(L, staticdata.c_str(), staticdata.size());
 		lua_pushinteger(L, dtime_s);
+		lua_pushinteger(L, last_unload_time);
 
 		setOriginFromTable(object);
-		PCALL_RES(lua_pcall(L, 3, 0, error_handler));
+		PCALL_RES(lua_pcall(L, 4, 0, error_handler));
 	} else {
 		lua_pop(L, 1);
 	}

@@ -72,9 +72,9 @@ std::string PlayerSAO::getDescription()
 }
 
 // Called after id has been set and has been inserted in environment
-void PlayerSAO::addedToEnvironment(u32 dtime_s)
+void PlayerSAO::addedToEnvironment(u32 dtime_s, u32 last_unload_time)
 {
-	ServerActiveObject::addedToEnvironment(dtime_s);
+	ServerActiveObject::addedToEnvironment(dtime_s, last_unload_time);
 	m_player->setPlayerSAO(this);
 	m_player->setPeerId(m_peer_id_initial);
 	m_peer_id_initial = PEER_ID_INEXISTENT; // don't try to use it again.

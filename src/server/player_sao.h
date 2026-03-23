@@ -68,7 +68,7 @@ public:
 		Active object <-> environment interface
 	*/
 
-	void addedToEnvironment(u32 dtime_s) override;
+	void addedToEnvironment(u32 dtime_s, u32 last_unload_time) override;
 	void removingFromEnvironment() override;
 	bool isStaticAllowed() const override { return false; }
 	bool shouldUnload() const override { return false; }

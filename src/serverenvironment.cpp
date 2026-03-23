@@ -572,7 +572,7 @@ void ServerEnvironment::activateBlock(MapBlock *block)
 	block->setTimestampNoChangedFlag(m_game_time);
 
 	// Activate stored objects
-	activateObjects(block, dtime_s);
+	activateObjects(block, dtime_s, stamp);
 	if (block->isOrphan())
 		return;
 
@@ -1429,7 +1429,7 @@ void ServerEnvironment::getSelectedActiveObjects(
 */
 
 u16 ServerEnvironment::addActiveObjectRaw(std::unique_ptr<ServerActiveObject> object_u,
-	const StaticObject *from_static, u32 dtime_s)
+	const StaticObject *from_static, u32 dtime_s, u32 last_unload_time)
 {
 	auto object = object_u.get();
 	if (!m_ao_manager.registerObject(std::move(object_u))) {
@@ -1440,7 +1440,7 @@ u16 ServerEnvironment::addActiveObjectRaw(std::unique_ptr<ServerActiveObject> ob
 	m_script->addObjectReference(object);
 	// Post-initialize object
 	// Note that this can change the value of isStaticAllowed() in case of LuaEntitySAO
-	object->addedToEnvironment(dtime_s);
+	object->addedToEnvironment(dtime_s, last_unload_time);
 
 	// Activate object
 	if (object->m_static_exists)
@@ -1593,7 +1593,7 @@ std::unique_ptr<ServerActiveObject> ServerEnvironment::createSAO(ActiveObjectTyp
 /*
 	Convert stored objects from blocks near the players to active.
 */
-void ServerEnvironment::activateObjects(MapBlock *block, u32 dtime_s)
+void ServerEnvironment::activateObjects(MapBlock *block, u32 dtime_s, u32 last_unload_time)
 {
 	if (!block || m_shutting_down)
 		return;
@@ -1623,7 +1623,7 @@ void ServerEnvironment::activateObjects(MapBlock *block, u32 dtime_s)
 		obj->m_static_block = block->getPos();
 
 		// This will also add the object to the active static list
-		bool ok = addActiveObjectRaw(std::move(obj), &s_obj, dtime_s) != 0;
+		bool ok = addActiveObjectRaw(std::move(obj), &s_obj, dtime_s, last_unload_time) != 0;
 		if (ok) {
 			verbosestream << "ServerEnvironment::activateObjects(): "
 				<< "activated static object pos=" << (s_obj.pos / BS)

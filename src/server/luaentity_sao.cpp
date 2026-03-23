@@ -98,9 +98,9 @@ LuaEntitySAO::~LuaEntitySAO()
 	}
 }
 
-void LuaEntitySAO::addedToEnvironment(u32 dtime_s)
+void LuaEntitySAO::addedToEnvironment(u32 dtime_s, u32 last_unload_time)
 {
-	ServerActiveObject::addedToEnvironment(dtime_s);
+	ServerActiveObject::addedToEnvironment(dtime_s, last_unload_time);
 
 	// Create entity from name
 	m_registered = m_env->getScriptIface()->
@@ -114,7 +114,7 @@ void LuaEntitySAO::addedToEnvironment(u32 dtime_s)
 		m_hp = m_prop.hp_max;
 		// Activate entity, supplying serialized state
 		m_env->getScriptIface()->
-			luaentity_Activate(m_id, m_init_state, dtime_s);
+			luaentity_Activate(m_id, m_init_state, dtime_s, last_unload_time);
 	} else {
 		// It's an unknown object
 		// Use entitystring as infotext for debugging

@@ -324,7 +324,7 @@ private:
 		Returns 0 if not added and thus deleted.
 	*/
 	u16 addActiveObjectRaw(std::unique_ptr<ServerActiveObject> object,
-			const StaticObject *from_static, u32 dtime_s);
+			const StaticObject *from_static, u32 dtime_s, u32 last_unload_time = 0);
 
 	/*
 		Remove all objects that satisfy (isGone() && m_known_by_count==0)
@@ -334,7 +334,7 @@ private:
 	/*
 		Convert stored objects from block to active
 	*/
-	void activateObjects(MapBlock *block, u32 dtime_s);
+	void activateObjects(MapBlock *block, u32 dtime_s, u32 last_unload_time);
 
 	/*
 		Convert objects that are not in active blocks to static.

@@ -5442,10 +5442,13 @@ Functions receive a "luaentity" table as `self`:
 
 Callbacks:
 
-* `on_activate(self, staticdata, dtime_s)`
+* `on_activate(self, staticdata, dtime_s, last_unload_time)`
     * Called when the object is instantiated.
     * `dtime_s` is the time passed since the object was unloaded, which can be
       used for updating the entity state.
+    * `last_unload_time` is the gametime at which the object was last unloaded,
+      which is equivalent to `core.get_gametime() - dtime_s`. It is set to `0`
+      if the object has never been saved or if the gametime is not available.
 * `on_deactivate(self, removal)`
     * Called when the object is about to get removed or unloaded.
     * `removal`: boolean indicating whether the object is about to get removed.
@@ -9711,7 +9714,7 @@ between all instances of an entity.
     -- once when it is spawned.
 
     -- Refer to the "Registered entities" section for explanations
-    on_activate = function(self, staticdata, dtime_s) end,
+    on_activate = function(self, staticdata, dtime_s, last_unload_time) end,
     on_deactivate = function(self, removal) end,
     on_step = function(self, dtime, moveresult) end,
     on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir, damage) end,

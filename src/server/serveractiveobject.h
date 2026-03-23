@@ -51,7 +51,7 @@ public:
 	{ return getType(); }
 
 	// Called after id has been set and has been inserted in environment
-	virtual void addedToEnvironment(u32 dtime_s){};
+	virtual void addedToEnvironment(u32 dtime_s, u32 last_unload_time){};
 	// Called before removing from environment
 	virtual void removingFromEnvironment(){};
 
