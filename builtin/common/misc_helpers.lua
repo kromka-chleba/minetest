@@ -4,6 +4,26 @@ local string_sub, string_find, string_rep = string.sub, string.find, string.rep
 local math = math
 
 --------------------------------------------------------------------------------
+-- Override pairs() to support the __pairs metamethod.
+-- Lua 5.1 / LuaJIT do not check for __pairs in the built-in pairs(), so we
+-- provide the check here.  This is used by core.loaded_blocks and
+-- core.active_blocks (and any other read-only proxy tables) so that
+-- `for k, v in pairs(proxy) do` iterates the underlying data.
+do
+	local _pairs = pairs
+	function pairs(t)
+		local mt = getmetatable(t)
+		if mt then
+			local mt_pairs = rawget(mt, "__pairs")
+			if mt_pairs then
+				return mt_pairs(t)
+			end
+		end
+		return _pairs(t)
+	end
+end
+
+--------------------------------------------------------------------------------
 local function basic_dump(o)
 	local tp = type(o)
 	if tp == "number" then
