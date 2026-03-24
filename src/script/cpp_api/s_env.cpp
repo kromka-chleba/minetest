@@ -160,7 +160,7 @@ void ScriptApiEnv::player_event(ServerActiveObject *player, const std::string &t
 }
 
 /*
- * Helper function for read-only table metatables.
+ * Helper function for read-only proxy table metatables.
  * Used as the __newindex metamethod to prevent modifications.
  * Expects a table name as an upvalue for error messaging.
  */
@@ -168,6 +168,20 @@ static int block_table_newindex_error(lua_State *L)
 {
 	const char *table_name = lua_tostring(L, lua_upvalueindex(1));
 	return luaL_error(L, "%s is read-only", table_name);
+}
+
+/*
+ * Helper function implementing __pairs for read-only proxy tables.
+ * Returns (next, internal_data_table, nil) so that pairs() iterates the
+ * internal data table rather than the empty proxy table.
+ * Upvalue 1: internal data table.
+ */
+static int block_table_pairs(lua_State *L)
+{
+	lua_getglobal(L, "next");
+	lua_pushvalue(L, lua_upvalueindex(1)); // internal data table
+	lua_pushnil(L);                        // initial key
+	return 3;
 }
 
 void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
@@ -180,36 +194,73 @@ void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 
 	// Initialize block tracking tables
 	lua_getglobal(L, "core");
+	int core_idx = lua_gettop(L);
 
-	// Create loaded_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.loaded_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "loaded_blocks");
+	/*
+	 * Create a fully read-only proxy for a block tracking table.
+	 *
+	 * The proxy is always kept empty.  Reads go through __index to the
+	 * internal data table; writes always trigger __newindex and raise an
+	 * error.  __pairs returns an iterator over the internal data table so
+	 * that pairs(proxy) works correctly even on Lua 5.1/LuaJIT.
+	 * __metatable is set to the real metatable (self-reference) so that
+	 * getmetatable() returns the metatable that carries __pairs (needed by
+	 * the pairs() override in the Lua builtins), while setmetatable() on
+	 * the proxy still raises an error.
+	 */
+	auto create_block_proxy = [&](const char *table_name, int registry_key) {
+		// Create internal data table (private to the engine)
+		lua_newtable(L);
+		int internal_idx = lua_gettop(L);
 
-	// Create active_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.active_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "active_blocks");
+		// Save a reference in the registry for direct engine access
+		lua_pushvalue(L, internal_idx);
+		lua_rawseti(L, LUA_REGISTRYINDEX, registry_key);
+
+		// Create the empty proxy table
+		lua_newtable(L);
+		int proxy_idx = lua_gettop(L);
+
+		// Create the proxy's metatable
+		lua_newtable(L);
+		int meta_idx = lua_gettop(L);
+
+		// __index = internal data table (forwards key reads to actual data)
+		lua_pushliteral(L, "__index");
+		lua_pushvalue(L, internal_idx);
+		lua_rawset(L, meta_idx);
+
+		// __newindex = error (proxy is always empty, so all writes are new)
+		lua_pushliteral(L, "__newindex");
+		lua_pushstring(L, table_name);
+		lua_pushcclosure(L, block_table_newindex_error, 1);
+		lua_rawset(L, meta_idx);
+
+		// __pairs = iterator returning (next, internal_data, nil)
+		lua_pushliteral(L, "__pairs");
+		lua_pushvalue(L, internal_idx);
+		lua_pushcclosure(L, block_table_pairs, 1);
+		lua_rawset(L, meta_idx);
+
+		// __metatable = metatable (self-reference: getmetatable() returns the
+		// real metatable so __pairs is reachable, but setmetatable() still errors)
+		lua_pushliteral(L, "__metatable");
+		lua_pushvalue(L, meta_idx);
+		lua_rawset(L, meta_idx);
+
+		// Attach metatable to proxy (pops metatable)
+		lua_setmetatable(L, proxy_idx);
+
+		// Remove internal data from stack (already saved in registry)
+		lua_remove(L, internal_idx);
+		// proxy is now at the top of the stack
+	};
+
+	create_block_proxy("core.loaded_blocks", CUSTOM_RIDX_LOADED_BLOCKS_DATA);
+	lua_setfield(L, core_idx, "loaded_blocks");
+
+	create_block_proxy("core.active_blocks", CUSTOM_RIDX_ACTIVE_BLOCKS_DATA);
+	lua_setfield(L, core_idx, "active_blocks");
 
 	lua_pop(L, 1); // Pop core
 
@@ -470,14 +521,11 @@ void ScriptApiEnv::on_block_loaded(v3s16 blockpos)
 	SCRIPTAPI_PRECHECKHEADER
 
 	// Update loaded_blocks table before running callbacks so mods can query it
-	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "loaded_blocks");
-	if (lua_istable(L, -1)) {
-		lua_pushnumber(L, hash_node_position(blockpos));
-		lua_pushboolean(L, true);
-		lua_rawset(L, -3);
-	}
-	lua_pop(L, 2); // Pop loaded_blocks and core
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_LOADED_BLOCKS_DATA);
+	lua_pushnumber(L, hash_node_position(blockpos));
+	lua_pushboolean(L, true);
+	lua_rawset(L, -3);
+	lua_pop(L, 1); // Pop loaded_blocks_data
 
 	// Get core.registered_on_block_loaded
 	lua_getglobal(L, "core");
@@ -497,22 +545,17 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos, u32 last_stamp)
 
 	// Update loaded_blocks and active_blocks tables before running callbacks
 	// so mods can query them inside the callback
-	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "loaded_blocks");
-	if (lua_istable(L, -1)) {
-		lua_pushnumber(L, hash_node_position(blockpos));
-		lua_pushboolean(L, true);
-		lua_rawset(L, -3);
-	}
-	lua_pop(L, 1); // Pop loaded_blocks
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_LOADED_BLOCKS_DATA);
+	lua_pushnumber(L, hash_node_position(blockpos));
+	lua_pushboolean(L, true);
+	lua_rawset(L, -3);
+	lua_pop(L, 1); // Pop loaded_blocks_data
 
-	lua_getfield(L, -1, "active_blocks");
-	if (lua_istable(L, -1)) {
-		lua_pushnumber(L, hash_node_position(blockpos));
-		lua_pushboolean(L, true);
-		lua_rawset(L, -3);
-	}
-	lua_pop(L, 2); // Pop active_blocks and core
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_ACTIVE_BLOCKS_DATA);
+	lua_pushnumber(L, hash_node_position(blockpos));
+	lua_pushboolean(L, true);
+	lua_rawset(L, -3);
+	lua_pop(L, 1); // Pop active_blocks_data
 
 	// Get core.registered_on_block_activated
 	lua_getglobal(L, "core");
@@ -535,16 +578,13 @@ void ScriptApiEnv::on_block_deactivated(const std::vector<v3s16> &blockpos_list)
 
 	// Update active_blocks table before running callbacks so mods see the
 	// blocks as inactive when querying inside the callback
-	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "active_blocks");
-	if (lua_istable(L, -1)) {
-		for (const v3s16 &blockpos : blockpos_list) {
-			lua_pushnumber(L, hash_node_position(blockpos));
-			lua_pushnil(L);
-			lua_rawset(L, -3);
-		}
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_ACTIVE_BLOCKS_DATA);
+	for (const v3s16 &blockpos : blockpos_list) {
+		lua_pushnumber(L, hash_node_position(blockpos));
+		lua_pushnil(L);
+		lua_rawset(L, -3);
 	}
-	lua_pop(L, 2); // Pop active_blocks and core
+	lua_pop(L, 1); // Pop active_blocks_data
 
 	// Get core.registered_on_block_deactivated
 	lua_getglobal(L, "core");
@@ -569,26 +609,21 @@ void ScriptApiEnv::on_block_unloaded(const std::vector<v3s16> &blockpos_list)
 
 	// Update loaded_blocks and active_blocks tables before running callbacks
 	// so mods see the blocks as unloaded when querying inside the callback
-	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "loaded_blocks");
-	if (lua_istable(L, -1)) {
-		for (const v3s16 &blockpos : blockpos_list) {
-			lua_pushnumber(L, hash_node_position(blockpos));
-			lua_pushnil(L);
-			lua_rawset(L, -3);
-		}
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_LOADED_BLOCKS_DATA);
+	for (const v3s16 &blockpos : blockpos_list) {
+		lua_pushnumber(L, hash_node_position(blockpos));
+		lua_pushnil(L);
+		lua_rawset(L, -3);
 	}
-	lua_pop(L, 1); // Pop loaded_blocks
+	lua_pop(L, 1); // Pop loaded_blocks_data
 
-	lua_getfield(L, -1, "active_blocks");
-	if (lua_istable(L, -1)) {
-		for (const v3s16 &blockpos : blockpos_list) {
-			lua_pushnumber(L, hash_node_position(blockpos));
-			lua_pushnil(L);
-			lua_rawset(L, -3);
-		}
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_ACTIVE_BLOCKS_DATA);
+	for (const v3s16 &blockpos : blockpos_list) {
+		lua_pushnumber(L, hash_node_position(blockpos));
+		lua_pushnil(L);
+		lua_rawset(L, -3);
 	}
-	lua_pop(L, 2); // Pop active_blocks and core
+	lua_pop(L, 1); // Pop active_blocks_data
 
 	// Get core.registered_on_block_unloaded
 	lua_getglobal(L, "core");

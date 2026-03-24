@@ -54,6 +54,10 @@ enum {
 	CUSTOM_RIDX_READ_NODE,
 	CUSTOM_RIDX_PUSH_NODE,
 	CUSTOM_RIDX_PUSH_MOVERESULT1,
+	/// Internal data table backing core.loaded_blocks proxy
+	CUSTOM_RIDX_LOADED_BLOCKS_DATA,
+	/// Internal data table backing core.active_blocks proxy
+	CUSTOM_RIDX_ACTIVE_BLOCKS_DATA,
 };
 
 
