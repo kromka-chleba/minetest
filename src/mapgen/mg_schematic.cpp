@@ -182,6 +182,9 @@ void Schematic::blitToVManip(MMVManip *vm, v3s16 p, Rotation rot, bool force_pla
 
 				vm->m_data[vi] = schemdata[i];
 				vm->m_data[vi].param1 = 0;
+				// Mark this node as written-after-load so blitBackAll knows
+				// that mapgen intentionally modified this (border) block.
+				vm->m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 
 				if (rot)
 					vm->m_data[vi].rotateAlongYAxis(m_ndef, rot);

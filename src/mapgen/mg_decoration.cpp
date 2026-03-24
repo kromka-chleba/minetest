@@ -352,6 +352,7 @@ size_t DecoSimple::generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling)
 				break;
 
 			vm->m_data[vi] = MapNode(c_place, 0, param2);
+			vm->m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 		}
 	} else { // Heightmap and floor decorations
 		VoxelArea::add_y(em, vi, place_offset_y);
@@ -363,6 +364,7 @@ size_t DecoSimple::generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling)
 				break;
 
 			vm->m_data[vi] = MapNode(c_place, 0, param2);
+			vm->m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 		}
 	}
 

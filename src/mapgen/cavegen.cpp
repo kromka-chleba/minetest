@@ -588,6 +588,7 @@ void CavesRandomWalk::carveRoute(v3f vec, float f, bool randomize_xz)
 					vm->m_data[i] = airnode;
 					vm->m_flags[i] |= VMANIP_FLAG_CAVE;
 				}
+				vm->m_flags[i] &= ~VOXELFLAG_LOADED_FROM_GEN;
 			}
 		}
 	}
@@ -893,6 +894,7 @@ void CavesV6::carveRoute(v3f vec, float f, bool randomize_xz,
 					vm->m_data[i] = airnode;
 					vm->m_flags[i] |= VMANIP_FLAG_CAVE;
 				}
+				vm->m_flags[i] &= ~VOXELFLAG_LOADED_FROM_GEN;
 			}
 		}
 	}

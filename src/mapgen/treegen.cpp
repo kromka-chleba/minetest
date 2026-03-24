@@ -68,6 +68,7 @@ void make_tree(MMVManip &vmanip, v3s16 p0, bool is_apple_tree,
 		if (vmanip.m_area.contains(p1)) {
 			u32 vi = vmanip.m_area.index(p1);
 			vmanip.m_data[vi] = treenode;
+			vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 		}
 		p1.Y++;
 	}
@@ -120,6 +121,7 @@ void make_tree(MMVManip &vmanip, v3s16 p0, bool is_apple_tree,
 						vmanip.m_data[vi] = applenode;
 					else
 						vmanip.m_data[vi] = leavesnode;
+					vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 				}
 			}
 			vi++;
