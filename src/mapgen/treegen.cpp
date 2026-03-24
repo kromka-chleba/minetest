@@ -550,6 +550,7 @@ void tree_trunk_placement(MMVManip &vmanip, v3f p0, const TreeDef &tree_definiti
 			&& current_node != tree_definition.fruitnode.getContent())
 		return;
 	vmanip.m_data[vi] = tree_definition.trunknode;
+	vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 }
 
 
@@ -568,11 +569,13 @@ void tree_leaves_placement(MMVManip &vmanip, v3f p0,
 		return;
 	if (tree_definition.fruit_chance > 0) {
 		if (ps.range(1, 100) > 100 - tree_definition.fruit_chance)
-			vmanip.m_data[vmanip.m_area.index(p1)] = tree_definition.fruitnode;
+			vmanip.m_data[vi] = tree_definition.fruitnode;
 		else
-			vmanip.m_data[vmanip.m_area.index(p1)] = leavesnode;
+			vmanip.m_data[vi] = leavesnode;
+		vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 	} else if (ps.range(1, 100) > 20) {
-		vmanip.m_data[vmanip.m_area.index(p1)] = leavesnode;
+		vmanip.m_data[vi] = leavesnode;
+		vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 	}
 }
 
@@ -590,7 +593,8 @@ void tree_single_leaves_placement(MMVManip &vmanip, v3f p0,
 	if (vmanip.m_data[vi].getContent() != CONTENT_AIR
 			&& vmanip.m_data[vi].getContent() != CONTENT_IGNORE)
 		return;
-	vmanip.m_data[vmanip.m_area.index(p1)] = leavesnode;
+	vmanip.m_data[vi] = leavesnode;
+	vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 }
 
 
@@ -603,7 +607,8 @@ void tree_fruit_placement(MMVManip &vmanip, v3f p0, const TreeDef &tree_definiti
 	if (vmanip.m_data[vi].getContent() != CONTENT_AIR
 			&& vmanip.m_data[vi].getContent() != CONTENT_IGNORE)
 		return;
-	vmanip.m_data[vmanip.m_area.index(p1)] = tree_definition.fruitnode;
+	vmanip.m_data[vi] = tree_definition.fruitnode;
+	vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 }
 
 
@@ -677,13 +682,20 @@ void make_jungletree(MMVManip &vmanip, v3s16 p0, const NodeDefManager *ndef,
 		u32 vi2 = vmanip.m_area.index(p2);
 
 		if (vmanip.m_area.contains(p2) &&
-				vmanip.m_data[vi2].getContent() == CONTENT_AIR)
+				vmanip.m_data[vi2].getContent() == CONTENT_AIR) {
 			vmanip.m_data[vi2] = treenode;
-		else if (vmanip.m_area.contains(p1) &&
-				vmanip.m_data[vi1].getContent() == CONTENT_AIR)
+			vmanip.m_flags[vi2] &= ~VOXELFLAG_LOADED_FROM_GEN;
+		} else if (vmanip.m_area.contains(p1) &&
+				vmanip.m_data[vi1].getContent() == CONTENT_AIR) {
 			vmanip.m_data[vi1] = treenode;
+			vmanip.m_flags[vi1] &= ~VOXELFLAG_LOADED_FROM_GEN;
+		}
 	}
-	vmanip.m_data[vmanip.m_area.index(p0)] = treenode;
+	{
+		u32 vi0 = vmanip.m_area.index(p0);
+		vmanip.m_data[vi0] = treenode;
+		vmanip.m_flags[vi0] &= ~VOXELFLAG_LOADED_FROM_GEN;
+	}
 
 	s16 trunk_h = pr.range(8, 12);
 	v3s16 p1 = p0;
@@ -691,6 +703,7 @@ void make_jungletree(MMVManip &vmanip, v3s16 p0, const NodeDefManager *ndef,
 		if (vmanip.m_area.contains(p1)) {
 			u32 vi = vmanip.m_area.index(p1);
 			vmanip.m_data[vi] = treenode;
+			vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 		}
 		p1.Y++;
 	}
@@ -737,8 +750,10 @@ void make_jungletree(MMVManip &vmanip, v3s16 p0, const NodeDefManager *ndef,
 			if (vmanip.m_area.contains(p + p1) &&
 					(vmanip.m_data[vi].getContent() == CONTENT_AIR ||
 					vmanip.m_data[vi].getContent() == CONTENT_IGNORE)) {
-				if (leaves_d[i] == 1)
+				if (leaves_d[i] == 1) {
 					vmanip.m_data[vi] = leavesnode;
+					vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
+				}
 			}
 			vi++;
 			i++;
@@ -780,6 +795,7 @@ void make_pine_tree(MMVManip &vmanip, v3s16 p0, const NodeDefManager *ndef,
 		if (vmanip.m_area.contains(p1)) {
 			u32 vi = vmanip.m_area.index(p1);
 			vmanip.m_data[vi] = treenode;
+			vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
 		}
 		p1.Y++;
 	}
@@ -865,10 +881,13 @@ void make_pine_tree(MMVManip &vmanip, v3s16 p0, const NodeDefManager *ndef,
 					(vmanip.m_data[vi].getContent() == CONTENT_AIR ||
 					vmanip.m_data[vi].getContent() == CONTENT_IGNORE ||
 					vmanip.m_data[vi] == snownode)) {
-				if (leaves_d[i] == 1)
+				if (leaves_d[i] == 1) {
 					vmanip.m_data[vi] = leavesnode;
-				else if (leaves_d[i] == 2)
+					vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
+				} else if (leaves_d[i] == 2) {
 					vmanip.m_data[vi] = snownode;
+					vmanip.m_flags[vi] &= ~VOXELFLAG_LOADED_FROM_GEN;
+				}
 			}
 			vi++;
 			i++;
