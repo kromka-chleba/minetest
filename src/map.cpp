@@ -796,11 +796,22 @@ void MMVManip::initialEmerge(v3s16 p_min, v3s16 p_max, bool load_if_inexistent)
 		MapBlock *block = m_map->getBlockNoCreateNoEx(p);
 		if (block) {
 			block->copyTo(*this);
+			// Mark all loaded nodes of already-generated blocks so blitBackAll
+			// can detect later whether mapgen modified any of them.  The flag
+			// is cleared by explicit writes (schematics, decorations, …).
+			if (block->isGenerated()) {
+				VoxelArea a(p * MAP_BLOCKSIZE, (p + 1) * MAP_BLOCKSIZE - v3s16(1,1,1));
+				setFlags(a, VOXELFLAG_LOADED_FROM_GEN);
+			}
 		} else {
 			if (load_if_inexistent && !blockpos_over_max_limit(p)) {
 				block = m_map->emergeBlock(p, true);
 				assert(block);
 				block->copyTo(*this);
+				if (block->isGenerated()) {
+					VoxelArea a(p * MAP_BLOCKSIZE, (p + 1) * MAP_BLOCKSIZE - v3s16(1,1,1));
+					setFlags(a, VOXELFLAG_LOADED_FROM_GEN);
+				}
 			} else {
 				// Mark area inexistent
 				VoxelArea a(p*MAP_BLOCKSIZE, (p+1)*MAP_BLOCKSIZE-v3s16(1,1,1));
@@ -876,8 +887,26 @@ void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
 				<< " to write data to map" << std::endl;
 			continue;
 		}
-		if (!overwrite_generated && block->isGenerated())
-			continue;
+		if (!overwrite_generated && block->isGenerated()) {
+			// Only skip this already-generated block if every node in
+			// the vmanip still carries VOXELFLAG_LOADED_FROM_GEN, which
+			// means no mapgen code (schematic, decoration, cave …) wrote
+			// to it since initialEmerge loaded it.  If any node was
+			// written (flag cleared) the block must be updated so that
+			// cross-boundary schematic/decoration nodes appear in the map.
+			const v3s16 pmin = p * MAP_BLOCKSIZE;
+			const v3s16 pmax = pmin + v3s16(MAP_BLOCKSIZE - 1);
+			bool any_written = false;
+			for (s16 z = pmin.Z; z <= pmax.Z && !any_written; z++)
+			for (s16 y = pmin.Y; y <= pmax.Y && !any_written; y++)
+			for (s16 x = pmin.X; x <= pmax.X && !any_written; x++) {
+				u32 idx = m_area.index(x, y, z);
+				if (!(m_flags[idx] & VOXELFLAG_LOADED_FROM_GEN))
+					any_written = true;
+			}
+			if (!any_written)
+				continue;
+		}
 
 		block->copyFrom(*this);
 		block->raiseModified(MOD_STATE_WRITE_NEEDED, MOD_REASON_VMANIP);
