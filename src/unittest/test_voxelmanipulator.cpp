@@ -184,45 +184,65 @@ void TestVoxelManipulator::testBlitBack2(IGameDef *gamedef)
 
 void TestVoxelManipulator::testBlitBackOverwriteGenerated(IGameDef *gamedef)
 {
-	// Test that blitBackAll with overwrite_generated=false does not overwrite
-	// blocks that are already marked as generated.  This is the behaviour used
-	// in ServerMap::finishBlockMake() to prevent adjacent-chunk shell data from
-	// clobbering modifications made after a block was first generated (e.g. via
-	// on_block_loaded callbacks).
+	// Test that blitBackAll with overwrite_generated=false:
+	//   - skips generated blocks that were not modified by mapgen
+	//   - writes back generated blocks that WERE modified (a schematic or
+	//     decoration extending across the chunk boundary clears the
+	//     VOXELFLAG_LOADED_FROM_GEN flag, telling blitBackAll the block needs
+	//     to be updated)
+	//   - always writes ungenerated blocks
+	//
+	// Three blocks:
+	//   (0,0,0)  generated, NOT modified  -> must be skipped
+	//   (0,1,0)  generated, written to    -> must be written back
+	//   (0,2,0)  ungenerated              -> must be written back
 
 	constexpr int bs = MAP_BLOCKSIZE;
 
-	DummyMap map(gamedef, {0,0,0}, {0,1,0});
-	map.fill({0,0,0}, {0,1,0}, CONTENT_AIR);
+	DummyMap map(gamedef, {0,0,0}, {0,2,0});
+	map.fill({0,0,0}, {0,2,0}, CONTENT_AIR);
 
-	// Mark block (0,0,0) as already generated, leave (0,1,0) ungenerated.
-	MapBlock *gen_block = map.getBlockNoCreateNoEx({0,0,0});
-	UASSERT(gen_block);
-	gen_block->setGenerated(true);
+	// Mark (0,0,0) and (0,1,0) as generated; leave (0,2,0) ungenerated.
+	MapBlock *gen_block0 = map.getBlockNoCreateNoEx({0,0,0});
+	UASSERT(gen_block0);
+	gen_block0->setGenerated(true);
 
-	// Prepare a vmanip covering both blocks.
-	// Node positions: block (0,0,0) contains nodes y in [0, bs-1],
-	//                 block (0,1,0) contains nodes y in [bs, 2*bs-1].
+	MapBlock *gen_block1 = map.getBlockNoCreateNoEx({0,1,0});
+	UASSERT(gen_block1);
+	gen_block1->setGenerated(true);
+
+	// Prepare a vmanip covering all three blocks.
 	MMVManip vm(&map);
-	vm.initialEmerge({0,0,0}, {0,1,0});
-	// Write STONE into block (0,0,0) and GRASS into block (0,1,0).
-	vm.setNodeNoEmerge({0, 0,   0}, t_CONTENT_STONE);  // inside generated block
-	vm.setNodeNoEmerge({0, bs,  0}, t_CONTENT_GRASS);  // inside ungenerated block
+	vm.initialEmerge({0,0,0}, {0,2,0});
 
-	// With overwrite_generated=false the already-generated block must be skipped.
+	// Do NOT write anything into block (0,0,0) — all its nodes keep
+	// VOXELFLAG_LOADED_FROM_GEN, so blitBackAll should skip it.
+
+	// Write into block (0,1,0): clears VOXELFLAG_LOADED_FROM_GEN on that node,
+	// signalling that mapgen modified this generated border block.
+	vm.setNodeNoEmerge({0, bs,    0}, t_CONTENT_STONE);
+
+	// Write into block (0,2,0): ungenerated, so always written.
+	vm.setNodeNoEmerge({0, 2*bs, 0}, t_CONTENT_GRASS);
+
 	std::map<v3s16, MapBlock*> modified;
 	vm.blitBackAll(&modified, false);
 
-	// Only the ungenerated block should appear in modified_blocks.
-	UASSERTEQ(size_t, modified.size(), 1);
-	UASSERTEQ(auto, modified.begin()->first, v3s16(0,1,0));
+	// Blocks (0,1,0) and (0,2,0) should be in modified_blocks; (0,0,0) must not.
+	UASSERTEQ(size_t, modified.size(), 2);
+	UASSERT(modified.count({0,1,0}) == 1);
+	UASSERT(modified.count({0,2,0}) == 1);
 
-	// The generated block must still hold AIR (not the STONE from the vmanip).
+	// Generated unmodified block must still hold AIR.
 	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
-	// The ungenerated block must have been written with GRASS.
-	UASSERTEQ(auto, map.getNode({0, bs, 0}).getContent(), t_CONTENT_GRASS);
+	// Generated modified block must have been written with STONE.
+	UASSERTEQ(auto, map.getNode({0, bs, 0}).getContent(), t_CONTENT_STONE);
+	// Ungenerated block must have been written with GRASS.
+	UASSERTEQ(auto, map.getNode({0, 2*bs, 0}).getContent(), t_CONTENT_GRASS);
 
-	// Now verify that overwrite_generated=true (the default) DOES overwrite.
+	// Verify that overwrite_generated=true (the default) DOES overwrite all
+	// generated blocks, including (0,0,0) which was not modified.
+	vm.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
 	vm.blitBackAll(&modified, true);
 	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
 }
