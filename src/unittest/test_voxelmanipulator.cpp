@@ -23,6 +23,7 @@ public:
 	void testEmerge(IGameDef *gamedef);
 	void testBlitBack(IGameDef *gamedef);
 	void testBlitBack2(IGameDef *gamedef);
+	void testBlitBackOverwriteGenerated(IGameDef *gamedef);
 };
 
 static TestVoxelManipulator g_test_instance;
@@ -33,6 +34,7 @@ void TestVoxelManipulator::runTests(IGameDef *gamedef)
 	TEST(testEmerge, gamedef);
 	TEST(testBlitBack, gamedef);
 	TEST(testBlitBack2, gamedef);
+	TEST(testBlitBackOverwriteGenerated, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -178,4 +180,49 @@ void TestVoxelManipulator::testBlitBack2(IGameDef *gamedef)
 	UASSERTEQ(auto, map.getNode({0,1,0}).getContent(), t_CONTENT_TORCH);
 	// The upper one should not!
 	UASSERTEQ(auto, map.getNode({0,bs,0}).getContent(), CONTENT_AIR);
+}
+
+void TestVoxelManipulator::testBlitBackOverwriteGenerated(IGameDef *gamedef)
+{
+	// Test that blitBackAll with overwrite_generated=false does not overwrite
+	// blocks that are already marked as generated.  This is the behaviour used
+	// in ServerMap::finishBlockMake() to prevent adjacent-chunk shell data from
+	// clobbering modifications made after a block was first generated (e.g. via
+	// on_block_loaded callbacks).
+
+	constexpr int bs = MAP_BLOCKSIZE;
+
+	DummyMap map(gamedef, {0,0,0}, {0,1,0});
+	map.fill({0,0,0}, {0,1,0}, CONTENT_AIR);
+
+	// Mark block (0,0,0) as already generated, leave (0,1,0) ungenerated.
+	MapBlock *gen_block = map.getBlockNoCreateNoEx({0,0,0});
+	UASSERT(gen_block);
+	gen_block->setGenerated(true);
+
+	// Prepare a vmanip covering both blocks.
+	// Node positions: block (0,0,0) contains nodes y in [0, bs-1],
+	//                 block (0,1,0) contains nodes y in [bs, 2*bs-1].
+	MMVManip vm(&map);
+	vm.initialEmerge({0,0,0}, {0,1,0});
+	// Write STONE into block (0,0,0) and GRASS into block (0,1,0).
+	vm.setNodeNoEmerge({0, 0,   0}, t_CONTENT_STONE);  // inside generated block
+	vm.setNodeNoEmerge({0, bs,  0}, t_CONTENT_GRASS);  // inside ungenerated block
+
+	// With overwrite_generated=false the already-generated block must be skipped.
+	std::map<v3s16, MapBlock*> modified;
+	vm.blitBackAll(&modified, false);
+
+	// Only the ungenerated block should appear in modified_blocks.
+	UASSERTEQ(size_t, modified.size(), 1);
+	UASSERTEQ(auto, modified.begin()->first, v3s16(0,1,0));
+
+	// The generated block must still hold AIR (not the STONE from the vmanip).
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
+	// The ungenerated block must have been written with GRASS.
+	UASSERTEQ(auto, map.getNode({0, bs, 0}).getContent(), t_CONTENT_GRASS);
+
+	// Now verify that overwrite_generated=true (the default) DOES overwrite.
+	vm.blitBackAll(&modified, true);
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
 }
