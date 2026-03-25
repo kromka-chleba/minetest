@@ -850,7 +850,7 @@ std::map<v3s16, bool> MMVManip::getCoveredBlocks() const
 }
 
 void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
-	bool overwrite_generated) const
+	bool overwrite_generated, const std::set<v3s16> *skip_blocks) const
 {
 	if (m_area.hasEmptyExtent())
 		return;
@@ -877,6 +877,10 @@ void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
 			continue;
 		}
 		if (!overwrite_generated && block->isGenerated())
+			continue;
+		// Respect the caller-supplied skip list (e.g. shell blocks that were
+		// written by an external VoxelManip during an in-progress generation).
+		if (skip_blocks && skip_blocks->count(p))
 			continue;
 
 		block->copyFrom(*this);

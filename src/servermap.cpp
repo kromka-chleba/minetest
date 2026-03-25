@@ -245,6 +245,9 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 				bool ug = m_emerge->isBlockUnderground(p);
 				block->setIsUnderground(ug);
 			}
+			// Reset external-modification marker so that finishBlockMake can
+			// detect writes made by external VoxelManips during this generation.
+			block->m_externally_modified_during_gen = false;
 			block->refGrab();
 		}
 	}
@@ -290,11 +293,40 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
 
+	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
+	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
+
+	/*
+		Collect non-generated shell blocks that were externally modified (by a
+		Lua VoxelManip write_to_map call) while the mapgen VManip was in flight.
+		These blocks must not be overwritten by blitBackAll, otherwise the
+		user-written data would be silently discarded.
+		Central blocks (those that will receive setGenerated(true)) are excluded
+		intentionally: mapgen has canonical authority over its own generation area.
+	*/
+	std::set<v3s16> protected_shell_blocks;
+	{
+		v3s16 bp;
+		for (bp.X = full_bpmin.X; bp.X <= full_bpmax.X; bp.X++)
+		for (bp.Z = full_bpmin.Z; bp.Z <= full_bpmax.Z; bp.Z++)
+		for (bp.Y = full_bpmin.Y; bp.Y <= full_bpmax.Y; bp.Y++) {
+			// Only protect shell blocks, not the central (to-be-generated) area
+			if (bp.X >= bpmin.X && bp.X <= bpmax.X
+					&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
+					&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z)
+				continue;
+			MapBlock *block = getBlockNoCreateNoEx(bp);
+			if (block && !block->isGenerated() &&
+					block->m_externally_modified_during_gen)
+				protected_shell_blocks.insert(bp);
+		}
+	}
+
 	/*
 		Blit generated stuff to map
 		NOTE: blitBackAll adds nearly everything to changed_blocks
 	*/
-	data->vmanip->blitBackAll(changed_blocks);
+	data->vmanip->blitBackAll(changed_blocks, true, &protected_shell_blocks);
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()="
 		<< changed_blocks->size());
@@ -327,9 +359,6 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		block->raiseModified(MOD_STATE_WRITE_NEEDED,
 			MOD_REASON_EXPIRE_IS_AIR);
 	}
-
-	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
 
 	v3s16 bp;
 	for (bp.X = full_bpmin.X; bp.X <= full_bpmax.X; bp.X++)
