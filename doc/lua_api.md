@@ -6549,11 +6549,11 @@ Call these functions only at load time!
 * `core.register_on_block_loaded(function(blockpos))`
     * Called when a mapblock transitions to the "loaded" state (see "Mapblock
       status" section for details)
-    * `blockpos`: block position (not a node position)
+    * `blockpos`: mapblock position
 * `core.register_on_block_activated(function(blockpos, last_timestamp))`
     * Called immediately after a mapblock becomes active (within active_block_range of a player)
     * This is called after `on_block_loaded` if the block was just loaded
-    * `blockpos`: block position (not a node position)
+    * `blockpos`: mapblock position
     * `last_timestamp`: the timestamp of the block before it was activated, in
       the same unit as `core.get_gametime()`. This is `nil` if the block has
       never been activated before (e.g. newly generated blocks).
@@ -6562,11 +6562,11 @@ Call these functions only at load time!
 * `core.register_on_blocks_deactivated(function(blockpos_list))`
     * Called after mapblocks are deactivated (moved out of active_block_range)
     * Deactivated blocks remain loaded in memory but no longer run game logic
-    * `blockpos_list`: array of block positions
+    * `blockpos_list`: array of mapblock positions
 * `core.register_on_block_unloaded(function(blockpos_list))`
     * Called after mapblocks are completely unloaded from memory
     * This happens when the server needs to free memory or on shutdown
-    * `blockpos_list`: array of block positions
+    * `blockpos_list`: array of mapblock positions
 
 Setting-related
 ---------------
