@@ -522,9 +522,11 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos, u32 last_stamp)
 
 	// Push block position
 	push_v3s16(L, blockpos);
-	// Push old timestamp as a number to handle BLOCK_TIMESTAMP_UNDEFINED (0xffffffff)
-	// safely on 32-bit builds where lua_pushinteger would produce -1
-	lua_pushnumber(L, (lua_Number)last_stamp);
+	// Push old timestamp; nil if the block has never been activated before
+	if (last_stamp == BLOCK_TIMESTAMP_UNDEFINED)
+		lua_pushnil(L);
+	else
+		lua_pushnumber(L, last_stamp);
 
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }

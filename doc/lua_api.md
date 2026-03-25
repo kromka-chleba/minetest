@@ -6554,10 +6554,9 @@ Call these functions only at load time!
     * Called immediately after a mapblock becomes active (within active_block_range of a player)
     * This is called after `on_block_loaded` if the block was just loaded
     * `blockpos`: position of the block (table with x, y, z)
-    * `last_timestamp`: the timestamp of the block before it was activated (unsigned
-      integer, same unit as `core.get_gametime()`). This is
-      `core.BLOCK_TIMESTAMP_UNDEFINED` (4294967295) if the
-      block has never been activated before (e.g. newly generated blocks).
+    * `last_timestamp`: the timestamp of the block before it was activated, in
+      the same unit as `core.get_gametime()`. This is `nil` if the block has
+      never been activated before (e.g. newly generated blocks).
       Comparing `last_timestamp` to `core.get_gametime()` gives the elapsed time
       since the block was last active.
     * **Warning**: As of Luanti 5.15.0, making map modifications using VoxelManip
