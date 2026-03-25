@@ -8092,12 +8092,9 @@ Global tables
 * `core.luaentities`
     * Map of Lua entities, indexed by active object id
 * `core.loaded_blocks`
-    * Table tracking currently loaded mapblocks; mods must treat this as read-only and must not modify it
     * Keys are block position hashes (from `core.hash_node_position`)
     * Values are `true` for loaded blocks, `nil` otherwise
-    * Loaded blocks are in memory and can contain nodes/objects
-    * Updated automatically by the engine when blocks are loaded or unloaded from memory; any changes made by mods are unsupported and may be overwritten
-    * Example: `if core.loaded_blocks[core.hash_node_position(blockpos)] then ... end`
+    * See "Mapblock status" section for what "loaded" means
 * `core.active_blocks`
     * Table tracking currently active mapblocks; mods must treat this as read-only and must not modify it
     * Active blocks are those within active_block_range of a player
