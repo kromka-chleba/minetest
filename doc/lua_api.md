@@ -8092,10 +8092,12 @@ Global tables
 * `core.luaentities`
     * Map of Lua entities, indexed by active object id
 * `core.loaded_blocks`
+    * Table tracking currently loaded mapblocks
     * Keys are block position hashes (from `core.hash_node_position`)
     * Values are `true` for loaded blocks, `nil` otherwise
     * See "Mapblock status" section for what "loaded" means
 * `core.active_blocks`
+    * Table tracking currently active mapblocks
     * Keys are block position hashes (from `core.hash_node_position`)
     * Values are `true` for active blocks, `nil` otherwise
     * See "Mapblock status" section for what "active" means
