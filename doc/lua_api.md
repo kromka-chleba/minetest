@@ -6559,7 +6559,7 @@ Call these functions only at load time!
       never been activated before (e.g. newly generated blocks).
       Comparing `last_timestamp` to `core.get_gametime()` gives the elapsed time
       since the block was last active.
-* `core.register_on_block_deactivated(function(blockpos_list))`
+* `core.register_on_blocks_deactivated(function(blockpos_list))`
     * Called after mapblocks are deactivated (moved out of active_block_range)
     * Deactivated blocks remain loaded in memory but no longer run game logic
     * `blockpos_list`: array of block positions (each is a table with x, y, z)

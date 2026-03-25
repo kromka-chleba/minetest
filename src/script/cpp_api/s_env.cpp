@@ -548,9 +548,9 @@ void ScriptApiEnv::on_block_deactivated(const std::vector<v3s16> &blockpos_list)
 	}
 	lua_pop(L, 2); // active_blocks, core
 
-	// Get core.registered_on_block_deactivated
+	// Get core.registered_on_blocks_deactivated
 	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "registered_on_block_deactivated");
+	lua_getfield(L, -1, "registered_on_blocks_deactivated");
 	luaL_checktype(L, -1, LUA_TTABLE);
 	lua_remove(L, -2); // Remove core
 
