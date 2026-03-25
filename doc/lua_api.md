@@ -6559,12 +6559,6 @@ Call these functions only at load time!
       never been activated before (e.g. newly generated blocks).
       Comparing `last_timestamp` to `core.get_gametime()` gives the elapsed time
       since the block was last active.
-    * **Warning**: As of Luanti 5.15.0, making map modifications using VoxelManip
-      (or similar functions like `core.set_node`) in this callback is unreliable.
-      Changes can be overwritten when neighboring mapchunks generate and extend
-      into already-activated blocks (for example, caves or dungeons crossing
-      mapchunk boundaries). Use `core.register_on_generated` or `core.register_lbm`
-      instead for reliable map modifications.
 * `core.register_on_block_deactivated(function(blockpos_list))`
     * Called after mapblocks are deactivated (moved out of active_block_range)
     * Deactivated blocks remain loaded in memory but no longer run game logic
