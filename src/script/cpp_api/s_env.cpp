@@ -159,17 +159,6 @@ void ScriptApiEnv::player_event(ServerActiveObject *player, const std::string &t
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
-/*
- * Helper function for read-only table metatables.
- * Used as the __newindex metamethod to prevent modifications.
- * Expects a table name as an upvalue for error messaging.
- */
-static int block_table_newindex_error(lua_State *L)
-{
-	const char *table_name = lua_tostring(L, lua_upvalueindex(1));
-	return luaL_error(L, "%s is read-only", table_name);
-}
-
 void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 {
 	SCRIPTAPI_PRECHECKHEADER
@@ -177,41 +166,6 @@ void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 	assert(env);
 	verbosestream << "ScriptApiEnv: Environment initialized" << std::endl;
 	setEnv(env);
-
-	// Initialize block tracking tables
-	lua_getglobal(L, "core");
-
-	// Create loaded_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.loaded_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "loaded_blocks");
-
-	// Create active_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.active_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "active_blocks");
-
-	lua_pop(L, 1); // Pop core
 
 	readABMs();
 	readLBMs();
@@ -495,17 +449,8 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos, u32 last_stamp)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
-	// Update loaded_blocks and active_blocks tables before running callbacks
-	// so mods can query them inside the callback
+	// Update active_blocks table before running callbacks so mods can query it
 	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "loaded_blocks");
-	if (lua_istable(L, -1)) {
-		lua_pushnumber(L, hash_node_position(blockpos));
-		lua_pushboolean(L, true);
-		lua_rawset(L, -3);
-	}
-	lua_pop(L, 1); // Pop loaded_blocks
-
 	lua_getfield(L, -1, "active_blocks");
 	if (lua_istable(L, -1)) {
 		lua_pushnumber(L, hash_node_position(blockpos));
@@ -522,9 +467,11 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos, u32 last_stamp)
 
 	// Push block position
 	push_v3s16(L, blockpos);
-	// Push old timestamp as a number to handle BLOCK_TIMESTAMP_UNDEFINED (0xffffffff)
-	// safely on 32-bit builds where lua_pushinteger would produce -1
-	lua_pushnumber(L, (lua_Number)last_stamp);
+	// Push old timestamp; nil if the block has never been activated before
+	if (last_stamp == BLOCK_TIMESTAMP_UNDEFINED)
+		lua_pushnil(L);
+	else
+		lua_pushnumber(L, last_stamp);
 
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
@@ -546,9 +493,9 @@ void ScriptApiEnv::on_block_deactivated(const std::vector<v3s16> &blockpos_list)
 	}
 	lua_pop(L, 2); // active_blocks, core
 
-	// Get core.registered_on_block_deactivated
+	// Get core.registered_on_blocks_deactivated
 	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "registered_on_block_deactivated");
+	lua_getfield(L, -1, "registered_on_blocks_deactivated");
 	luaL_checktype(L, -1, LUA_TTABLE);
 	lua_remove(L, -2); // Remove core
 
