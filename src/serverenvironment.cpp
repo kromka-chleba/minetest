@@ -973,11 +973,14 @@ void ServerEnvironment::step(float dtime)
 
 		for (const v3s16 &p: blocks_added) {
 			MapBlock *block = m_map->getBlockOrEmerge(p, true);
-			if (!block) {
+			if (!block || !block->isGenerated()) {
 				// TODO: The blocks removed here will only be picked up again
 				// on the next cycle. To minimize the latency of objects being
 				// activated we could remember the blocks pending activating
 				// and activate them instantly as soon as they're loaded.
+				// Note: non-generated blocks (border blocks of a neighboring
+				// chunk's mapgen) are also excluded here to prevent LBMs from
+				// running on them before proper generation overwrites them.
 				m_active_blocks.remove(p);
 				continue;
 			}
@@ -986,9 +989,9 @@ void ServerEnvironment::step(float dtime)
 		}
 
 		for (const v3s16 &p: extra_blocks_added) {
-			// only activate if the block is already loaded
+			// only activate if the block is already loaded and generated
 			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
-			if (!block) {
+			if (!block || !block->isGenerated()) {
 				m_active_blocks.remove(p);
 				continue;
 			}
