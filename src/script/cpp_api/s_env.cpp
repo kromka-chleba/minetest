@@ -159,17 +159,6 @@ void ScriptApiEnv::player_event(ServerActiveObject *player, const std::string &t
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
-/*
- * Helper function for read-only table metatables.
- * Used as the __newindex metamethod to prevent modifications.
- * Expects a table name as an upvalue for error messaging.
- */
-static int block_table_newindex_error(lua_State *L)
-{
-	const char *table_name = lua_tostring(L, lua_upvalueindex(1));
-	return luaL_error(L, "%s is read-only", table_name);
-}
-
 void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 {
 	SCRIPTAPI_PRECHECKHEADER
@@ -177,41 +166,6 @@ void ScriptApiEnv::initializeEnvironment(ServerEnvironment *env)
 	assert(env);
 	verbosestream << "ScriptApiEnv: Environment initialized" << std::endl;
 	setEnv(env);
-
-	// Initialize block tracking tables
-	lua_getglobal(L, "core");
-
-	// Create loaded_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.loaded_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "loaded_blocks");
-
-	// Create active_blocks table with metatable to make it read-only.
-	// __newindex prevents direct assignments; __metatable prevents setmetatable()
-	// replacement. Note: rawset() can still bypass this - this is best-effort protection.
-	lua_newtable(L);
-	lua_newtable(L); // metatable
-	lua_pushstring(L, "__newindex");
-	lua_pushstring(L, "core.active_blocks");
-	lua_pushcclosure(L, block_table_newindex_error, 1);
-	lua_settable(L, -3);
-	lua_pushstring(L, "__metatable");
-	lua_pushboolean(L, false);
-	lua_settable(L, -3);
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, "active_blocks");
-
-	lua_pop(L, 1); // Pop core
 
 	readABMs();
 	readLBMs();
