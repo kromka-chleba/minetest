@@ -449,7 +449,10 @@ MapBlock * ServerMap::emergeBlock(v3s16 p, bool create_blank)
 MapBlock *ServerMap::getBlockOrEmerge(v3s16 p3d, bool generate)
 {
 	MapBlock *block = getBlockNoCreateNoEx(p3d);
-	if (block == NULL)
+	// Enqueue for emergence if the block doesn't exist or if it exists but
+	// hasn't been properly generated yet (e.g. it's a border block written by
+	// an adjacent chunk's mapgen but whose own chunk hasn't generated yet).
+	if (block == NULL || (generate && !block->isGenerated()))
 		m_emerge->enqueueBlockEmerge(PEER_ID_INEXISTENT, p3d, generate);
 
 	return block;
