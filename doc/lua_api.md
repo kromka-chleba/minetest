@@ -6549,7 +6549,7 @@ Call these functions only at load time!
 * `core.register_on_block_loaded(function(blockpos))`
     * Called when a mapblock transitions to the "loaded" state (see "Mapblock
       status" section for details)
-    * `blockpos`: block position
+    * `blockpos`: block position (not a node position)
 * `core.register_on_block_activated(function(blockpos, last_timestamp))`
     * Called immediately after a mapblock becomes active (within active_block_range of a player)
     * This is called after `on_block_loaded` if the block was just loaded
