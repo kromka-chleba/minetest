@@ -346,11 +346,17 @@ private:
 };
 
 enum : u8 {
-	VOXELFLAG_NO_DATA  = 1 << 0, // no data about that node
-	VOXELFLAG_CHECKED1 = 1 << 1, // Algorithm-dependent
-	VOXELFLAG_CHECKED2 = 1 << 2, // Algorithm-dependent
-	VOXELFLAG_CHECKED3 = 1 << 3, // Algorithm-dependent
-	VOXELFLAG_CHECKED4 = 1 << 4, // Algorithm-dependent
+	VOXELFLAG_NO_DATA       = 1 << 0, // no data about that node
+	VOXELFLAG_CHECKED1      = 1 << 1, // Algorithm-dependent
+	VOXELFLAG_CHECKED2      = 1 << 2, // Algorithm-dependent
+	VOXELFLAG_CHECKED3      = 1 << 3, // Algorithm-dependent
+	VOXELFLAG_CHECKED4      = 1 << 4, // Algorithm-dependent
+	// Set by MMVManip::initialEmerge on nodes from already-generated blocks.
+	// Cleared when a node is explicitly written after loading (e.g. by a
+	// schematic or decoration that extends across the mapchunk boundary).
+	// Used by blitBackAll to decide whether a generated border block was
+	// modified during mapgen and must be written back to the map.
+	VOXELFLAG_LOADED_FROM_GEN = 1 << 5,
 };
 
 enum VoxelPrintMode
@@ -443,7 +449,7 @@ public:
 		const s32 index = m_area.index(p);
 
 		m_data[index] = n;
-		m_flags[index] &= ~VOXELFLAG_NO_DATA;
+		m_flags[index] &= ~(VOXELFLAG_NO_DATA | VOXELFLAG_LOADED_FROM_GEN);
 	}
 
 	/*
@@ -458,7 +464,7 @@ public:
 			return false;
 		const s32 index = m_area.index(p);
 		m_data[index] = n;
-		m_flags[index] &= ~VOXELFLAG_NO_DATA;
+		m_flags[index] &= ~(VOXELFLAG_NO_DATA | VOXELFLAG_LOADED_FROM_GEN);
 		return true;
 	}
 

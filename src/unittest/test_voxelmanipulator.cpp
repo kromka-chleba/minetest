@@ -23,6 +23,7 @@ public:
 	void testEmerge(IGameDef *gamedef);
 	void testBlitBack(IGameDef *gamedef);
 	void testBlitBack2(IGameDef *gamedef);
+	void testBlitBackOverwriteGenerated(IGameDef *gamedef);
 };
 
 static TestVoxelManipulator g_test_instance;
@@ -33,6 +34,7 @@ void TestVoxelManipulator::runTests(IGameDef *gamedef)
 	TEST(testEmerge, gamedef);
 	TEST(testBlitBack, gamedef);
 	TEST(testBlitBack2, gamedef);
+	TEST(testBlitBackOverwriteGenerated, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -178,4 +180,69 @@ void TestVoxelManipulator::testBlitBack2(IGameDef *gamedef)
 	UASSERTEQ(auto, map.getNode({0,1,0}).getContent(), t_CONTENT_TORCH);
 	// The upper one should not!
 	UASSERTEQ(auto, map.getNode({0,bs,0}).getContent(), CONTENT_AIR);
+}
+
+void TestVoxelManipulator::testBlitBackOverwriteGenerated(IGameDef *gamedef)
+{
+	// Test that blitBackAll with overwrite_generated=false:
+	//   - skips generated blocks that were not modified by mapgen
+	//   - writes back generated blocks that WERE modified (a schematic or
+	//     decoration extending across the chunk boundary clears the
+	//     VOXELFLAG_LOADED_FROM_GEN flag, telling blitBackAll the block needs
+	//     to be updated)
+	//   - always writes ungenerated blocks
+	//
+	// Three blocks:
+	//   (0,0,0)  generated, NOT modified  -> must be skipped
+	//   (0,1,0)  generated, written to    -> must be written back
+	//   (0,2,0)  ungenerated              -> must be written back
+
+	constexpr int bs = MAP_BLOCKSIZE;
+
+	DummyMap map(gamedef, {0,0,0}, {0,2,0});
+	map.fill({0,0,0}, {0,2,0}, CONTENT_AIR);
+
+	// Mark (0,0,0) and (0,1,0) as generated; leave (0,2,0) ungenerated.
+	MapBlock *gen_block0 = map.getBlockNoCreateNoEx({0,0,0});
+	UASSERT(gen_block0);
+	gen_block0->setGenerated(true);
+
+	MapBlock *gen_block1 = map.getBlockNoCreateNoEx({0,1,0});
+	UASSERT(gen_block1);
+	gen_block1->setGenerated(true);
+
+	// Prepare a vmanip covering all three blocks.
+	MMVManip vm(&map);
+	vm.initialEmerge({0,0,0}, {0,2,0});
+
+	// Do NOT write anything into block (0,0,0) — all its nodes keep
+	// VOXELFLAG_LOADED_FROM_GEN, so blitBackAll should skip it.
+
+	// Write into block (0,1,0): clears VOXELFLAG_LOADED_FROM_GEN on that node,
+	// signalling that mapgen modified this generated border block.
+	vm.setNodeNoEmerge({0, bs,    0}, t_CONTENT_STONE);
+
+	// Write into block (0,2,0): ungenerated, so always written.
+	vm.setNodeNoEmerge({0, 2*bs, 0}, t_CONTENT_GRASS);
+
+	std::map<v3s16, MapBlock*> modified;
+	vm.blitBackAll(&modified, false);
+
+	// Blocks (0,1,0) and (0,2,0) should be in modified_blocks; (0,0,0) must not.
+	UASSERTEQ(size_t, modified.size(), 2);
+	UASSERT(modified.count({0,1,0}) == 1);
+	UASSERT(modified.count({0,2,0}) == 1);
+
+	// Generated unmodified block must still hold AIR.
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
+	// Generated modified block must have been written with STONE.
+	UASSERTEQ(auto, map.getNode({0, bs, 0}).getContent(), t_CONTENT_STONE);
+	// Ungenerated block must have been written with GRASS.
+	UASSERTEQ(auto, map.getNode({0, 2*bs, 0}).getContent(), t_CONTENT_GRASS);
+
+	// Verify that overwrite_generated=true (the default) DOES overwrite all
+	// generated blocks, including (0,0,0) which was not modified.
+	vm.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
+	vm.blitBackAll(&modified, true);
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
 }
