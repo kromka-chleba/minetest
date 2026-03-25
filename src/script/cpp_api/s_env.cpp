@@ -449,17 +449,8 @@ void ScriptApiEnv::on_block_activated(v3s16 blockpos, u32 last_stamp)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
-	// Update loaded_blocks and active_blocks tables before running callbacks
-	// so mods can query them inside the callback
+	// Update active_blocks table before running callbacks so mods can query it
 	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "loaded_blocks");
-	if (lua_istable(L, -1)) {
-		lua_pushnumber(L, hash_node_position(blockpos));
-		lua_pushboolean(L, true);
-		lua_rawset(L, -3);
-	}
-	lua_pop(L, 1); // Pop loaded_blocks
-
 	lua_getfield(L, -1, "active_blocks");
 	if (lua_istable(L, -1)) {
 		lua_pushnumber(L, hash_node_position(blockpos));
