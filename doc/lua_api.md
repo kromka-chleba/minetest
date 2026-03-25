@@ -8096,13 +8096,9 @@ Global tables
     * Values are `true` for loaded blocks, `nil` otherwise
     * See "Mapblock status" section for what "loaded" means
 * `core.active_blocks`
-    * Table tracking currently active mapblocks; mods must treat this as read-only and must not modify it
-    * Active blocks are those within active_block_range of a player
     * Keys are block position hashes (from `core.hash_node_position`)
     * Values are `true` for active blocks, `nil` otherwise
-    * Active blocks run game logic (ABMs, node timers, etc.)
-    * All active blocks are also loaded, but not all loaded blocks are active
-    * Updated automatically by the engine when blocks become active or inactive; any changes made by mods are unsupported and may be overwritten
+    * See "Mapblock status" section for what "active" means
 * `core.registered_abms`
     * List of ABM definitions
 * `core.registered_lbms`
