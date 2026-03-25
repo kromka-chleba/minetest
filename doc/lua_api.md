@@ -6547,12 +6547,9 @@ Call these functions only at load time!
     * `modified_block_count` is the number of entries in the set.
     * Note: callbacks must be registered at mod load time.
 * `core.register_on_block_loaded(function(blockpos))`
-    * Called when a mapblock is loaded from disk or generated for the first time
-    * This callback fires for ALL loaded blocks (including those far from players)
-    * For newly generated blocks, the callback runs after the chunk emerges
-      (after liquid transforms and lighting) but before block activation
-    * For blocks loaded from disk, it runs before border lighting is updated
-    * `blockpos`: position of the block (table with x, y, z)
+    * Called when a mapblock transitions to the "loaded" state (see "Mapblock
+      status" section for details)
+    * `blockpos`: block position
 * `core.register_on_block_activated(function(blockpos, last_timestamp))`
     * Called immediately after a mapblock becomes active (within active_block_range of a player)
     * This is called after `on_block_loaded` if the block was just loaded
