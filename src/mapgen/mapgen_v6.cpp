@@ -658,11 +658,14 @@ void MapgenV6::makeChunkDecorations(BlockMakeData *data)
 	// Add top and bottom side of water to transforming_liquid queue
 	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
 
-	// Calculate lighting
+	// Calculate lighting.
+	// Border blocks are at MAPGEN_STAGE_TERRAIN (param1 = 0); pass
+	// propagate_shadow = false so unlit transparent nodes above the inner
+	// area are not incorrectly treated as shadows.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(1, 1, 1) * MAP_BLOCKSIZE,
 			node_max + v3s16(1, 0, 1) * MAP_BLOCKSIZE,
-			full_node_min, full_node_max);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
 }

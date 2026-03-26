@@ -653,10 +653,15 @@ void MapgenBasic::makeChunkDecorations(BlockMakeData *data)
 	// Add top and bottom side of water to transforming_liquid queue
 	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
 
-	// Calculate lighting
+	// Calculate lighting.
+	// Stage 2 border blocks are at MAPGEN_STAGE_TERRAIN: terrain is placed
+	// but param1 is still 0.  propagateSunlight treats any transparent block
+	// with param1 != LIGHT_SUN as "in shadow" when propagate_shadow is true,
+	// so passing false here lets it rely on block content (solid vs.
+	// transparent) instead of uncomputed lighting values.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
-			full_node_min, full_node_max);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
 }

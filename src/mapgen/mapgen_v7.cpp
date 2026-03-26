@@ -373,14 +373,14 @@ void MapgenV7::makeChunkDecorations(BlockMakeData *data)
 	// Update liquids
 	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
 
-	// Calculate lighting
-	// Limit floatland shadows
-	bool propagate_shadow = !((spflags & MGV7_FLOATLANDS) &&
-		node_max.Y >= floatland_ymin - csize.Y * 2 && node_min.Y <= floatland_ymax);
-
+	// Calculate lighting.
+	// Border blocks are at MAPGEN_STAGE_TERRAIN (param1 = 0).  The old
+	// floatland shadow logic also relied on param1 of the overtop block;
+	// both cases are handled correctly by relying on block content instead,
+	// so propagate_shadow is always false here.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
-			full_node_min, full_node_max, propagate_shadow);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
 }

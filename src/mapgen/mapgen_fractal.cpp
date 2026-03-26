@@ -261,10 +261,13 @@ void MapgenFractal::makeChunkDecorations(BlockMakeData *data)
 	if (spflags & MGFRACTAL_TERRAIN)
 		updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
 
-	// Calculate lighting
+	// Calculate lighting.
+	// Border blocks are at MAPGEN_STAGE_TERRAIN (param1 = 0); pass
+	// propagate_shadow = false so unlit transparent nodes above the inner
+	// area are not incorrectly treated as shadows.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
-			full_node_min, full_node_max);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
 }
