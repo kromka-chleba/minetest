@@ -122,7 +122,9 @@ public:
 
 	virtual MapgenType getType() const { return MAPGEN_V6; }
 
-	void makeChunk(BlockMakeData *data);
+	void makeChunk(BlockMakeData *data) override;
+	void makeChunkTerrain(BlockMakeData *data) override;
+	void makeChunkDecorations(BlockMakeData *data) override;
 	int getGroundLevelAtPoint(v2s16 p);
 	int getSpawnLevelAtPoint(v2s16 p);
 

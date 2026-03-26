@@ -298,24 +298,20 @@ int MapgenV7::getSpawnLevelAtPoint(v2s16 p)
 
 void MapgenV7::makeChunk(BlockMakeData *data)
 {
+	makeChunkTerrain(data);
+
+	this->generating = true;
+	makeChunkDecorations(data);
+}
+
+
+void MapgenV7::makeChunkTerrain(BlockMakeData *data)
+{
 	// Pre-conditions
 	assert(data->vmanip);
 	assert(data->nodedef);
 
-	//TimeTaker t("makeChunk");
-
-	this->generating = true;
-	this->vm = data->vmanip;
-	this->ndef = data->nodedef;
-
-	v3s16 blockpos_min = data->blockpos_min;
-	v3s16 blockpos_max = data->blockpos_max;
-	node_min = blockpos_min * MAP_BLOCKSIZE;
-	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-
-	blockseed = getBlockSeed2(full_node_min, seed);
+	initChunkParams(data);
 
 	// Generate base and mountain terrain
 	s16 stone_surface_max_y = generateTerrain();
@@ -358,6 +354,14 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 	if (flags & MG_DUNGEONS)
 		generateDungeons(stone_surface_max_y);
 
+	this->generating = false;
+}
+
+
+void MapgenV7::makeChunkDecorations(BlockMakeData *data)
+{
+	initChunkParams(data);
+
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
 		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
@@ -379,8 +383,6 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 			full_node_min, full_node_max, propagate_shadow);
 
 	this->generating = false;
-
-	//printf("makeChunk: %lums\n", t.stop());
 }
 
 

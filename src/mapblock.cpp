@@ -404,8 +404,12 @@ void MapBlock::serialize(std::ostream &os_compressed, u8 version, bool disk, int
 	// See RemoteClient::getNextBlocks(...)
 	if(!isAir())
 		flags |= 0x02;
-	if (!m_generated)
+	// Bit 3: set means NOT fully generated (COMPLETE clears it; NONE and TERRAIN set it).
+	if (m_gen_stage < MAPGEN_STAGE_COMPLETE)
 		flags |= 0x08;
+	// Bit 4: set means terrain stage reached.  Old software ignores this bit.
+	if (m_gen_stage == MAPGEN_STAGE_TERRAIN)
+		flags |= 0x10;
 	writeU8(os, flags);
 	if (version >= 27) {
 		writeU16(os, m_lighting_complete);
@@ -530,7 +534,17 @@ void MapBlock::deSerialize(std::istream &in_compressed, u8 version, bool disk)
 		m_lighting_complete = 0xFFFF;
 	else
 		m_lighting_complete = readU16(is);
-	m_generated = (flags & 0x08) == 0;
+	// Decode generation stage from flags bits 3 and 4.
+	// bit 3 clear                    → COMPLETE (fully generated)
+	// bit 3 set AND bit 4 set        → TERRAIN  (terrain done, decorations pending)
+	// bit 3 set AND bit 4 clear      → NONE     (not generated at all)
+	if ((flags & 0x08) == 0) {
+		m_gen_stage = MAPGEN_STAGE_COMPLETE;
+	} else if ((flags & 0x10) != 0) {
+		m_gen_stage = MAPGEN_STAGE_TERRAIN;
+	} else {
+		m_gen_stage = MAPGEN_STAGE_NONE;
+	}
 
 	NameIdMapping nimap;
 	if (disk && version >= 29) {
@@ -688,7 +702,7 @@ void MapBlock::deSerialize_pre22(std::istream &is, u8 version, bool disk)
 	is_underground = false;
 	m_is_air = false;
 	m_lighting_complete = 0xFFFF;
-	m_generated = true;
+	m_gen_stage = MAPGEN_STAGE_COMPLETE;
 
 	// Make a temporary buffer
 	u32 ser_length = MapNode::serializedLength(version);
@@ -753,7 +767,7 @@ void MapBlock::deSerialize_pre22(std::istream &is, u8 version, bool disk)
 		is.read((char*)&flags, 1);
 		is_underground = (flags & 0x01) != 0;
 		if (version >= 18)
-			m_generated = (flags & 0x08) == 0;
+			m_gen_stage = (flags & 0x08) == 0 ? MAPGEN_STAGE_COMPLETE : MAPGEN_STAGE_NONE;
 
 		// Uncompress data
 		std::ostringstream os(std::ios_base::binary);

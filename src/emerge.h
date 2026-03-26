@@ -39,6 +39,8 @@ struct BlockMakeData {
 	u64 seed = 0;
 	v3s16 blockpos_min;
 	v3s16 blockpos_max;
+	// Generation stage being executed (MAPGEN_STAGE_TERRAIN or MAPGEN_STAGE_COMPLETE)
+	u8 stage = MAPGEN_STAGE_NONE;
 	UniqueQueue<v3s16> transforming_liquid;
 	const NodeDefManager *nodedef = nullptr;
 

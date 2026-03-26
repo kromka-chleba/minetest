@@ -222,6 +222,24 @@ public:
 	void spreadLight(const v3s16 &nmin, const v3s16 &nmax);
 
 	virtual void makeChunk(BlockMakeData *data) {}
+
+	/**
+	 * Stage 1 of multi-stage generation: place terrain, caves, biomes and ores.
+	 * No decorations (trees / schematics) are placed.  Neighbouring chunks do
+	 * NOT need to be at any particular stage for this to run.
+	 * Default implementation falls back to makeChunk().
+	 */
+	virtual void makeChunkTerrain(BlockMakeData *data) { makeChunk(data); }
+
+	/**
+	 * Stage 2 of multi-stage generation: place decorations, dust and compute
+	 * lighting.  All 26 neighbouring chunks must already be at least at
+	 * MAPGEN_STAGE_TERRAIN before this is called (guaranteed by ServerMap).
+	 * Default implementation is a no-op (makeChunkTerrain already did everything
+	 * via the makeChunk fallback).
+	 */
+	virtual void makeChunkDecorations(BlockMakeData *data) {}
+
 	virtual int getGroundLevelAtPoint(v2s16 p) { return 0; }
 
 	// getSpawnLevelAtPoint() is a function within each mapgen that returns a
@@ -278,6 +296,15 @@ public:
 	MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerge);
 	virtual ~MapgenBasic();
 
+	/**
+	 * Decoration-stage generation: decorations, dust, liquid queuing, lighting.
+	 * All 26 neighbour chunks are guaranteed to be at MAPGEN_STAGE_TERRAIN by
+	 * the time this is called.  Subclasses that require different decoration
+	 * behaviour can override this, but in practice the default handles all
+	 * MapgenBasic-derived mapgens.
+	 */
+	void makeChunkDecorations(BlockMakeData *data) override;
+
 	virtual void generateBiomes();
 	virtual void dustTopNodes();
 	virtual void generateCavesNoiseIntersection(s16 max_stone_y);
@@ -286,6 +313,9 @@ public:
 	virtual void generateDungeons(s16 max_stone_y);
 
 protected:
+	/// Shared initialisation extracted from makeChunk variants.
+	void initChunkParams(BlockMakeData *data);
+
 	BiomeManager *m_bmgr = nullptr;
 
 	Noise *noise_filler_depth = nullptr;

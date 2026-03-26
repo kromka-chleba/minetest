@@ -30,6 +30,13 @@ MapgenSinglenode::MapgenSinglenode(MapgenParams *params, EmergeParams *emerge)
 
 void MapgenSinglenode::makeChunk(BlockMakeData *data)
 {
+	makeChunkTerrain(data);
+	// makeChunkDecorations() is a no-op for singlenode
+}
+
+
+void MapgenSinglenode::makeChunkTerrain(BlockMakeData *data)
+{
 	// Pre-conditions
 	assert(data->vmanip);
 	assert(data->nodedef);

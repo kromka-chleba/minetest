@@ -620,8 +620,47 @@ MapgenBasic::~MapgenBasic()
 }
 
 
-void MapgenBasic::generateBiomes()
+void MapgenBasic::initChunkParams(BlockMakeData *data)
 {
+	this->generating = true;
+	this->vm         = data->vmanip;
+	this->ndef       = data->nodedef;
+
+	const v3s16 blockpos_min = data->blockpos_min;
+	const v3s16 blockpos_max = data->blockpos_max;
+	node_min      = blockpos_min * MAP_BLOCKSIZE;
+	node_max      = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
+	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+
+	blockseed = getBlockSeed2(full_node_min, seed);
+}
+
+
+void MapgenBasic::makeChunkDecorations(BlockMakeData *data)
+{
+	initChunkParams(data);
+
+	// Generate the registered decorations
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+
+	// Sprinkle some dust on top after everything else was generated
+	if (flags & MG_BIOMES)
+		dustTopNodes();
+
+	// Add top and bottom side of water to transforming_liquid queue
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+
+	// Calculate lighting
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+
+	this->generating = false;
+}
+
+
 	// can't generate biomes without a biome generator!
 	assert(biomegen);
 	assert(biomemap);

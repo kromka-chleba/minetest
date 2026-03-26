@@ -208,20 +208,59 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 		return false;
 
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
-	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax);
 
 	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
 	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
 
 	// Do nothing if not fully inside mapgen limits
 	if (blockpos_over_mapgen_limit(full_bpmin) ||
-			blockpos_over_mapgen_limit(full_bpmax))
+			blockpos_over_mapgen_limit(full_bpmax)) {
+		m_chunks_in_progress.erase(bpmin);
 		return false;
+	}
 
+	// Determine which generation stage to run for this chunk.
+	// A representative block at bpmin tells us the current stage of the chunk
+	// (all inner blocks of the same chunk share the same stage after finishBlockMake).
+	MapBlock *center = getBlockNoCreateNoEx(bpmin);
+	u8 current_stage = center ? center->getGenStage() : MAPGEN_STAGE_NONE;
+
+	u8 target_stage;
+	if (current_stage < MAPGEN_STAGE_TERRAIN) {
+		// Chunk has no terrain yet: run the terrain stage.
+		target_stage = MAPGEN_STAGE_TERRAIN;
+	} else {
+		// Chunk has terrain.  Before running decorations, all 26 neighbouring
+		// chunks (the 3×3×3 region around this one) must also have terrain so
+		// that decorations (schematics, trees) can read the correct surrounding
+		// topology without race-conditions.
+		bool neighbors_ready = true;
+		for (s16 cx = -1; cx <= 1 && neighbors_ready; cx++)
+		for (s16 cy = -1; cy <= 1 && neighbors_ready; cy++)
+		for (s16 cz = -1; cz <= 1 && neighbors_ready; cz++) {
+			if (cx == 0 && cy == 0 && cz == 0)
+				continue;
+			v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
+			MapBlock *nb = getBlockNoCreateNoEx(nchunk);
+			if (!nb || nb->getGenStage() < MAPGEN_STAGE_TERRAIN) {
+				neighbors_ready = false;
+			}
+		}
+		if (!neighbors_ready) {
+			m_chunks_in_progress.erase(bpmin);
+			return false;
+		}
+		target_stage = MAPGEN_STAGE_COMPLETE;
+	}
+
+	data->stage = target_stage;
 	data->seed = getSeed();
 	data->blockpos_min = bpmin;
 	data->blockpos_max = bpmax;
 	data->nodedef = m_nodedef;
+
+	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax
+		<< " stage=" << (int)target_stage);
 
 	/*
 		Create the whole area of this and the neighboring blocks
@@ -288,13 +327,18 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	const v3s16 bpmax = data->blockpos_max;
 
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
-	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
+	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax
+		<< " stage=" << (int)data->stage);
 
 	/*
-		Blit generated stuff to map
-		NOTE: blitBackAll adds nearly everything to changed_blocks
+		Blit generated data back to the map.
+		For both terrain and decoration stages we only write back the inner chunk
+		blocks (not the 1-block border).  This prevents concurrent generation of
+		adjacent chunks from racing on the shared border area, and prevents
+		terrain overwrites when the border neighbour later runs its own terrain
+		generation pass.
 	*/
-	data->vmanip->blitBackAll(changed_blocks);
+	data->vmanip->blitBackRange(bpmin, bpmax, changed_blocks);
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()="
 		<< changed_blocks->size());
@@ -344,15 +388,18 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 
 		block->refDrop();
 
-		/* Border blocks are grabbed during
-		   generation but mustn't be marked generated. */
+		/* Only inner chunk blocks advance their generation stage.
+		   Border blocks are grabbed during generation for context, but
+		   their stage is owned by their own chunk's generation pass. */
 		if (bp.X >= bpmin.X && bp.X <= bpmax.X
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
-			block->setGenerated(true);
-			// Set timestamp to ensure correct application
-			// of LBMs and other stuff.
-			block->setTimestampNoChangedFlag(now);
+			block->setGenStage(data->stage);
+			if (data->stage == MAPGEN_STAGE_COMPLETE) {
+				// Set timestamp to ensure correct application
+				// of LBMs and other stuff.
+				block->setTimestampNoChangedFlag(now);
+			}
 		}
 	}
 
