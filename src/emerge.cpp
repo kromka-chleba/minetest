@@ -399,7 +399,17 @@ bool EmergeManager::pushBlockEmergeData(
 		bedata.callbacks.emplace_back(callback, callback_param);
 
 	if (*entry_already_exists) {
+		// TERRAIN_ONLY is a restriction: it must be preserved only when *both*
+		// the existing entry and the new request require it.  If either side
+		// wants a full COMPLETE pass (i.e. does not carry TERRAIN_ONLY), the
+		// merged entry must not have TERRAIN_ONLY — otherwise a COMPLETE
+		// re-enqueue that races with an in-flight TERRAIN_ONLY shell request
+		// for the same position would leave the block stuck at TERRAIN forever.
+		bool keep_terrain_only = (bedata.flags & BLOCK_EMERGE_TERRAIN_ONLY) &&
+		                         (flags        & BLOCK_EMERGE_TERRAIN_ONLY);
 		bedata.flags |= flags;
+		if (!keep_terrain_only)
+			bedata.flags &= ~BLOCK_EMERGE_TERRAIN_ONLY;
 	} else {
 		bedata.flags = flags;
 		bedata.peer_requested = peer_requested;
