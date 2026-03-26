@@ -642,6 +642,17 @@ void MapgenBasic::makeChunkDecorations(BlockMakeData *data)
 {
 	initChunkParams(data);
 
+	// Rebuild heightmap and biomemap from the freshly-loaded stage-2 VM.
+	// These arrays were populated during stage 1 (terrain) which ran on a
+	// different chunk; the values are now stale and must be recomputed from
+	// the actual terrain in this VM before decorations use them.
+	if (heightmap)
+		updateHeightmap(node_min, node_max);
+	if (biomegen && (flags & MG_BIOMES)) {
+		biomegen->calcBiomeNoise(node_min);
+		biomegen->getBiomes(heightmap, node_min);
+	}
+
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
 		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);

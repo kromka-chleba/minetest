@@ -643,6 +643,10 @@ void MapgenV6::makeChunkDecorations(BlockMakeData *data)
 	central_area_size = node_max - node_min + v3s16(1, 1, 1);
 	blockseed = get_blockseed(data->seed, full_node_min);
 
+	// Rebuild heightmap from the freshly-loaded stage-2 VM.
+	// The heightmap is stale from a previous stage-1 run on a different chunk.
+	updateHeightmap(node_min, node_max);
+
 	// Generate some trees, and add grass, if a jungle
 	if (spflags & MGV6_TREES)
 		placeTreesAndJungleGrass();
