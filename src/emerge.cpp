@@ -710,7 +710,23 @@ void *EmergeThread::run()
 			continue;
 
 		bool allow_gen = bedata.flags & BLOCK_EMERGE_ALLOW_GEN;
-		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen);
+		bool terrain_only = bedata.flags & BLOCK_EMERGE_TERRAIN_ONLY;
+		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen
+			<< " terrain_only=" << terrain_only);
+
+		/*
+		 * If this is a shell (terrain-only) request and the block already has
+		 * terrain, there is nothing to do — don't attempt COMPLETE.
+		 */
+		if (terrain_only) {
+			Server::EnvAutoLock envlock(m_server);
+			block = m_map->getBlockNoCreateNoEx(pos);
+			if (block && block->getGenStage() >= MAPGEN_STAGE_TERRAIN) {
+				action = EMERGE_FROM_MEMORY;
+				goto skip_gen;
+			}
+			// Block not yet at TERRAIN — fall through to normal load/gen path.
+		}
 
 		action = getBlockOrStartGen(pos, allow_gen, nullptr, &block, &bmdata);
 
@@ -772,13 +788,18 @@ void *EmergeThread::run()
 				action = EMERGE_ERRORED;
 
 			/*
-			 * After the terrain stage completes, do NOT self-enqueue for
-			 * COMPLETE.  The client's GetNextBlocks loop re-requests every
-			 * block where !isGenerated() (which is true for TERRAIN-stage
-			 * blocks), so it drives the COMPLETE retry naturally.  Any
-			 * internal self-enqueue here would allow shell blocks to
-			 * propagate COMPLETE attempts outward without bound.
+			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE.
+			 * This is safe because shell (TERRAIN_ONLY) blocks do not cascade
+			 * further (see below), so the queue stays bounded.  Without the
+			 * self-enqueue, chunks generated as part of a shell may never reach
+			 * COMPLETE if no client is actively scanning their distance.
 			 */
+			if (action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+				Server::EnvAutoLock envlock(m_server);
+				m_emerge->enqueueBlockEmergeEx(pos, 0,
+					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr);
+			}
 
 			m_trans_liquid = nullptr;
 		}
@@ -787,20 +808,20 @@ void *EmergeThread::run()
 		 * Shell generation: COMPLETE was attempted (allow_gen was set) but
 		 * blocked because one or more of the 26 surrounding chunks have not
 		 * yet reached MAPGEN_STAGE_TERRAIN.  Enqueue each missing neighbour
-		 * for TERRAIN only — they act as a "shell" that gives decorations
-		 * and dust correct surrounding context.
+		 * for TERRAIN only (BLOCK_EMERGE_TERRAIN_ONLY) — they act as a "shell"
+		 * that gives decorations and dust correct surrounding context.
 		 *
-		 * This chunk is NOT re-enqueued here.  The client's GetNextBlocks
-		 * will re-request it on the next scan (block->isGenerated()==false
-		 * for TERRAIN-stage blocks), which drives COMPLETE retries without
-		 * any internal cascading.
+		 * Shell blocks carry BLOCK_EMERGE_TERRAIN_ONLY so they do NOT attempt
+		 * COMPLETE and do NOT themselves trigger further shell enqueues, keeping
+		 * the outward cascade strictly bounded at depth 1.
 		 *
-		 * Propagation is strictly bounded: shell blocks finish TERRAIN and
-		 * then stop (no self-enqueue), so they never attempt COMPLETE unless
-		 * a client explicitly requests them — i.e. the shell never expands
-		 * beyond what the clients' view ranges require.
+		 * This chunk IS re-enqueued for COMPLETE (see above, after TERRAIN).
+		 * For TERRAIN_ONLY (shell) blocks we skip this handler entirely —
+		 * they have no reason to cascade and their only goal (providing terrain
+		 * context) is already accomplished.
 		 */
-		if (action == EMERGE_CANCELLED &&
+		if (!terrain_only &&
+				action == EMERGE_CANCELLED &&
 				allow_gen &&
 				block != nullptr &&
 				block->getGenStage() == MAPGEN_STAGE_TERRAIN) {
@@ -817,14 +838,19 @@ void *EmergeThread::run()
 					MapBlock *nb = m_map->getBlockNoCreateNoEx(nchunk);
 					if (!nb || nb->getGenStage() < MAPGEN_STAGE_TERRAIN) {
 						m_emerge->enqueueBlockEmergeEx(nchunk, 0,
-							BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+							BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE |
+							BLOCK_EMERGE_TERRAIN_ONLY,
 							nullptr, nullptr);
 					}
 				}
+				// Re-enqueue self so COMPLETE is retried once shells are done.
+				m_emerge->enqueueBlockEmergeEx(pos, 0,
+					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr);
 			}
-			// Do NOT re-enqueue self: the client drives COMPLETE retries.
 		}
 
+skip_gen:
 		runCompletionCallbacks(pos, action, bedata.callbacks);
 
 		/*

@@ -408,6 +408,42 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		}
 	}
 
+	/*
+		Fix lighting across the chunk boundary (Bug 3: lighting seams).
+
+		The mapgen computes lighting inside the vmanip which covers the inner
+		chunk plus a 1-block border (full_bpmin … full_bpmax).  However
+		blitBackRange() above only writes back the inner blocks (bpmin … bpmax).
+		The border blocks in the live map therefore retain their pre-generation
+		param1 values (often zero from TERRAIN stage), producing incorrect
+		lighting at the chunk seam — e.g. a strip of shadow or a strip of
+		sunlight along the edge of a freshly-generated chunk.
+
+		Calling update_block_border_lighting() for each inner block on the face
+		of the chunk re-propagates lighting between the new inner blocks and
+		their already-existing neighbours outside the chunk, correcting the seam.
+
+		We do this only after the COMPLETE stage so that decorations and dust
+		are already placed and the block lighting values from calcLighting are
+		in their final state.
+	*/
+	if (data->stage == MAPGEN_STAGE_COMPLETE) {
+		v3s16 bp;
+		for (bp.X = bpmin.X; bp.X <= bpmax.X; bp.X++)
+		for (bp.Z = bpmin.Z; bp.Z <= bpmax.Z; bp.Z++)
+		for (bp.Y = bpmin.Y; bp.Y <= bpmax.Y; bp.Y++) {
+			bool on_edge = (bp.X == bpmin.X || bp.X == bpmax.X ||
+					bp.Y == bpmin.Y || bp.Y == bpmax.Y ||
+					bp.Z == bpmin.Z || bp.Z == bpmax.Z);
+			if (!on_edge)
+				continue;
+			MapBlock *block = getBlockNoCreateNoEx(bp);
+			if (!block)
+				continue;
+			voxalgo::update_block_border_lighting(this, block, *changed_blocks);
+		}
+	}
+
 	m_chunks_in_progress.erase(bpmin);
 }
 
