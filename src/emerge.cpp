@@ -616,13 +616,17 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 		VoxelArea(minp, maxp));
 
 	/*
-		Run Lua on_generated callbacks in the server environment
+		Run Lua on_generated callbacks in the server environment.
+		Only fire for fully-complete chunks: TERRAIN-stage blocks have no
+		lighting and no decorations yet, so mods must not observe them.
 	*/
-	try {
-		m_server->getScriptIface()->environment_OnGenerated(
-			minp, maxp, m_mapgen->blockseed);
-	} catch (LuaError &e) {
-		m_server->setAsyncFatalError(e);
+	if (bmdata->stage == MAPGEN_STAGE_COMPLETE) {
+		try {
+			m_server->getScriptIface()->environment_OnGenerated(
+				minp, maxp, m_mapgen->blockseed);
+		} catch (LuaError &e) {
+			m_server->setAsyncFatalError(e);
+		}
 	}
 
 	EMERGE_DBG_OUT("ended up with: " << analyze_block(block));
@@ -794,15 +798,23 @@ void *EmergeThread::run()
 
 		runCompletionCallbacks(pos, action, bedata.callbacks);
 
-		if (block)
-			modified_blocks[pos] = block;
+		/*
+		 * Do not dispatch TERRAIN-stage blocks to clients.  calcLighting has
+		 * not run yet at this point, so every node's light value is still 0
+		 * and the client would see a completely dark chunk.  The block will be
+		 * dispatched (with correct lighting) once Stage 2 (COMPLETE) finishes.
+		 */
+		if (!(action == EMERGE_GENERATED && bmdata.stage == MAPGEN_STAGE_TERRAIN)) {
+			if (block)
+				modified_blocks[pos] = block;
 
-		if (!modified_blocks.empty()) {
-			MapEditEvent event;
-			event.type = MEET_OTHER;
-			event.setModifiedBlocks(modified_blocks);
-			Server::EnvAutoLock envlock(m_server);
-			m_map->dispatchEvent(event);
+			if (!modified_blocks.empty()) {
+				MapEditEvent event;
+				event.type = MEET_OTHER;
+				event.setModifiedBlocks(modified_blocks);
+				Server::EnvAutoLock envlock(m_server);
+				m_map->dispatchEvent(event);
+			}
 		}
 		modified_blocks.clear();
 	}
