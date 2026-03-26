@@ -29,6 +29,7 @@
 #include "mapgen_v7.h"
 #include "mapgen_valleys.h"
 #include "mapgen_singlenode.h"
+#include "mg_decoration.h"
 #include "cavegen.h"
 #include "dungeongen.h"
 
@@ -661,6 +662,8 @@ void MapgenBasic::makeChunkDecorations(BlockMakeData *data)
 }
 
 
+void MapgenBasic::generateBiomes()
+{
 	// can't generate biomes without a biome generator!
 	assert(biomegen);
 	assert(biomemap);
