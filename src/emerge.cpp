@@ -788,13 +788,16 @@ void *EmergeThread::run()
 				action = EMERGE_ERRORED;
 
 			/*
-			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE.
-			 * This is safe because shell (TERRAIN_ONLY) blocks do not cascade
-			 * further (see below), so the queue stays bounded.  Without the
-			 * self-enqueue, chunks generated as part of a shell may never reach
-			 * COMPLETE if no client is actively scanning their distance.
+			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE,
+			 * but ONLY if this was not a terrain-only shell request.  Shell blocks
+			 * exist solely to provide terrain context for a neighbour's decoration
+			 * pass; they must NOT attempt COMPLETE themselves, because that would
+			 * trigger the CANCELLED handler which enqueues THEIR 26 neighbours as
+			 * shells, and so on without bound — exactly the cascade we are trying
+			 * to prevent.  Shell blocks that actually need to reach COMPLETE will
+			 * be re-requested by the client when it scans for !isGenerated() blocks.
 			 */
-			if (action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+			if (!terrain_only && action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
 				Server::EnvAutoLock envlock(m_server);
 				m_emerge->enqueueBlockEmergeEx(pos, 0,
 					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
