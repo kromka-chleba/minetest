@@ -223,7 +223,7 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	// A representative block at bpmin tells us the current stage of the chunk
 	// (all inner blocks of the same chunk share the same stage after finishBlockMake).
 	MapBlock *center = getBlockNoCreateNoEx(bpmin);
-	u8 current_stage = center ? center->getGenStage() : MAPGEN_STAGE_NONE;
+	u8 current_stage = center ? center->getGenStage() : (u8)MAPGEN_STAGE_NONE;
 
 	u8 target_stage;
 	if (current_stage < MAPGEN_STAGE_TERRAIN) {
