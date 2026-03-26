@@ -730,17 +730,28 @@ void *EmergeThread::run()
 			bool error = false;
 			m_trans_liquid = &bmdata.transforming_liquid;
 
-			{
+			if (bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+				/*
+				 * Stage 1: terrain, caves, biomes, ores, dungeons.
+				 * Decorations are deferred until all 26 neighbouring chunks
+				 * have also completed this stage.
+				 */
 				ScopeProfiler sp(g_profiler,
-					"EmergeThread: Mapgen::makeChunk", SPT_AVG);
-
-				m_mapgen->makeChunk(&bmdata);
-			}
-
-			{
+					"EmergeThread: Mapgen::makeChunkTerrain", SPT_AVG);
+				m_mapgen->makeChunkTerrain(&bmdata);
+			} else {
+				/*
+				 * Stage 2: decorations, dust, liquid queuing, lighting.
+				 * Only reached when all neighbours are at least TERRAIN.
+				 */
 				ScopeProfiler sp(g_profiler,
+					"EmergeThread: Mapgen::makeChunkDecorations", SPT_AVG);
+				m_mapgen->makeChunkDecorations(&bmdata);
+
+				// Lua on_generated fires only for fully-complete chunks so
+				// that mods see a correctly decorated neighbourhood.
+				ScopeProfiler sp2(g_profiler,
 					"EmergeThread: Lua on_generated", SPT_AVG);
-
 				try {
 					m_script->on_generated(&bmdata, m_mapgen->blockseed);
 				} catch (const LuaError &e) {
@@ -755,6 +766,28 @@ void *EmergeThread::run()
 				m_map->cancelBlockMake(&bmdata);
 			if (!block || error)
 				action = EMERGE_ERRORED;
+
+			/*
+			 * After the terrain stage completes successfully, enqueue this
+			 * chunk and all 26 surrounding chunk positions so that:
+			 *  - Neighbours generate their terrain (satisfying the prerequisite
+			 *    for this chunk's decoration stage).
+			 *  - This chunk is re-processed: once all neighbours are at
+			 *    TERRAIN, initBlockMake will grant the decoration stage.
+			 */
+			if (action == EMERGE_GENERATED &&
+					bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+				const v3s16 csize = m_emerge->mgparams->chunksize;
+				const v3s16 bpmin = EmergeManager::getContainingChunk(pos, csize);
+				for (s16 cx = -1; cx <= 1; cx++)
+				for (s16 cy = -1; cy <= 1; cy++)
+				for (s16 cz = -1; cz <= 1; cz++) {
+					v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
+					m_emerge->enqueueBlockEmergeEx(nchunk, 0,
+						BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+						nullptr, nullptr);
+				}
+			}
 
 			m_trans_liquid = nullptr;
 		}
