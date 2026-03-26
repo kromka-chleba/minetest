@@ -390,11 +390,16 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 
 		/* Only inner chunk blocks advance their generation stage.
 		   Border blocks are grabbed during generation for context, but
-		   their stage is owned by their own chunk's generation pass. */
+		   their stage is owned by their own chunk's generation pass.
+		   Guard against downgrading a block that somehow already reached a
+		   higher stage (e.g. if the centre block was evicted from the LRU
+		   cache and initBlockMake therefore ran TERRAIN a second time on an
+		   already-COMPLETE chunk). */
 		if (bp.X >= bpmin.X && bp.X <= bpmax.X
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
-			block->setGenStage(data->stage);
+			if (block->getGenStage() < data->stage)
+				block->setGenStage(data->stage);
 			if (data->stage == MAPGEN_STAGE_COMPLETE) {
 				// Set timestamp to ensure correct application
 				// of LBMs and other stuff.

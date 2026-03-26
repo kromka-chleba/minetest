@@ -342,8 +342,15 @@ void RemoteClient::GetNextBlocks (
 
 			const bool want_emerge = !block || !block->isGenerated();
 
-			// if the block is already in the emerge queue we don't have to check again
-			if (!want_emerge || !emerge->isBlockInQueue(p)) {
+			// A block that exists in memory but hasn't reached COMPLETE yet
+			// (i.e. it is at TERRAIN stage awaiting its decoration/lighting pass)
+			// must always be re-enqueued — skipping it would leave the chunk stuck
+			// at TERRAIN forever.  Never apply occlusion culling to such blocks.
+			const bool block_needs_complete = block && !block->isGenerated();
+
+			// if the block is already in the emerge queue we don't have to check again,
+			// and never occlude-cull blocks that still need to progress to COMPLETE.
+			if (!want_emerge || (!emerge->isBlockInQueue(p) && !block_needs_complete)) {
 				/*
 					Check occlusion cache first.
 				 */
