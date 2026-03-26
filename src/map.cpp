@@ -318,8 +318,12 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 						&& block->getUsageTimer() > unload_timeout) {
 					v3s16 p = block->getPos();
 
-					// Save if modified
-					if (block->getModified() != MOD_STATE_CLEAN
+					// Save if modified; skip TERRAIN-stage blocks because they
+					// are regenerated deterministically and should not be
+					// persisted as partial results (same rationale as in
+					// ServerMap::save()).
+					if (block->getGenStage() != MAPGEN_STAGE_TERRAIN
+							&& block->getModified() != MOD_STATE_CLEAN
 							&& save_before_unloading) {
 						modprofiler.add(block->getModifiedReasonString(), 1);
 						if (!saveBlock(block))
@@ -372,8 +376,11 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 
 			v3s16 p = block->getPos();
 
-			// Save if modified
-			if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
+			// Save if modified; skip TERRAIN-stage blocks because they
+			// are regenerated deterministically and should not be
+			// persisted as partial results.
+			if (block->getGenStage() != MAPGEN_STAGE_TERRAIN
+					&& block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
 				modprofiler.add(block->getModifiedReasonString(), 1);
 				if (!saveBlock(block))
 					continue;

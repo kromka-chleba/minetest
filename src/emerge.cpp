@@ -772,35 +772,36 @@ void *EmergeThread::run()
 				action = EMERGE_ERRORED;
 
 			/*
-			 * After the terrain stage completes, enqueue only the chunk
-			 * itself for a COMPLETE retry.  Neighbours are generated
-			 * lazily (see below) only when this chunk actually attempts
-			 * Stage 2 and finds them missing, avoiding the unbounded
-			 * cascade that the old "enqueue all 27" approach caused.
+			 * After the terrain stage completes, do NOT self-enqueue for
+			 * COMPLETE.  The client's GetNextBlocks loop re-requests every
+			 * block where !isGenerated() (which is true for TERRAIN-stage
+			 * blocks), so it drives the COMPLETE retry naturally.  Any
+			 * internal self-enqueue here would allow shell blocks to
+			 * propagate COMPLETE attempts outward without bound.
 			 */
-			if (action == EMERGE_GENERATED &&
-					bmdata.stage == MAPGEN_STAGE_TERRAIN) {
-				m_emerge->enqueueBlockEmergeEx(pos, 0,
-					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
-					nullptr, nullptr);
-			}
 
 			m_trans_liquid = nullptr;
 		}
 
 		/*
-		 * Lazy neighbour generation: Stage 2 was attempted but blocked
-		 * because one or more of the 26 surrounding chunks had not yet
-		 * reached MAPGEN_STAGE_TERRAIN.  Enqueue each missing neighbour
-		 * now, and re-enqueue the current chunk so it retries COMPLETE
-		 * once the neighbours are done.
+		 * Shell generation: COMPLETE was attempted (allow_gen was set) but
+		 * blocked because one or more of the 26 surrounding chunks have not
+		 * yet reached MAPGEN_STAGE_TERRAIN.  Enqueue each missing neighbour
+		 * for TERRAIN only — they act as a "shell" that gives decorations
+		 * and dust correct surrounding context.
 		 *
-		 * This is safe from infinite recursion: neighbours are only
-		 * enqueued for TERRAIN generation (they don't recursively
-		 * trigger further neighbour cascades unless they too attempt
-		 * COMPLETE and find their own neighbours missing).
+		 * This chunk is NOT re-enqueued here.  The client's GetNextBlocks
+		 * will re-request it on the next scan (block->isGenerated()==false
+		 * for TERRAIN-stage blocks), which drives COMPLETE retries without
+		 * any internal cascading.
+		 *
+		 * Propagation is strictly bounded: shell blocks finish TERRAIN and
+		 * then stop (no self-enqueue), so they never attempt COMPLETE unless
+		 * a client explicitly requests them — i.e. the shell never expands
+		 * beyond what the clients' view ranges require.
 		 */
 		if (action == EMERGE_CANCELLED &&
+				allow_gen &&
 				block != nullptr &&
 				block->getGenStage() == MAPGEN_STAGE_TERRAIN) {
 			const v3s16 csize = m_emerge->mgparams->chunksize;
@@ -821,11 +822,7 @@ void *EmergeThread::run()
 					}
 				}
 			}
-			// Re-enqueue self so it retries COMPLETE once the neighbours
-			// have finished terrain generation.
-			m_emerge->enqueueBlockEmergeEx(pos, 0,
-				BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
-				nullptr, nullptr);
+			// Do NOT re-enqueue self: the client drives COMPLETE retries.
 		}
 
 		runCompletionCallbacks(pos, action, bedata.callbacks);
