@@ -595,6 +595,13 @@ void ServerMap::save(ModifiedState save_level)
 		for (MapBlock *block : blocks) {
 			block_count_all++;
 
+			// TERRAIN-stage blocks are regenerated deterministically on reload
+			// and writing them to disk every few seconds holds EnvAutoLock,
+			// blocking all emerge threads.  Skip them here; they are still
+			// saved when unloaded from memory (via Map::timerUpdate).
+			if (block->getGenStage() == MAPGEN_STAGE_TERRAIN)
+				continue;
+
 			if(block->getModified() >= (u32)save_level) {
 				// Lazy beginSave()
 				if(!save_started) {

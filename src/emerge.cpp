@@ -772,41 +772,73 @@ void *EmergeThread::run()
 				action = EMERGE_ERRORED;
 
 			/*
-			 * After the terrain stage completes successfully, enqueue this
-			 * chunk and all 26 surrounding chunk positions so that:
-			 *  - Neighbours generate their terrain (satisfying the prerequisite
-			 *    for this chunk's decoration stage).
-			 *  - This chunk is re-processed: once all neighbours are at
-			 *    TERRAIN, initBlockMake will grant the decoration stage.
+			 * After the terrain stage completes, enqueue only the chunk
+			 * itself for a COMPLETE retry.  Neighbours are generated
+			 * lazily (see below) only when this chunk actually attempts
+			 * Stage 2 and finds them missing, avoiding the unbounded
+			 * cascade that the old "enqueue all 27" approach caused.
 			 */
 			if (action == EMERGE_GENERATED &&
 					bmdata.stage == MAPGEN_STAGE_TERRAIN) {
-				const v3s16 csize = m_emerge->mgparams->chunksize;
-				const v3s16 bpmin = EmergeManager::getContainingChunk(pos, csize);
-				for (s16 cx = -1; cx <= 1; cx++)
-				for (s16 cy = -1; cy <= 1; cy++)
-				for (s16 cz = -1; cz <= 1; cz++) {
-					v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
-					m_emerge->enqueueBlockEmergeEx(nchunk, 0,
-						BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
-						nullptr, nullptr);
-				}
+				m_emerge->enqueueBlockEmergeEx(pos, 0,
+					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr);
 			}
 
 			m_trans_liquid = nullptr;
 		}
 
+		/*
+		 * Lazy neighbour generation: Stage 2 was attempted but blocked
+		 * because one or more of the 26 surrounding chunks had not yet
+		 * reached MAPGEN_STAGE_TERRAIN.  Enqueue each missing neighbour
+		 * now, and re-enqueue the current chunk so it retries COMPLETE
+		 * once the neighbours are done.
+		 *
+		 * This is safe from infinite recursion: neighbours are only
+		 * enqueued for TERRAIN generation (they don't recursively
+		 * trigger further neighbour cascades unless they too attempt
+		 * COMPLETE and find their own neighbours missing).
+		 */
+		if (action == EMERGE_CANCELLED &&
+				block != nullptr &&
+				block->getGenStage() == MAPGEN_STAGE_TERRAIN) {
+			const v3s16 csize = m_emerge->mgparams->chunksize;
+			const v3s16 bpmin = EmergeManager::getContainingChunk(pos, csize);
+			{
+				Server::EnvAutoLock envlock(m_server);
+				for (s16 cx = -1; cx <= 1; cx++)
+				for (s16 cy = -1; cy <= 1; cy++)
+				for (s16 cz = -1; cz <= 1; cz++) {
+					if (cx == 0 && cy == 0 && cz == 0)
+						continue;
+					v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
+					MapBlock *nb = m_map->getBlockNoCreateNoEx(nchunk);
+					if (!nb || nb->getGenStage() < MAPGEN_STAGE_TERRAIN) {
+						m_emerge->enqueueBlockEmergeEx(nchunk, 0,
+							BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+							nullptr, nullptr);
+					}
+				}
+			}
+			// Re-enqueue self so it retries COMPLETE once the neighbours
+			// have finished terrain generation.
+			m_emerge->enqueueBlockEmergeEx(pos, 0,
+				BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+				nullptr, nullptr);
+		}
+
 		runCompletionCallbacks(pos, action, bedata.callbacks);
 
 		/*
-		 * Do not dispatch TERRAIN-stage blocks to clients.  calcLighting has
-		 * not run yet at this point, so every node's light value is still 0
-		 * and the client would see a completely dark chunk.  The block will be
-		 * dispatched (with correct lighting) once Stage 2 (COMPLETE) finishes.
+		 * Only dispatch a MapEditEvent for fully-generated (COMPLETE) blocks.
+		 * Blocks at TERRAIN stage have no lighting or decorations and would
+		 * appear pitch-black on the client.  This covers both the explicit
+		 * TERRAIN generation case and CANCELLED iterations where the in-memory
+		 * block is still at TERRAIN stage.
 		 */
-		if (!(action == EMERGE_GENERATED && bmdata.stage == MAPGEN_STAGE_TERRAIN)) {
-			if (block)
-				modified_blocks[pos] = block;
+		if (block && block->isGenerated()) {
+			modified_blocks[pos] = block;
 
 			if (!modified_blocks.empty()) {
 				MapEditEvent event;
