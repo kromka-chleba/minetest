@@ -798,16 +798,23 @@ void *EmergeThread::run()
 				action = EMERGE_ERRORED;
 
 			/*
-			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE,
-			 * but ONLY if this was not a terrain-only shell request.  Shell blocks
-			 * exist solely to provide terrain context for a neighbour's decoration
-			 * pass; they must NOT attempt COMPLETE themselves, because that would
-			 * trigger the CANCELLED handler which enqueues THEIR 26 neighbours as
-			 * shells, and so on without bound — exactly the cascade we are trying
-			 * to prevent.  Shell blocks that actually need to reach COMPLETE will
-			 * be re-requested by the client when it scans for !isGenerated() blocks.
+			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE.
+			 * This applies to both normal requests and terrain-only shell requests:
+			 * shell chunks exist to provide terrain context for a neighbour, but they
+			 * must also eventually reach COMPLETE themselves.  Relying on the client
+			 * scan loop to re-request shells is not reliable — the client only
+			 * iterates blocks within its current view range and FOV, so shell chunks
+			 * generated outside that range would remain stuck at TERRAIN stage
+			 * indefinitely, producing permanent unemerged stripes at chunk borders.
+			 *
+			 * Cascade is still bounded: if this COMPLETE attempt is CANCELLED because
+			 * the chunk's own neighbours lack TERRAIN, the CANCELLED handler enqueues
+			 * those neighbours as depth-1 TERRAIN_ONLY shells.  Those shells carry
+			 * TERRAIN_ONLY and are re-enqueued for COMPLETE here, but they will not
+			 * trigger the CANCELLED cascade handler themselves (it guards on
+			 * !terrain_only), so the total cascade depth is at most 2 hops.
 			 */
-			if (!terrain_only && action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+			if (action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
 				Server::EnvAutoLock envlock(m_server);
 				m_emerge->enqueueBlockEmergeEx(pos, 0,
 					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
@@ -824,14 +831,12 @@ void *EmergeThread::run()
 		 * for TERRAIN only (BLOCK_EMERGE_TERRAIN_ONLY) — they act as a "shell"
 		 * that gives decorations and dust correct surrounding context.
 		 *
-		 * Shell blocks carry BLOCK_EMERGE_TERRAIN_ONLY so they do NOT attempt
-		 * COMPLETE and do NOT themselves trigger further shell enqueues, keeping
-		 * the outward cascade strictly bounded at depth 1.
+		 * Shell blocks carry BLOCK_EMERGE_TERRAIN_ONLY so they do NOT trigger
+		 * this CANCELLED handler themselves (guarded by !terrain_only below),
+		 * keeping the cascade strictly bounded at depth 1.  They are however
+		 * re-enqueued for COMPLETE after their own TERRAIN stage (see above).
 		 *
-		 * This chunk IS re-enqueued for COMPLETE (see above, after TERRAIN).
-		 * For TERRAIN_ONLY (shell) blocks we skip this handler entirely —
-		 * they have no reason to cascade and their only goal (providing terrain
-		 * context) is already accomplished.
+		 * This chunk IS also re-enqueued for COMPLETE (see above, after TERRAIN).
 		 */
 		if (!terrain_only &&
 				action == EMERGE_CANCELLED &&
