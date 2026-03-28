@@ -468,6 +468,74 @@ void EmergeManager::reportCompletedEmerge(EmergeAction action)
 	m_completed_emerge_counter[(int)action]->increment();
 }
 
+void EmergeManager::addDeferredBlock(const v3s16 &pos,
+	const BlockEmergeData &bedata, const BlockMakeData &bmdata,
+	const std::vector<v3s16> &missing_chunks, u8 predecessor_stage)
+{
+	MutexAutoLock queuelock(m_queue_mutex);
+
+	for (const v3s16 &chunkpos : missing_chunks) {
+		auto &bucket = m_deferred_by_chunk[chunkpos];
+		auto it = std::find_if(bucket.begin(), bucket.end(),
+			[&](const DeferredItem &item) { return item.blockpos == pos; });
+
+		if (it != bucket.end()) {
+			it->predecessor_stage = std::max(it->predecessor_stage, predecessor_stage);
+			it->bedata.required_stage = std::max(it->bedata.required_stage,
+				bedata.required_stage);
+			it->target_stage = std::max(it->target_stage, bmdata.target_stage);
+		} else {
+			bucket.push_back({pos, bedata, predecessor_stage, bmdata.target_stage});
+		}
+	}
+}
+
+void EmergeManager::notifyStageComplete(const v3s16 &chunkpos, u8 completed_stage)
+{
+	std::vector<EmergeThread *> threads_to_signal;
+
+	{
+		MutexAutoLock queuelock(m_queue_mutex);
+
+		auto it = m_deferred_by_chunk.find(chunkpos);
+		if (it == m_deferred_by_chunk.end())
+			return;
+
+		auto &bucket = it->second;
+		for (auto iter = bucket.begin(); iter != bucket.end();) {
+			if (completed_stage < iter->predecessor_stage) {
+				++iter;
+				continue;
+			}
+
+			bool entry_exists = false;
+			// Force queue to ensure deferred blocks are re-enqueued even under load.
+			bool ok = pushBlockEmergeData(iter->blockpos,
+				iter->bedata.peer_requested,
+				iter->bedata.flags | BLOCK_EMERGE_FORCE_QUEUE,
+				nullptr, nullptr, iter->bedata.required_stage, &entry_exists);
+			if (!ok) {
+				++iter;
+				continue;
+			}
+
+			if (!entry_exists) {
+				EmergeThread *thread = getOptimalThread();
+				thread->pushBlock(iter->blockpos);
+				threads_to_signal.push_back(thread);
+			}
+
+			iter = bucket.erase(iter);
+		}
+
+		if (bucket.empty())
+			m_deferred_by_chunk.erase(it);
+	}
+
+	for (EmergeThread *thread : threads_to_signal)
+		thread->signal();
+}
+
 
 ////
 //// EmergeThread
@@ -550,7 +618,40 @@ bool EmergeThread::popBlockEmerge(v3s16 *pos, BlockEmergeData *bedata)
 }
 
 
-EmergeAction EmergeThread::getBlockOrStartGen(const v3s16 pos, bool allow_gen,
+bool EmergeThread::isNeighbourhoodReady(const v3s16 &pos, u8 predecessor_stage,
+	std::vector<v3s16> *missing) const
+{
+	if (predecessor_stage <= STAGE_NONE)
+		return true;
+
+	v3s16 chunksize(m_emerge->mgparams->chunksize);
+
+	for (s16 x = -1; x <= 1; x++)
+	for (s16 y = -1; y <= 1; y++)
+	for (s16 z = -1; z <= 1; z++) {
+		if (x == 0 && y == 0 && z == 0)
+			continue;
+
+		v3s16 npos = pos + v3s16(x, y, z);
+		MapBlock *nblock = m_map->getBlockNoCreateNoEx(npos);
+		u8 stage = nblock ? nblock->getGenerationStage() : STAGE_NONE;
+		if (stage < predecessor_stage) {
+			if (missing) {
+				v3s16 chunkpos = EmergeManager::getContainingChunk(npos, chunksize);
+				if (std::find(missing->begin(), missing->end(), chunkpos) ==
+						missing->end())
+					missing->push_back(chunkpos);
+			} else {
+				return false;
+			}
+		}
+	}
+
+	return !missing || missing->empty();
+}
+
+
+EmergeAction EmergeThread::getBlockOrStartStage(const v3s16 pos, bool allow_gen,
 		u8 required_stage, const std::string *from_db,
 		MapBlock **block, BlockMakeData *bmdata)
 {
@@ -590,6 +691,12 @@ EmergeAction EmergeThread::getBlockOrStartGen(const v3s16 pos, bool allow_gen,
 	// 3). Attempt to start generation
 	if (bmdata->target_stage == STAGE_NONE)
 		bmdata->target_stage = required_stage;
+
+	if (bmdata->target_stage > STAGE_TERRAIN) {
+		u8 predecessor_stage = bmdata->target_stage - 1;
+		if (!isNeighbourhoodReady(pos, predecessor_stage))
+			return EMERGE_DEFERRED;
+	}
 
 	if (allow_gen && m_map->initBlockMake(pos, bmdata))
 		return EMERGE_GENERATED;
@@ -647,6 +754,13 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 	assert(!m_mapgen->generating);
 	m_mapgen->gennotify.clearEvents();
 	m_mapgen->vm = nullptr;
+
+	// Notify waiting neighbours that this chunk advanced its stage.
+	if (bmdata->input_stage < bmdata->target_stage) {
+		v3s16 chunksize(m_emerge->mgparams->chunksize);
+		v3s16 chunkpos = EmergeManager::getContainingChunk(pos, chunksize);
+		m_emerge->notifyStageComplete(chunkpos, bmdata->target_stage);
+	}
 
 	return block;
 }
@@ -722,7 +836,7 @@ void *EmergeThread::run()
 		bool allow_gen = bedata.flags & BLOCK_EMERGE_ALLOW_GEN;
 		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen);
 
-		action = getBlockOrStartGen(pos, allow_gen, bedata.required_stage,
+		action = getBlockOrStartStage(pos, allow_gen, bedata.required_stage,
 			nullptr, &block, &bmdata);
 
 		/* Try to load it */
@@ -736,9 +850,20 @@ void *EmergeThread::run()
 				m_db.loadBlock(pos, databuf);
 			}
 			// actually load it, then decide again
-			action = getBlockOrStartGen(pos, allow_gen, bedata.required_stage,
+			action = getBlockOrStartStage(pos, allow_gen, bedata.required_stage,
 				&databuf, &block, &bmdata);
 			databuf.clear();
+		}
+
+		if (action == EMERGE_DEFERRED) {
+			u8 predecessor_stage = bmdata.target_stage > STAGE_TERRAIN ?
+				bmdata.target_stage - 1 : STAGE_NONE;
+			std::vector<v3s16> missing_chunks;
+			isNeighbourhoodReady(pos, predecessor_stage, &missing_chunks);
+			if (!missing_chunks.empty())
+				m_emerge->addDeferredBlock(pos, bedata, bmdata, missing_chunks,
+					predecessor_stage);
+			continue;
 		}
 
 		/* Generate it */

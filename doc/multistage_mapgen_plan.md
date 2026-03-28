@@ -573,22 +573,20 @@ world can still be opened.
 - [ ] Extend `finishBlockMake()` to blit only the centre chunk; remove
       the `!isInCentralChunk` skip-generated check from the blit loop.
 - [x] Advance `m_generation_stage` on centre blocks to `target_stage`.
-- [ ] Add `STAGE_COMPLETE_EVENT` and neighbour re-queue in
+- [x] Add `STAGE_COMPLETE_EVENT` and neighbour re-queue in
       `EmergeManager`.
 
 ### Phase 4 — Stage-Aware Emerge Queue Logic
 
-- Progress update: `getBlockOrStartGen()` now honours `required_stage` from the
-  queue, populating `target_stage`/`input_stage` accordingly; it still needs
-  a dedicated neighbour-readiness check and a rename to `getBlockOrStartStage()`.
-- Progress update: queue entries now carry `required_stage` and merge duplicate
-  requests via `max(existing, new)`; API accepts a `required_stage` argument.
+- Progress update: queue entries carry `required_stage`, merge duplicates via
+  `max(existing, new)`, and the fetch logic honours it when setting
+  `target_stage`/`input_stage`.
 
-- [ ] Replace `getBlockOrStartGen()` with `getBlockOrStartStage()`.
-- [ ] Add neighbourhood readiness check (3×3×3, predecessor stage).
-- [ ] Handle `EMERGE_DEFERRED`: add deferred set per chunk in
+- [x] Replace `getBlockOrStartGen()` with `getBlockOrStartStage()`.
+- [x] Add neighbourhood readiness check (3×3×3, predecessor stage).
+- [x] Handle `EMERGE_DEFERRED`: add deferred set per chunk in
       `EmergeManager`; re-enqueue on `STAGE_COMPLETE_EVENT`.
-- [ ] Integrate deferred blocks into `EmergeThread::run()`.
+- [x] Integrate deferred blocks into `EmergeThread::run()`.
 - [ ] End-to-end integration test: generate a chunk with a tree decoration
       at the border; verify the tree is not cut off.
 

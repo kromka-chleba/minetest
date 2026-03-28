@@ -6,6 +6,7 @@
 
 #include <map>
 #include <mutex>
+#include <vector>
 #include "network/networkprotocol.h"
 #include "irr_v3d.h"
 #include "util/metricsbackend.h"
@@ -221,6 +222,15 @@ private:
 
 	std::mutex m_queue_mutex;
 	std::map<v3s16, BlockEmergeData> m_blocks_enqueued;
+	// Blocks deferred waiting on specific neighbour chunks to reach a stage.
+	// Key: chunk position (in block units, chunk-aligned)
+	struct DeferredItem {
+		v3s16 blockpos;
+		BlockEmergeData bedata;
+		u8 predecessor_stage;
+		u8 target_stage;
+	};
+	std::map<v3s16, std::vector<DeferredItem>> m_deferred_by_chunk;
 	std::unordered_map<u16, u32> m_peer_queue_count;
 
 	u32 m_qlimit_total;
@@ -253,6 +263,10 @@ private:
 	bool popBlockEmergeData(v3s16 pos, BlockEmergeData *bedata);
 
 	void reportCompletedEmerge(EmergeAction action);
+	void addDeferredBlock(const v3s16 &pos, const BlockEmergeData &bedata,
+		const BlockMakeData &bmdata, const std::vector<v3s16> &missing_chunks,
+		u8 predecessor_stage);
+	void notifyStageComplete(const v3s16 &chunkpos, u8 completed_stage);
 
 	friend class EmergeThread;
 };
