@@ -69,7 +69,7 @@ Stages are unsigned 8-bit integers. The reserved default pipeline is:
 | 239 | `STAGE_LIGHTING` | Final light propagation |
 | 255 | `STAGE_COMPLETE` | All stages done; equivalent to current `m_generated = true` |
 
-Stages between the reserved values are available to mods (see §2.4).  
+Stages between the reserved values are available to mods (see §2.4).
 Missing stages in the default pipeline are simply skipped.
 
 ### 2.2 Neighbourhood Requirement

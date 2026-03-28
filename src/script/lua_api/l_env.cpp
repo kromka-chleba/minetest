@@ -1211,7 +1211,7 @@ int ModApiEnv::l_emerge_area(lua_State *L)
 		state->script       = getServer(L)->getScriptIface();
 		state->callback_ref = callback_ref;
 		state->args_ref     = args_ref;
-		state->refcount     = num_blocks;
+		state->refcount     = 0;
 		state->origin       = getScriptApiBase(L)->getOrigin();
 	}
 
@@ -1224,9 +1224,20 @@ int ModApiEnv::l_emerge_area(lua_State *L)
 	for (s16 z = bpmin.Z; z <= bpmax.Z; z++)
 	for (s16 y = bpmin.Y; y <= bpmax.Y; y++)
 	for (s16 x = bpmin.X; x <= bpmax.X; x++) {
-		emerge->enqueueBlockEmergeEx(v3s16(x, y, z), PEER_ID_INEXISTENT,
-			BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE, callback, state,
-			min_stage);
+		if (state)
+			state->refcount++;
+
+		if (!emerge->enqueueBlockEmergeEx(v3s16(x, y, z), PEER_ID_INEXISTENT,
+				BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE, callback, state,
+				min_stage) && state) {
+			state->refcount--;
+		}
+	}
+
+	if (state && state->refcount == 0) {
+		luaL_unref(L, LUA_REGISTRYINDEX, state->callback_ref);
+		luaL_unref(L, LUA_REGISTRYINDEX, state->args_ref);
+		delete state;
 	}
 
 	return 0;
