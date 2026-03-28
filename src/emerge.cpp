@@ -6,6 +6,7 @@
 
 #include "emerge_internal.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include "config.h"
@@ -276,6 +277,7 @@ bool EmergeManager::enqueueBlockEmerge(
 	session_t peer_id,
 	v3s16 blockpos,
 	bool allow_generate,
+	u8 required_stage,
 	bool ignore_queue_limits)
 {
 	u16 flags = 0;
@@ -284,7 +286,8 @@ bool EmergeManager::enqueueBlockEmerge(
 	if (ignore_queue_limits)
 		flags |= BLOCK_EMERGE_FORCE_QUEUE;
 
-	return enqueueBlockEmergeEx(blockpos, peer_id, flags, NULL, NULL);
+	return enqueueBlockEmergeEx(blockpos, peer_id, flags, NULL, NULL,
+		required_stage);
 }
 
 
@@ -293,7 +296,8 @@ bool EmergeManager::enqueueBlockEmergeEx(
 	session_t peer_id,
 	u16 flags,
 	EmergeCompletionCallback callback,
-	void *callback_param)
+	void *callback_param,
+	u8 required_stage)
 {
 	EmergeThread *thread = NULL;
 	bool entry_already_exists = false;
@@ -302,7 +306,8 @@ bool EmergeManager::enqueueBlockEmergeEx(
 		MutexAutoLock queuelock(m_queue_mutex);
 
 		if (!pushBlockEmergeData(blockpos, peer_id, flags,
-				callback, callback_param, &entry_already_exists))
+				callback, callback_param, required_stage,
+				&entry_already_exists))
 			return false;
 
 		if (entry_already_exists)
@@ -370,6 +375,7 @@ bool EmergeManager::pushBlockEmergeData(
 	u16 flags,
 	EmergeCompletionCallback callback,
 	void *callback_param,
+	u8 required_stage,
 	bool *entry_already_exists)
 {
 	u32 &count_peer = m_peer_queue_count[peer_requested];
@@ -400,9 +406,11 @@ bool EmergeManager::pushBlockEmergeData(
 
 	if (*entry_already_exists) {
 		bedata.flags |= flags;
+		bedata.required_stage = std::max(bedata.required_stage, required_stage);
 	} else {
 		bedata.flags = flags;
 		bedata.peer_requested = peer_requested;
+		bedata.required_stage = required_stage;
 
 		count_peer++;
 	}

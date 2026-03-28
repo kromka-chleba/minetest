@@ -581,6 +581,8 @@ world can still be opened.
 - Progress update: `getBlockOrStartGen()` now honours `required_stage` from the
   queue, populating `target_stage`/`input_stage` accordingly; it still needs
   a dedicated neighbour-readiness check and a rename to `getBlockOrStartStage()`.
+- Progress update: queue entries now carry `required_stage` and merge duplicate
+  requests via `max(existing, new)`; API accepts a `required_stage` argument.
 
 - [ ] Replace `getBlockOrStartGen()` with `getBlockOrStartStage()`.
 - [ ] Add neighbourhood readiness check (3×3×3, predecessor stage).

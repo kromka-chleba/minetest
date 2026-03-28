@@ -184,6 +184,7 @@ public:
 		session_t peer_id,
 		v3s16 blockpos,
 		bool allow_generate,
+		u8 required_stage = STAGE_COMPLETE,
 		bool ignore_queue_limits=false);
 
 	bool enqueueBlockEmergeEx(
@@ -191,7 +192,8 @@ public:
 		session_t peer_id,
 		u16 flags,
 		EmergeCompletionCallback callback,
-		void *callback_param);
+		void *callback_param,
+		u8 required_stage = STAGE_COMPLETE);
 
 	size_t getQueueSize();
 	bool isBlockInQueue(v3s16 pos);
@@ -245,6 +247,7 @@ private:
 		u16 flags,
 		EmergeCompletionCallback callback,
 		void *callback_param,
+		u8 required_stage,
 		bool *entry_already_exists);
 
 	bool popBlockEmergeData(v3s16 pos, BlockEmergeData *bedata);
