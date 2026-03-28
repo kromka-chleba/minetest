@@ -718,8 +718,42 @@ EmergeAction EmergeThread::getBlockOrStartStage(const v3s16 pos, bool allow_gen,
 		bmdata->target_stage = required_stage;
 
 	if (bmdata->target_stage > STAGE_TERRAIN) {
-		u8 predecessor_stage = bmdata->target_stage - 1;
-		if (!isNeighbourhoodReady(pos, predecessor_stage))
+		bool has_predecessor = true;
+		u8 predecessor_stage = STAGE_TERRAIN;
+
+		switch (bmdata->target_stage) {
+		case STAGE_CAVES:
+			predecessor_stage = STAGE_TERRAIN;
+			break;
+		case STAGE_ORES:
+			predecessor_stage = STAGE_CAVES;
+			break;
+		case STAGE_DECORATIONS:
+			predecessor_stage = STAGE_ORES;
+			break;
+		case STAGE_DUST:
+			predecessor_stage = STAGE_DECORATIONS;
+			break;
+		case STAGE_LIGHTING:
+			predecessor_stage = STAGE_DUST;
+			break;
+		case STAGE_COMPLETE:
+			// In the single-pass compat path, treat STAGE_COMPLETE as
+			// having no predecessor so we don't deadlock on neighbours.
+			has_predecessor = false;
+			break;
+		default:
+			// For non-reserved/custom stages, fall back to the previous
+			// numeric stage if possible; otherwise skip gating.
+			if (bmdata->target_stage > 0) {
+				predecessor_stage = bmdata->target_stage - 1;
+			} else {
+				has_predecessor = false;
+			}
+			break;
+		}
+
+		if (has_predecessor && !isNeighbourhoodReady(pos, predecessor_stage))
 			return EMERGE_DEFERRED;
 	}
 
