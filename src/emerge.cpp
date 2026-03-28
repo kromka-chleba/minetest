@@ -8,9 +8,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <set>
-#include <tuple>
 #include "config.h"
 #include "constants.h"
 #include "irrlicht_changes/printing.h"
@@ -31,6 +31,28 @@
 #include "server.h"
 #include "settings.h"
 #include "voxel.h"
+
+namespace {
+struct CancelKey {
+	v3s16 pos;
+	EmergeCompletionCallback cb;
+	void *param;
+};
+
+struct CancelKeyLess {
+	bool operator()(const CancelKey &a, const CancelKey &b) const {
+		if (a.pos.X != b.pos.X)
+			return a.pos.X < b.pos.X;
+		if (a.pos.Y != b.pos.Y)
+			return a.pos.Y < b.pos.Y;
+		if (a.pos.Z != b.pos.Z)
+			return a.pos.Z < b.pos.Z;
+		if (a.cb != b.cb)
+			return std::less<EmergeCompletionCallback>()(a.cb, b.cb);
+		return std::less<void *>()(a.param, b.param);
+	}
+};
+}
 
 EmergeParams::~EmergeParams()
 {
@@ -275,17 +297,6 @@ void EmergeManager::stopThreads()
 
 	{
 		MutexAutoLock queuelock(m_queue_mutex);
-		struct CancelKey {
-			v3s16 pos;
-			EmergeCompletionCallback cb;
-			void *param;
-		};
-		struct CancelKeyLess {
-			bool operator()(const CancelKey &a, const CancelKey &b) const {
-				return std::tie(a.pos.X, a.pos.Y, a.pos.Z, a.cb, a.param) <
-					std::tie(b.pos.X, b.pos.Y, b.pos.Z, b.cb, b.param);
-			}
-		};
 		std::set<CancelKey, CancelKeyLess> cancelled_callbacks;
 
 		for (auto &chunkpair : m_deferred_by_chunk) {
