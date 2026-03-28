@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <set>
 #include "config.h"
 #include "constants.h"
 #include "irrlicht_changes/printing.h"
@@ -273,8 +274,16 @@ void EmergeManager::stopThreads()
 
 	{
 		MutexAutoLock queuelock(m_queue_mutex);
+		std::set<v3s16> cancelled_blocks;
+
 		for (auto &chunkpair : m_deferred_by_chunk) {
 			for (const DeferredItem &item : chunkpair.second) {
+				// The same block can be deferred by multiple neighbour chunks.
+				// Cancel each deferred block only once to avoid double-calling
+				// Lua callbacks that already free their state.
+				if (!cancelled_blocks.insert(item.blockpos).second)
+					continue;
+
 				for (const auto &cb : item.bedata.callbacks) {
 					cb.first(item.blockpos, EMERGE_CANCELLED, cb.second);
 				}
