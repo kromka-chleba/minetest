@@ -479,6 +479,8 @@ void MapgenV7::generateLighting(BlockMakeData *data)
 		node_max.Y >= floatland_ymin - csize.Y * 2 &&
 		node_min.Y <= floatland_ymax);
 	if (flags & MG_LIGHT)
+		// TODO(multi-stage Phase 3): drop the Y±1 overgeneration once lighting
+		// uses the 3×3×3 neighbourhood instead of padded bounds.
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
 			full_node_min, full_node_max, propagate_shadow);
 	this->generating = false;
