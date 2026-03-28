@@ -543,20 +543,22 @@ bool EmergeThread::popBlockEmerge(v3s16 *pos, BlockEmergeData *bedata)
 
 
 EmergeAction EmergeThread::getBlockOrStartGen(const v3s16 pos, bool allow_gen,
-	 const std::string *from_db, MapBlock **block, BlockMakeData *bmdata)
+		u8 required_stage, const std::string *from_db,
+		MapBlock **block, BlockMakeData *bmdata)
 {
 	//TimeTaker tt("", nullptr, PRECISION_MICRO);
 	Server::EnvAutoLock envlock(m_server);
 	//g_profiler->avg("EmergeThread: lock wait time [us]", tt.stop());
 
-	auto block_ok = [] (MapBlock *b) {
-		return b && b->isGenerated();
+	auto has_stage = [required_stage](MapBlock *b) {
+		return b && b->hasCompletedStage(required_stage);
 	};
 
 	// 1). Attempt to fetch block from memory
 	*block = m_map->getBlockNoCreateNoEx(pos);
 	if (*block) {
-		if (block_ok(*block)) {
+		bmdata->input_stage = (*block)->getGenerationStage();
+		if (has_stage(*block)) {
 			// if we just read it from the db but the block exists that means
 			// someone else was faster. don't touch it to prevent data loss.
 			if (from_db)
@@ -571,12 +573,16 @@ EmergeAction EmergeThread::getBlockOrStartGen(const v3s16 pos, bool allow_gen,
 		// 2). Second invocation, we have the data
 		if (!from_db->empty()) {
 			*block = m_map->loadBlock(*from_db, pos);
-			if (block_ok(*block))
+			bmdata->input_stage = (*block)->getGenerationStage();
+			if (has_stage(*block))
 				return EMERGE_FROM_DISK;
 		}
 	}
 
 	// 3). Attempt to start generation
+	if (bmdata->target_stage == STAGE_NONE)
+		bmdata->target_stage = required_stage;
+
 	if (allow_gen && m_map->initBlockMake(pos, bmdata))
 		return EMERGE_GENERATED;
 
@@ -708,7 +714,8 @@ void *EmergeThread::run()
 		bool allow_gen = bedata.flags & BLOCK_EMERGE_ALLOW_GEN;
 		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen);
 
-		action = getBlockOrStartGen(pos, allow_gen, nullptr, &block, &bmdata);
+		action = getBlockOrStartGen(pos, allow_gen, bedata.required_stage,
+			nullptr, &block, &bmdata);
 
 		/* Try to load it */
 		if (action == EMERGE_FROM_DISK) {
@@ -721,7 +728,8 @@ void *EmergeThread::run()
 				m_db.loadBlock(pos, databuf);
 			}
 			// actually load it, then decide again
-			action = getBlockOrStartGen(pos, allow_gen, &databuf, &block, &bmdata);
+			action = getBlockOrStartGen(pos, allow_gen, bedata.required_stage,
+				&databuf, &block, &bmdata);
 			databuf.clear();
 		}
 

@@ -222,11 +222,9 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	data->blockpos_min = bpmin;
 	data->blockpos_max = bpmax;
 	data->nodedef = m_nodedef;
-	// For now all chunks are generated in a single pass (STAGE_NONE →
-	// STAGE_COMPLETE).  The multi-stage queue (Phase 4) will set
-	// target_stage / input_stage to intermediate values.
-	data->target_stage = STAGE_COMPLETE;
-	data->input_stage  = STAGE_NONE;
+	// Default to full completion if the caller did not request a stage.
+	if (data->target_stage == STAGE_NONE)
+		data->target_stage = STAGE_COMPLETE;
 
 	/*
 		Create the whole area of this and the neighboring blocks

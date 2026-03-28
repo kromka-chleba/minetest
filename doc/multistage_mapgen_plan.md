@@ -578,6 +578,10 @@ world can still be opened.
 
 ### Phase 4 — Stage-Aware Emerge Queue Logic
 
+- Progress update: `getBlockOrStartGen()` now honours `required_stage` from the
+  queue, populating `target_stage`/`input_stage` accordingly; it still needs
+  a dedicated neighbour-readiness check and a rename to `getBlockOrStartStage()`.
+
 - [ ] Replace `getBlockOrStartGen()` with `getBlockOrStartStage()`.
 - [ ] Add neighbourhood readiness check (3×3×3, predecessor stage).
 - [ ] Handle `EMERGE_DEFERRED`: add deferred set per chunk in

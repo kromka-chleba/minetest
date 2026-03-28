@@ -71,11 +71,12 @@ private:
 	 * @param from_db serialized block data, optional
 	 *                (for second call after EMERGE_FROM_DISK was returned)
 	 * @param allow_gen allow invoking mapgen?
+	 * @param required_stage minimum generation stage the caller needs
 	 * @param block output pointer for block
 	 * @param data info for mapgen
 	 * @return what to do for this block
 	 */
-	EmergeAction getBlockOrStartGen(v3s16 pos, bool allow_gen,
+	EmergeAction getBlockOrStartGen(v3s16 pos, bool allow_gen, u8 required_stage,
 		const std::string *from_db,  MapBlock **block, BlockMakeData *data);
 
 	MapBlock *finishGen(v3s16 pos, BlockMakeData *bmdata,
