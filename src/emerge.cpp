@@ -740,6 +740,7 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 	/*
 		Run Lua on_generated callbacks in the server environment
 	*/
+	// Preserve legacy ordering: fire on_generated after decorations stage completes.
 	if (bmdata->target_stage >= STAGE_DECORATIONS) {
 		try {
 			m_server->getScriptIface()->environment_OnGenerated(

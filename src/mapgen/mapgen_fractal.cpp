@@ -398,9 +398,10 @@ bool MapgenFractal::getFractalAtPoint(s16 x, s16 y, s16 z)
 }
 
 
-bool MapgenFractal::generateCavernsNoise(s16 /*max_stone_y*/)
+bool MapgenFractal::generateCavernsNoise(s16 max_stone_y)
 {
-	// Fractal terrain intentionally has no caverns; max_stone_y is unused.
+	(void)max_stone_y;
+	// Fractal terrain intentionally has no caverns.
 	return false;
 }
 

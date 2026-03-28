@@ -95,8 +95,7 @@ void ScriptApiMapgen::on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage)
 		} else {
 			lua_pop(L, 1);
 		}
-		lua_pop(L, 1); // pop stage-specific callback list (or nil)
-		lua_pop(L, 1); // pop registered_* map for all stages
+		lua_pop(L, 2); // pop stage-specific list (or nil) and the registered_* map
 	};
 
 	call_stage_list("registered_mapgen_stages");

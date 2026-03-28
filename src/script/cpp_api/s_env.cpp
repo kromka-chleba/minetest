@@ -168,7 +168,7 @@ void ScriptApiEnv::environment_OnMapgenStage(BlockMakeData *bmdata,
 	lua_pushinteger(L, stage);
 	runCallbacks(5, RUN_CALLBACKS_MODE_FIRST);
 	lua_pop(L, 1); // pop return value
-	lua_pop(L, 3); // pop (top to bottom): stage list, registered_on_mapgen_stages, core
+	lua_pop(L, 3); // pop: stage list, registered_on_mapgen_stages, core
 }
 
 void ScriptApiEnv::environment_Step(float dtime)
