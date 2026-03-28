@@ -103,7 +103,7 @@ function builtin_shared.setup_mapgen_stage_registration()
 		local stage = validate_stage_number(def.stage)
 		local func = def.func or def.callback
 		if type(func) ~= "function" then
-			error("register_mapgen_stage: def.func is required and must be a function")
+			error("register_mapgen_stage: def.func or def.callback is required and must be a function")
 		end
 
 		local entry = {
