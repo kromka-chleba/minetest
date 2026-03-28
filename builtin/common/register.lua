@@ -86,14 +86,14 @@ function builtin_shared.setup_mapgen_stage_registration()
 
 	local function validate_stage_number(stage)
 		stage = tonumber(stage)
-		if not stage then
-			error("register_mapgen_stage: stage must be a number")
-		end
-		if stage <= 0 or stage >= 255 then
-			error("register_mapgen_stage: stage must be in range 1..254")
-		end
-		return stage
+	if not stage then
+		error("register_mapgen_stage: stage must be a number")
 	end
+	if stage < 1 or stage > 254 then
+		error("register_mapgen_stage: stage must be in range 1..254")
+	end
+	return stage
+end
 
 	function core.register_mapgen_stage(def)
 		if type(def) ~= "table" then
