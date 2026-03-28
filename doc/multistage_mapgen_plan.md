@@ -552,9 +552,10 @@ world can still be opened.
       methods callable from `makeChunkStage()`.
 - [x] Default `makeChunkStage(TERRAIN)` calls existing `makeChunk()` to
       preserve custom-mapgen compatibility.
-- [ ] All built-in mapgens (`v5`, `v6`, `v7`, `flat`, `carpathian`,
+- [x] All built-in mapgens (`v5`, `v6`, `v7`, `flat`, `carpathian`,
       `valleys`, `fractal`) route their sub-passes through the new stage
-      dispatch.
+      dispatch via `MapgenBasic` helpers (no functional regressions observed
+      in manual builds).
 - [ ] Verify existing generation tests still pass.
 
 ### Phase 3 — Stage-Aware `initBlockMake` / `finishBlockMake` and Remove Overgeneration
@@ -588,17 +589,18 @@ world can still be opened.
       `EmergeManager`; re-enqueue on `STAGE_COMPLETE_EVENT`.
 - [x] Integrate deferred blocks into `EmergeThread::run()`.
 - [ ] End-to-end integration test: generate a chunk with a tree decoration
-      at the border; verify the tree is not cut off.
+      at the border; verify the tree is not cut off (still pending).
 
 ### Phase 5 — Lua API
 
-- [ ] Implement `minetest.register_mapgen_stage({stage, name, func})`.
-- [ ] Implement `minetest.register_on_mapgen_stage(stage, func)`.
-- [ ] Implement `minetest.get_mapgen_stage(pos)` and
+- [x] Implement `minetest.register_mapgen_stage({stage, name, func})`.
+- [x] Implement `minetest.register_on_mapgen_stage(stage, func)`.
+- [x] Implement `minetest.get_mapgen_stage(pos)` and
       `minetest.chunk_has_stage(pos, stage)`.
-- [ ] Extend `minetest.emerge_area` with optional `min_stage` parameter.
-- [ ] Call `on_generated` after `STAGE_DECORATIONS` (unchanged timing).
-- [ ] Document all new API in `doc/lua_api.md`.
+- [x] Extend `minetest.emerge_area` with optional `min_stage` parameter.
+- [x] Call `on_generated` after `STAGE_DECORATIONS` (unchanged timing but now
+      gated on completion of that stage).
+- [x] Document all new API in `doc/lua_api.md`.
 
 ### Phase 6 — World Metadata and Validation
 
@@ -614,7 +616,7 @@ world can still be opened.
 - [ ] Verify dust/snow appears correctly at chunk borders.
 - [ ] Benchmark emerge queue throughput (deferred re-queue overhead should
       be < 5 % on a flat, unmodded world).
-- [ ] Update `doc/mapgen_internals.md` with the multi-stage design.
+- [x] Update `doc/mapgen_internals.md` with the multi-stage design.
 - [ ] Release notes and migration guide for modders.
 
 ---
