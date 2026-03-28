@@ -72,8 +72,11 @@ void ScriptApiMapgen::on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage)
 	const int vmanip = lua_gettop(L);
 
 	lua_getglobal(L, "core");
+	if (!lua_istable(L, -1))
+		throw LuaError("global 'core' missing in mapgen environment");
+	const int core_idx = lua_gettop(L);
 	lua_pushvalue(L, vmanip);
-	lua_setfield(L, -2, "vmanip");
+	lua_setfield(L, core_idx, "vmanip");
 
 	auto call_stage_list = [&](const char *field) {
 		lua_getfield(L, -1, field); // stage -> list
@@ -102,6 +105,6 @@ void ScriptApiMapgen::on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage)
 	call_stage_list("registered_on_mapgen_stages");
 
 	lua_pushnil(L);
-	lua_setfield(L, -2, "vmanip");
-	lua_pop(L, 1); // pop core
+	lua_setfield(L, core_idx, "vmanip");
+	lua_pop(L, 2); // pop vmanip and core
 }
