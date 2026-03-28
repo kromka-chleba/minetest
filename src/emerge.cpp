@@ -11,6 +11,7 @@
 #include <functional>
 #include <iostream>
 #include <set>
+#include <tuple>
 #include "config.h"
 #include "constants.h"
 #include "irrlicht_changes/printing.h"
@@ -39,14 +40,12 @@ struct CancelKey {
 	void *param;
 };
 
-struct CancelKeyLess {
+	struct CancelKeyLess {
 	bool operator()(const CancelKey &a, const CancelKey &b) const {
-		if (a.pos.X != b.pos.X)
-			return a.pos.X < b.pos.X;
-		if (a.pos.Y != b.pos.Y)
-			return a.pos.Y < b.pos.Y;
-		if (a.pos.Z != b.pos.Z)
-			return a.pos.Z < b.pos.Z;
+		auto apos = std::tie(a.pos.X, a.pos.Y, a.pos.Z);
+		auto bpos = std::tie(b.pos.X, b.pos.Y, b.pos.Z);
+		if (apos != bpos)
+			return apos < bpos;
 		if (a.cb != b.cb)
 			return std::less<EmergeCompletionCallback>()(a.cb, b.cb);
 		return std::less<void *>()(a.param, b.param);
