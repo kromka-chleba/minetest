@@ -1386,12 +1386,13 @@ MapNode readnode(lua_State *L, int index)
 	lua_pushvalue(L, index);
 	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_READ_NODE);
 	lua_insert(L, -2);
-	lua_call(L, 1, 3);
-	content_t content = lua_tointeger(L, -3);
-	u8 param1 = lua_tointeger(L, -2);
-	u8 param2 = lua_tointeger(L, -1);
-	lua_pop(L, 3);
-	return MapNode(content, param1, param2);
+	lua_call(L, 1, 4);
+	content_t content = lua_tointeger(L, -4);
+	u8 param1 = lua_tointeger(L, -3);
+	u8 param2 = lua_tointeger(L, -2);
+	u8 param3 = lua_tointeger(L, -1);
+	lua_pop(L, 4);
+	return MapNode(content, param1, param2, param3);
 }
 
 /******************************************************************************/
@@ -1401,7 +1402,8 @@ void pushnode(lua_State *L, const MapNode &n)
 	lua_pushinteger(L, n.getContent());
 	lua_pushinteger(L, n.getParam1());
 	lua_pushinteger(L, n.getParam2());
-	lua_call(L, 3, 1);
+	lua_pushinteger(L, n.getParam3());
+	lua_call(L, 4, 1);
 }
 
 /******************************************************************************/

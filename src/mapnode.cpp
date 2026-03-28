@@ -531,7 +531,10 @@ u32 MapNode::serializedLength(u8 version)
 	if (version <= 23)
 		return 3;
 
-	return 4;
+	if (version <= 29)
+		return 4;
+
+	return 5;
 }
 void MapNode::serialize(u8 *dest, u8 version) const
 {
@@ -547,6 +550,8 @@ void MapNode::serialize(u8 *dest, u8 version) const
 	writeU16(dest+0, param0);
 	writeU8(dest+2, param1);
 	writeU8(dest+3, param2);
+	if (version >= 30)
+		writeU8(dest+4, param3);
 }
 void MapNode::deSerialize(const u8 *source, u8 version)
 {
@@ -563,10 +568,12 @@ void MapNode::deSerialize(const u8 *source, u8 version)
 		param0 = readU16(source+0);
 		param1 = readU8(source+2);
 		param2 = readU8(source+3);
+		param3 = (version >= 30) ? readU8(source+4) : 0;
 	}else{
 		param0 = readU8(source+0);
 		param1 = readU8(source+1);
 		param2 = readU8(source+2);
+		param3 = 0;
 		if(param0 > 0x7F){
 			param0 |= ((param2&0xF0)<<4);
 			param2 &= 0x0F;
@@ -582,7 +589,7 @@ Buffer<u8> MapNode::serializeBulk(int version,
 		throw VersionMismatchException("ERROR: MapNode format not supported");
 
 	sanity_check(content_width == 2);
-	sanity_check(params_width == 2);
+	sanity_check(params_width == 2 || params_width == 3);
 
 	Buffer<u8> databuf(nodecount * (content_width + params_width));
 
@@ -596,6 +603,9 @@ Buffer<u8> MapNode::serializeBulk(int version,
 			writeU8(p, n.param1);
 		for (u32 i = 0; i < nodecount; i++, p++)
 			writeU8(p, n.param2);
+		if (params_width == 3)
+			for (u32 i = 0; i < nodecount; i++, p++)
+				writeU8(p, n.param3);
 	} else {
 		for (u32 i = 0; i < nodecount; i++, p += 2)
 			writeU16(p, nodes[i].param0);
@@ -603,6 +613,9 @@ Buffer<u8> MapNode::serializeBulk(int version,
 			writeU8(p, nodes[i].param1);
 		for (u32 i = 0; i < nodecount; i++, p++)
 			writeU8(p, nodes[i].param2);
+		if (params_width == 3)
+			for (u32 i = 0; i < nodecount; i++, p++)
+				writeU8(p, nodes[i].param3);
 	}
 
 	return databuf;
@@ -618,7 +631,7 @@ void MapNode::deSerializeBulk(std::istream &is, int version,
 
 	if (version < 22
 			|| (content_width != 1 && content_width != 2)
-			|| params_width != 2)
+			|| (params_width != 2 && params_width != 3))
 		throw SerializationError("Deserialize bulk node data error");
 
 	// read data
@@ -660,6 +673,16 @@ void MapNode::deSerializeBulk(std::istream &is, int version,
 	{
 		for(u32 i=0; i<nodecount; i++)
 			nodes[i].param2 = readU8(&databuf[start2 + i]);
+	}
+
+	// Deserialize param3 (only present when params_width == 3)
+	if (params_width == 3) {
+		u32 start3 = (content_width + 2) * nodecount;
+		for (u32 i = 0; i < nodecount; i++)
+			nodes[i].param3 = readU8(&databuf[start3 + i]);
+	} else {
+		for (u32 i = 0; i < nodecount; i++)
+			nodes[i].param3 = 0;
 	}
 }
 

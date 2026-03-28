@@ -264,7 +264,7 @@ int ModApiEnv::l_bulk_swap_node(lua_State *L)
 	return 1;
 }
 
-// get_node_raw(x, y, z) -> content, param1, param2, pos_ok
+// get_node_raw(x, y, z) -> content, param1, param2, pos_ok, param3
 int ModApiEnv::l_get_node_raw(lua_State *L)
 {
 	GET_PLAIN_ENV_PTR;
@@ -290,7 +290,8 @@ int ModApiEnv::l_get_node_raw(lua_State *L)
 	lua_pushinteger(L, n.getParam1());
 	lua_pushinteger(L, n.getParam2());
 	lua_pushboolean(L, pos_ok);
-	return 4;
+	lua_pushinteger(L, n.getParam3());
+	return 5;
 }
 
 // get_node_light(pos, timeofday)

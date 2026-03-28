@@ -73,17 +73,24 @@ public:
 		itemdef.description = name;
 
 		CContentFeatures f;
-		f.visuals = constructNodeVisuals(&f);
 		f.name = itemdef.name;
 		f.drawtype = NDT_NORMAL;
-		f.visuals->solidness = 2;
 		f.alpha = ALPHAMODE_OPAQUE;
 		for (TileDef &tiledef : f.tiledef)
 			tiledef.name = name + ".png";
-		for (TileSpec &tile : f.visuals->tiles)
+
+		content_t c = registerNode(itemdef, f);
+		// Create visuals on the stored ContentFeatures so the NodeVisuals pointer
+		// doesn't dangle (the local 'f' is destroyed when addSimpleNode returns).
+		// The const_cast is safe: node_mgr() returns a non-const NodeDefManager*,
+		// and its internal ContentFeatures storage is non-const.
+		auto &sf = const_cast<ContentFeatures &>(node_mgr()->get(c));
+		sf.visuals = constructNodeVisuals(&sf);
+		sf.visuals->solidness = 2;
+		for (TileSpec &tile : sf.visuals->tiles)
 			tile.layers[0].texture_id = texture;
 
-		return registerNode(itemdef, f);
+		return c;
 	}
 
 	content_t addLiquidSource(std::string name, u32 texture)
@@ -94,10 +101,8 @@ public:
 		itemdef.description = name;
 
 		CContentFeatures f;
-		f.visuals = constructNodeVisuals(&f);
 		f.name = itemdef.name;
 		f.drawtype = NDT_LIQUID;
-		f.visuals->solidness = 1;
 		f.alpha = ALPHAMODE_BLEND;
 		f.light_propagates = true;
 		f.param_type = CPT_LIGHT;
@@ -108,10 +113,15 @@ public:
 		f.liquid_alternative_flowing = "test:" + name + "_flowing";
 		for (TileDef &tiledef : f.tiledef)
 			tiledef.name = name + ".png";
-		for (TileSpec &tile : f.visuals->tiles)
+
+		content_t c = registerNode(itemdef, f);
+		auto &sf = const_cast<ContentFeatures &>(node_mgr()->get(c));
+		sf.visuals = constructNodeVisuals(&sf);
+		sf.visuals->solidness = 1;
+		for (TileSpec &tile : sf.visuals->tiles)
 			tile.layers[0].texture_id = texture;
 
-		return registerNode(itemdef, f);
+		return c;
 	}
 
 	content_t addLiquidFlowing(std::string name, u32 texture_top, u32 texture_side)
@@ -122,10 +132,8 @@ public:
 		itemdef.description = name;
 
 		CContentFeatures f;
-		f.visuals = constructNodeVisuals(&f);
 		f.name = itemdef.name;
 		f.drawtype = NDT_FLOWINGLIQUID;
-		f.visuals->solidness = 0;
 		f.alpha = ALPHAMODE_BLEND;
 		f.light_propagates = true;
 		f.param_type = CPT_LIGHT;
@@ -136,10 +144,15 @@ public:
 		f.liquid_alternative_flowing = "test:" + name + "_flowing";
 		f.tiledef_special[0].name = name + "_top.png";
 		f.tiledef_special[1].name = name + "_side.png";
-		f.visuals->special_tiles[0].layers[0].texture_id = texture_top;
-		f.visuals->special_tiles[1].layers[0].texture_id = texture_side;
 
-		return registerNode(itemdef, f);
+		content_t c = registerNode(itemdef, f);
+		auto &sf = const_cast<ContentFeatures &>(node_mgr()->get(c));
+		sf.visuals = constructNodeVisuals(&sf);
+		sf.visuals->solidness = 0;
+		sf.visuals->special_tiles[0].layers[0].texture_id = texture_top;
+		sf.visuals->special_tiles[1].layers[0].texture_id = texture_side;
+
+		return c;
 	}
 };
 

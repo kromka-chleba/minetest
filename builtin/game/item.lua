@@ -764,13 +764,13 @@ local get_node_raw = core.get_node_raw
 local get_name_from_content_id = core.get_name_from_content_id
 
 function core.get_node(pos)
-	local content, param1, param2 = get_node_raw(pos.x, pos.y, pos.z)
-	return {name = get_name_from_content_id(content), param1 = param1, param2 = param2}
+	local content, param1, param2, _, param3 = get_node_raw(pos.x, pos.y, pos.z)
+	return {name = get_name_from_content_id(content), param1 = param1, param2 = param2, param3 = param3}
 end
 
 function core.get_node_or_nil(pos)
-	local content, param1, param2, pos_ok = get_node_raw(pos.x, pos.y, pos.z)
+	local content, param1, param2, pos_ok, param3 = get_node_raw(pos.x, pos.y, pos.z)
 	return pos_ok and
-			{name = get_name_from_content_id(content), param1 = param1, param2 = param2}
+			{name = get_name_from_content_id(content), param1 = param1, param2 = param2, param3 = param3}
 			or nil
 end
