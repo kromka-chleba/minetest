@@ -40,7 +40,7 @@ struct CancelKey {
 	void *param;
 };
 
-	struct CancelKeyLess {
+struct CancelKeyLess {
 	bool operator()(const CancelKey &a, const CancelKey &b) const {
 		auto apos = std::tie(a.pos.X, a.pos.Y, a.pos.Z);
 		auto bpos = std::tie(b.pos.X, b.pos.Y, b.pos.Z);
