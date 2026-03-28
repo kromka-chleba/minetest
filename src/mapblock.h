@@ -14,6 +14,7 @@
 #include "nodetimer.h"
 #include "modifiedstate.h"
 #include "util/numeric.h" // getContainerPos
+#include "mapgen/mapgen_stage.h"
 
 class Map;
 class IGameDef;
@@ -164,15 +165,38 @@ public:
 
 	inline bool isGenerated()
 	{
-		return m_generated;
+		return m_generation_stage >= STAGE_COMPLETE;
 	}
 
 	inline void setGenerated(bool b)
 	{
-		if (b != m_generated) {
+		u8 new_stage = b ? STAGE_COMPLETE : STAGE_NONE;
+		if (new_stage != m_generation_stage) {
 			raiseModified(MOD_STATE_WRITE_NEEDED, MOD_REASON_SET_GENERATED);
-			m_generated = b;
+			m_generation_stage = new_stage;
 		}
+	}
+
+	/// Returns the current generation stage of this block.
+	inline u8 getGenerationStage() const
+	{
+		return m_generation_stage;
+	}
+
+	/// Directly sets the generation stage (used by serialiser and mapgen).
+	/// Callers that only need the old bool API should use setGenerated().
+	inline void setGenerationStage(u8 stage)
+	{
+		if (stage != m_generation_stage) {
+			raiseModified(MOD_STATE_WRITE_NEEDED, MOD_REASON_SET_GENERATED);
+			m_generation_stage = stage;
+		}
+	}
+
+	/// Returns true if this block has completed at least the given stage.
+	inline bool hasCompletedStage(u8 stage) const
+	{
+		return m_generation_stage >= stage;
 	}
 
 	////
@@ -541,8 +565,10 @@ private:
 	*/
 	u16 m_lighting_complete = 0xFFFF;
 
-	// Whether mapgen has generated the content of this block (persisted)
-	bool m_generated = false;
+	// Generation stage of this block's content (persisted).
+	// STAGE_NONE (0) = not yet generated; STAGE_COMPLETE (255) = fully done.
+	// See src/mapgen/mapgen_stage.h for the full stage table.
+	u8 m_generation_stage = STAGE_NONE;
 
 	/*
 		When propagating sunlight and the above block doesn't exist,

@@ -22,7 +22,7 @@
 
 A `MapBlock` is a 16×16×16 node cube. Important fields:
 
-- `m_generated` (`bool`) — has this block been run through mapgen? Border blocks from overgeneration are **not** marked generated.
+- `m_generation_stage` (`u8`) — current generation stage of this block (see `src/mapgen/mapgen_stage.h` for the `STAGE_*` constants). `STAGE_NONE` (0) = not yet generated; `STAGE_COMPLETE` (255) = all mapgen passes finished. The `isGenerated()` helper returns `true` when `m_generation_stage >= STAGE_COMPLETE`. Border blocks from overgeneration are left at `STAGE_NONE`.
 - `m_lighting_complete` (`u16`) — bitmask indicating which of the 6 neighbor directions have been lit.
 - `m_modified` (`ModifiedState`) — `MOD_STATE_CLEAN`, `MOD_STATE_WRITE_AT_UNLOAD`, or `MOD_STATE_WRITE_NEEDED`.
 - A `ModReason` bitmask tracks *why* it was modified (e.g., `MOD_REASON_SET_GENERATED`, `MOD_REASON_VMANIP`, `MOD_REASON_SET_NODE`, …).
@@ -79,7 +79,7 @@ full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
 
 ### Important nuance
 
-The border blocks are generated (VoxelManipulator is written into them) but are **not** marked `m_generated = true` afterward. Only the central chunk's blocks get `setGenerated(true)`. This prevents the map from treating the border slices as authoritative and avoids double-generation problems if a neighbouring chunk is requested later.
+The border blocks are generated (VoxelManipulator is written into them) but are **not** advanced beyond `STAGE_NONE` afterward. Only the central chunk's blocks get `setGenerated(true)` (i.e. `m_generation_stage = STAGE_COMPLETE`). This prevents the map from treating the border slices as authoritative and avoids double-generation problems if a neighbouring chunk is requested later.
 
 ---
 
@@ -292,8 +292,8 @@ minetest.place_schematic_on_vmanip(vm, pos, schematic, rotation, …)
 
 | Status / Flag | Where | Meaning |
 |---|---|---|
-| `m_generated = false` | `MapBlock` | Block exists in RAM but mapgen has not finalised it (e.g., border block, or loaded-but-ungenerated legacy chunk) |
-| `m_generated = true` | `MapBlock` | Mapgen ran over this block and it is the authoritative central-chunk result |
+| `m_generation_stage == STAGE_NONE` | `MapBlock` | Block exists in RAM but mapgen has not finalised it (e.g., border block, or loaded-but-ungenerated legacy chunk) |
+| `m_generation_stage == STAGE_COMPLETE` | `MapBlock` | Mapgen ran over this block and it is the authoritative central-chunk result |
 | `MOD_STATE_CLEAN` | `MapBlock::m_modified` | No changes since last save |
 | `MOD_STATE_WRITE_AT_UNLOAD` | `MapBlock::m_modified` | Save when evicted from RAM |
 | `MOD_STATE_WRITE_NEEDED` | `MapBlock::m_modified` | Save as soon as the map-save timer fires |
@@ -423,7 +423,7 @@ T2  EmergeThread picks up request
      └─ initBlockMake(): create MapBlocks + MMVManip
      └─ makeChunk(): terrain, caves, ores, decorations
      └─ Lua on_generated(): mods modify vmanip
-     └─ finishBlockMake(): blit, lighting, setGenerated(true)
+     └─ finishBlockMake(): blit, lighting, setGenerated(true) [m_generation_stage = STAGE_COMPLETE]
      └─ runCompletionCallbacks() → dispatchEvent to server
 
 T3  Server main thread dispatches MapEditEvent

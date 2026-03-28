@@ -38,6 +38,12 @@ public:
 
 	// Tests blocks with a single recurring node
 	void testMonoblock(IGameDef *gamedef);
+
+	// Tests v30 generation_stage round-trip serialisation
+	void testGenerationStageV30(IGameDef *gamedef);
+
+	// Tests backward-compat: v29 block → generation_stage derived from 0x08 flag
+	void testGenerationStageFromV29(IGameDef *gamedef);
 };
 
 static TestMapBlock g_test_instance;
@@ -51,6 +57,8 @@ void TestMapBlock::runTests(IGameDef *gamedef)
 	TEST(testLoad20, gamedef);
 	TEST(testLoadNonStd, gamedef);
 	TEST(testMonoblock, gamedef);
+	TEST(testGenerationStageV30, gamedef);
+	TEST(testGenerationStageFromV29, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -470,4 +478,98 @@ void TestMapBlock::testLoadNonStd(IGameDef *gamedef)
 		UASSERTEQ(int, block.getNodeNoEx({i, 0, 0}).param2, data_hi[i]);
 	for (s16 i = 0; i < 16; i++)
 		UASSERTEQ(int, block.getNodeNoEx({i, 1, 0}).param2, data_lo[i]);
+}
+
+// ---------------------------------------------------------------------------
+// testGenerationStageV30
+//
+// Verifies that the m_generation_stage field survives a serialize / deSerialize
+// round-trip at format version 30.  Every value in the STAGE_* table is tested.
+// ---------------------------------------------------------------------------
+void TestMapBlock::testGenerationStageV30(IGameDef *gamedef)
+{
+	const u8 stages[] = {
+		STAGE_NONE,
+		STAGE_TERRAIN,
+		STAGE_CAVES,
+		STAGE_ORES,
+		STAGE_DECORATIONS,
+		STAGE_DUST,
+		STAGE_LIGHTING,
+		STAGE_COMPLETE,
+		// Verify STAGE_COMPLETE == 255 (named constant and raw value are identical)
+		static_cast<u8>(255),
+		// A mid-pipeline value that is not a named constant
+		42,
+	};
+
+	for (u8 expected_stage : stages) {
+		std::stringstream ss;
+		{
+			MapBlock block({}, gamedef);
+			block.setGenerationStage(expected_stage);
+			UASSERTEQ(int, block.getGenerationStage(), expected_stage);
+			block.serialize(ss, 30, true, -1);
+		}
+		{
+			ss.seekg(0);
+			MapBlock block({}, gamedef);
+			block.deSerialize(ss, 30, true);
+			UASSERTEQ(int, block.getGenerationStage(), expected_stage);
+			// Validate that the bool shims are consistent
+			UASSERTEQ(bool, block.isGenerated(), expected_stage >= STAGE_COMPLETE);
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// testGenerationStageFromV29
+//
+// Verifies backward-compatibility: a v29 block with 0x08 set in flags
+// (= "not generated") loads as STAGE_NONE; a block without 0x08 set loads
+// as STAGE_COMPLETE.
+// ---------------------------------------------------------------------------
+void TestMapBlock::testGenerationStageFromV29(IGameDef *gamedef)
+{
+	// Helper lambda: produce a minimal v29 block with the given flags byte.
+	// We use testSave29's block as a template: build it via serialize(29) then
+	// patch the flags byte inside the decompressed stream.
+	auto make_v29_block = [&](bool is_not_generated) -> std::string {
+		MapBlock src({}, gamedef);
+		for (s16 z = 0; z < MAP_BLOCKSIZE; z++)
+		for (s16 y = 0; y < MAP_BLOCKSIZE; y++)
+		for (s16 x = 0; x < MAP_BLOCKSIZE; x++)
+			src.setNodeNoCheck(x, y, z, MapNode(CONTENT_AIR));
+
+		if (is_not_generated) {
+			// Force the block to appear "not generated" so 0x08 is written
+			src.setGenerationStage(STAGE_NONE);
+		} else {
+			src.setGenerationStage(STAGE_COMPLETE);
+		}
+		std::stringstream ss;
+		// Serialize at v29 so 0x08 flag path is exercised
+		src.serialize(ss, 29, true, -1);
+		return ss.str();
+	};
+
+	// Case 1: v29 "not generated" block → STAGE_NONE
+	{
+		std::string data = make_v29_block(true);
+		std::istringstream iss(data);
+		MapBlock block({}, gamedef);
+		block.deSerialize(iss, 29, true);
+		UASSERTEQ(int, block.getGenerationStage(), STAGE_NONE);
+		UASSERT(!block.isGenerated());
+	}
+
+	// Case 2: v29 "generated" block → STAGE_COMPLETE
+	{
+		std::string data = make_v29_block(false);
+		std::istringstream iss(data);
+		MapBlock block({}, gamedef);
+		block.deSerialize(iss, 29, true);
+		UASSERTEQ(int, block.getGenerationStage(), STAGE_COMPLETE);
+		UASSERT(block.isGenerated());
+	}
 }

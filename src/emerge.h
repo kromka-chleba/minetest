@@ -10,6 +10,7 @@
 #include "irr_v3d.h"
 #include "util/metricsbackend.h"
 #include "mapgen/mapgen.h" // for MapgenParams
+#include "mapgen/mapgen_stage.h"
 #include "map.h"
 
 #define BLOCK_EMERGE_ALLOW_GEN   (1 << 0)
@@ -39,6 +40,12 @@ struct BlockMakeData {
 	u64 seed = 0;
 	v3s16 blockpos_min;
 	v3s16 blockpos_max;
+	// Stage we are asked to produce (STAGE_* constant from mapgen_stage.h).
+	u8 target_stage = STAGE_NONE;
+	// Highest stage already completed in the central blocks when this
+	// BlockMakeData was prepared.  The mapgen advances from input_stage
+	// to target_stage.
+	u8 input_stage  = STAGE_NONE;
 	UniqueQueue<v3s16> transforming_liquid;
 	const NodeDefManager *nodedef = nullptr;
 
@@ -54,6 +61,9 @@ enum EmergeAction {
 	EMERGE_FROM_MEMORY,
 	EMERGE_FROM_DISK,
 	EMERGE_GENERATED,
+	// Block is queued but waiting for neighbours to complete a prerequisite
+	// stage; it will be re-enqueued automatically when they do.
+	EMERGE_DEFERRED,
 };
 
 constexpr const char *emergeActionStrs[] = {
@@ -62,6 +72,7 @@ constexpr const char *emergeActionStrs[] = {
 	"from_memory",
 	"from_disk",
 	"generated",
+	"deferred",
 };
 
 // Callback
@@ -78,6 +89,9 @@ typedef std::vector<
 struct BlockEmergeData {
 	u16 peer_requested;
 	u16 flags;
+	// Minimum generation stage the requester needs (STAGE_* constant).
+	// Default STAGE_COMPLETE preserves pre-multi-stage behaviour.
+	u8 required_stage = STAGE_COMPLETE;
 	EmergeCallbackList callbacks;
 };
 
@@ -212,7 +226,7 @@ private:
 	u32 m_qlimit_generate;
 
 	// Emerge metrics
-	MetricCounterPtr m_completed_emerge_counter[5];
+	MetricCounterPtr m_completed_emerge_counter[6];
 
 	// Managers of various map generation-related components
 	// Note that each Mapgen gets a copy(!) of these to work with
