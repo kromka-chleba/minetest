@@ -10,6 +10,7 @@
 #include <cmath>
 #include <iostream>
 #include <set>
+#include <tuple>
 #include "config.h"
 #include "constants.h"
 #include "irrlicht_changes/printing.h"
@@ -274,18 +275,31 @@ void EmergeManager::stopThreads()
 
 	{
 		MutexAutoLock queuelock(m_queue_mutex);
-		std::set<v3s16> cancelled_blocks;
+		using CancelKey = std::tuple<v3s16, EmergeCompletionCallback, void *>;
+		auto cancel_key_less = [](const CancelKey &a, const CancelKey &b) {
+			const v3s16 &pa = std::get<0>(a);
+			const v3s16 &pb = std::get<0>(b);
+			if (pa.X != pb.X)
+				return pa.X < pb.X;
+			if (pa.Y != pb.Y)
+				return pa.Y < pb.Y;
+			if (pa.Z != pb.Z)
+				return pa.Z < pb.Z;
+			if (std::get<1>(a) != std::get<1>(b))
+				return std::get<1>(a) < std::get<1>(b);
+			return std::get<2>(a) < std::get<2>(b);
+		};
+		std::set<CancelKey, decltype(cancel_key_less)> cancelled_callbacks(cancel_key_less);
 
 		for (auto &chunkpair : m_deferred_by_chunk) {
 			for (const DeferredItem &item : chunkpair.second) {
-				// The same block can be deferred by multiple neighbour chunks.
-				// Cancel each deferred block only once to avoid double-calling
-				// Lua callbacks that already free their state.
-				if (!cancelled_blocks.insert(item.blockpos).second)
-					continue;
-
 				for (const auto &cb : item.bedata.callbacks) {
-					cb.first(item.blockpos, EMERGE_CANCELLED, cb.second);
+					if (!cb.first)
+						continue;
+
+					auto key = std::make_tuple(item.blockpos, cb.first, cb.second);
+					if (cancelled_callbacks.insert(key).second)
+						cb.first(item.blockpos, EMERGE_CANCELLED, cb.second);
 				}
 			}
 		}
