@@ -262,8 +262,8 @@ Byte offset  Field
                bit 2 — (reserved)
                bit 3 — (reserved; was "not generated" — now always 0 in v30)
                bits 4-7 — (reserved)
-1            generation_stage (u8)  ← NEW in v30
-2-3          lighting_complete (u16)
+1-2          lighting_complete (u16)
+3            generation_stage (u8)  ← NEW in v30
 ...          (unchanged)
 ```
 

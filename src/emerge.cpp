@@ -548,10 +548,9 @@ void EmergeManager::notifyStageComplete(const v3s16 &chunkpos, u8 completed_stag
 					ok = pushBlockEmergeData(iter->blockpos,
 						iter->bedata.peer_requested,
 						iter->bedata.flags | BLOCK_EMERGE_FORCE_QUEUE,
-						cb_entry.cb, cb_entry.param,
+						cb_entry.first, cb_entry.second,
 						iter->bedata.required_stage, &entry_exists);
 					if (first) {
-						// Record whether a queue entry existed before any of our pushes.
 						entry_preexisted = entry_exists;
 						first = false;
 					}
@@ -681,8 +680,14 @@ bool EmergeThread::isNeighbourhoodReady(const v3s16 &pos, u8 predecessor_stage,
 
 		v3s16 neighbor_blockpos = chunk_min + v3s16(x, y, z) * chunksize;
 		MapBlock *nblock = m_map->getBlockNoCreateNoEx(neighbor_blockpos);
-		if (!nblock)
-			continue;
+		if (!nblock) {
+			// If the block is already on disk, load it so we can inspect
+			// its recorded generation stage.  If it doesn't exist at all,
+			// treat it as not gating this block (continue).
+			nblock = m_map->loadBlock(neighbor_blockpos);
+			if (!nblock)
+				continue;
+		}
 
 		u8 stage = nblock->getGenerationStage();
 		if (stage < predecessor_stage) {
@@ -768,8 +773,6 @@ EmergeAction EmergeThread::getBlockOrStartStage(const v3s16 pos, bool allow_gen,
 			has_predecessor = false;
 			break;
 		default:
-			// For non-reserved/custom stages, fall back to the previous
-			// numeric stage if possible; otherwise skip gating.
 			if (bmdata->target_stage > 0) {
 				predecessor_stage = bmdata->target_stage - 1;
 			} else {

@@ -12,6 +12,7 @@
 #include "nodedef.h"
 #include "util/string.h"
 #include "util/container.h"
+#include <climits>
 #include <utility>
 #include <set>
 
@@ -315,7 +316,7 @@ public:
 
 	// Cross-stage state: highest stone surface Y set by STAGE_TERRAIN,
 	// consumed by STAGE_CAVES.  Only meaningful during a generation call.
-	s16 m_stone_surface_max_y = 0;
+	s16 m_stone_surface_max_y = SHRT_MIN;
 
 	// Extract the common setup boilerplate from makeChunk() in all
 	// MapgenBasic subclasses (vm, ndef, node_min/max, blockseed).

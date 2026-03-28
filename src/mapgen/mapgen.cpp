@@ -5,6 +5,7 @@
 // Copyright (C) 2015-2018 paramat
 
 #include <cmath>
+#include <limits>
 #include "mapgen.h"
 #include "mapgen_stage.h"
 #include "voxel.h"
@@ -1007,20 +1008,43 @@ void MapgenBasic::setupGenContext(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 }
 
+static s16 compute_stone_surface_max(MMVManip *vm, const v3s16 &node_min,
+	const v3s16 &node_max, content_t c_stone)
+{
+	for (s16 y = node_max.Y; y >= node_min.Y; y--) {
+		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+			for (s16 x = node_min.X; x <= node_max.X; x++) {
+				bool is_valid;
+				MapNode n = vm->getNodeNoEx(v3s16(x, y, z), &is_valid);
+				if (is_valid && n.getContent() == c_stone)
+					return y;
+			}
+		}
+	}
+
+	return node_min.Y;
+}
+
 void MapgenBasic::generateCavesAndDungeons(BlockMakeData *data)
 {
 	setupGenContext(data);
+	s16 stone_surface_max_y = m_stone_surface_max_y;
+	if (stone_surface_max_y == std::numeric_limits<s16>::min()) {
+		stone_surface_max_y = compute_stone_surface_max(data->vmanip,
+			node_min, node_max, c_stone);
+		m_stone_surface_max_y = stone_surface_max_y;
+	}
 	if (flags & MG_CAVES) {
-		generateCavesNoiseIntersection(m_stone_surface_max_y);
-		bool near_cavern = generateCavernsNoise(m_stone_surface_max_y);
+		generateCavesNoiseIntersection(stone_surface_max_y);
+		bool near_cavern = generateCavernsNoise(stone_surface_max_y);
 		if (near_cavern)
-			generateCavesRandomWalk(m_stone_surface_max_y,
+			generateCavesRandomWalk(stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
 	}
 	if (flags & MG_DUNGEONS)
-		generateDungeons(m_stone_surface_max_y);
+		generateDungeons(stone_surface_max_y);
 	this->generating = false;
 }
 
