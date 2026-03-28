@@ -585,6 +585,63 @@ core.unregister_biome = make_wrap_deregistration(core.register_biome,
 local make_registration = builtin_shared.make_registration
 local make_registration_reverse = builtin_shared.make_registration_reverse
 
+local function validate_stage_number(stage)
+	stage = tonumber(stage)
+	if not stage then
+		error("register_mapgen_stage: stage must be a number")
+	end
+	if stage <= 0 or stage >= 255 then
+		error("register_mapgen_stage: stage must be in range 1..254")
+	end
+	return stage
+end
+
+function core.register_mapgen_stage(def)
+	if type(def) ~= "table" then
+		error("register_mapgen_stage: table expected")
+	end
+	local stage = validate_stage_number(def.stage)
+	local func = def.func or def.callback
+	if type(func) ~= "function" then
+		error("register_mapgen_stage: def.func is required and must be a function")
+	end
+
+	local entry = {
+		stage = stage,
+		name = def.name or tostring(stage),
+		func = func,
+	}
+	local list = core.registered_mapgen_stages[stage]
+	if not list then
+		list = {}
+		core.registered_mapgen_stages[stage] = list
+	end
+	list[#list + 1] = entry
+	core.callback_origins[func] = {
+		mod = core.get_current_modname() or "??",
+		name = entry.name,
+	}
+end
+
+function core.register_on_mapgen_stage(stage, func)
+	stage = validate_stage_number(stage)
+	if type(func) ~= "function" then
+		error("register_on_mapgen_stage: function expected")
+	end
+
+	local list = core.registered_on_mapgen_stages[stage]
+	if not list then
+		list = {}
+		core.registered_on_mapgen_stages[stage] = list
+	end
+
+	list[#list + 1] = func
+	core.callback_origins[func] = {
+		mod = core.get_current_modname() or "??",
+		name = "on_mapgen_stage " .. stage,
+	}
+end
+
 -- keep in sync with profiler/instrumentation.lua
 core.registered_on_chat_messages, core.register_on_chat_message = make_registration()
 core.registered_on_chatcommands, core.register_on_chatcommand = make_registration()
@@ -620,6 +677,8 @@ core.registered_allow_player_inventory_actions, core.register_allow_player_inven
 core.registered_on_rightclickplayers, core.register_on_rightclickplayer = make_registration()
 core.registered_on_liquid_transformed, core.register_on_liquid_transformed = make_registration()
 core.registered_on_mapblocks_changed, core.register_on_mapblocks_changed = make_registration()
+core.registered_mapgen_stages = {}
+core.registered_on_mapgen_stages = {}
 
 -- A bunch of registrations are read by the C++ side once on env init, so we cannot
 -- allow them to change afterwards (see s_env.cpp).

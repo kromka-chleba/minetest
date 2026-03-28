@@ -739,11 +739,13 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 	/*
 		Run Lua on_generated callbacks in the server environment
 	*/
-	try {
-		m_server->getScriptIface()->environment_OnGenerated(
-			minp, maxp, m_mapgen->blockseed);
-	} catch (LuaError &e) {
-		m_server->setAsyncFatalError(e);
+	if (bmdata->target_stage >= STAGE_DECORATIONS) {
+		try {
+			m_server->getScriptIface()->environment_OnGenerated(
+				minp, maxp, m_mapgen->blockseed);
+		} catch (LuaError &e) {
+			m_server->setAsyncFatalError(e);
+		}
 	}
 
 	EMERGE_DBG_OUT("ended up with: " << analyze_block(block));
@@ -880,10 +882,35 @@ void *EmergeThread::run()
 
 			{
 				ScopeProfiler sp(g_profiler,
-					"EmergeThread: Lua on_generated", SPT_AVG);
+					"EmergeThread: Lua mapgen stage", SPT_AVG);
 
 				try {
-					m_script->on_generated(&bmdata, m_mapgen->blockseed);
+					m_script->on_mapgen_stage(&bmdata, m_mapgen->blockseed,
+						bmdata.target_stage);
+				} catch (const LuaError &e) {
+					m_server->setAsyncFatalError(e);
+					error = true;
+				}
+			}
+
+			{
+				ScopeProfiler sp(g_profiler,
+					"EmergeThread: Lua on_generated", SPT_AVG);
+
+				if (bmdata.target_stage >= STAGE_DECORATIONS) {
+					try {
+						m_script->on_generated(&bmdata, m_mapgen->blockseed);
+					} catch (const LuaError &e) {
+						m_server->setAsyncFatalError(e);
+						error = true;
+					}
+				}
+			}
+
+			if (!error) {
+				try {
+					m_server->getScriptIface()->environment_OnMapgenStage(
+						&bmdata, m_mapgen->blockseed, bmdata.target_stage);
 				} catch (const LuaError &e) {
 					m_server->setAsyncFatalError(e);
 					error = true;

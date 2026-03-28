@@ -59,3 +59,50 @@ void ScriptApiMapgen::on_generated(BlockMakeData *bmdata, u32 seed)
 	lua_pushnil(L);
 	lua_setfield(L, -2, "vmanip");
 }
+
+void ScriptApiMapgen::on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	v3s16 minp = bmdata->blockpos_min * MAP_BLOCKSIZE;
+	v3s16 maxp = bmdata->blockpos_max * MAP_BLOCKSIZE +
+				 v3s16(1,1,1) * (MAP_BLOCKSIZE - 1);
+
+	LuaVoxelManip::create(L, bmdata->vmanip, true);
+	const int vmanip = lua_gettop(L);
+
+	lua_getglobal(L, "core");
+	lua_pushvalue(L, vmanip);
+	lua_setfield(L, -2, "vmanip");
+
+	auto call_stage_list = [&](const char *field) {
+		lua_getfield(L, -1, field); // stage -> list
+		if (!lua_istable(L, -1)) {
+			lua_pop(L, 1);
+			return;
+		}
+
+		lua_pushinteger(L, stage);
+		lua_gettable(L, -2); // list for this stage
+		if (lua_istable(L, -1)) {
+			lua_pushvalue(L, vmanip);
+			push_v3s16(L, minp);
+			push_v3s16(L, maxp);
+			lua_pushnumber(L, seed);
+			lua_pushinteger(L, stage);
+			runCallbacks(5, RUN_CALLBACKS_MODE_FIRST);
+			lua_pop(L, 1); // pop return value
+		} else {
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1); // pop stage table
+		lua_pop(L, 1); // pop stage->list table
+	};
+
+	call_stage_list("registered_mapgen_stages");
+	call_stage_list("registered_on_mapgen_stages");
+
+	lua_pushnil(L);
+	lua_setfield(L, -2, "vmanip");
+	lua_pop(L, 1); // pop core
+}

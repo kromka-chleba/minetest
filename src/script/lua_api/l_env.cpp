@@ -21,6 +21,7 @@
 #include "util/pointedthing.h"
 #include "mapgen/treegen.h"
 #include "emerge_internal.h"
+#include "mapgen/mapgen_stage.h"
 #include "pathfinder.h"
 #include "face_position_cache.h"
 #include "remoteplayer.h"
@@ -28,6 +29,7 @@
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
 #include "util/string.h"
+#include "util/numeric.h"
 #include "translation.h"
 #if CHECK_CLIENT_BUILD()
 #include "client/client.h"
@@ -1213,14 +1215,45 @@ int ModApiEnv::l_emerge_area(lua_State *L)
 		state->origin       = getScriptApiBase(L)->getOrigin();
 	}
 
+	u8 min_stage = STAGE_COMPLETE;
+	if (!lua_isnoneornil(L, 5)) {
+		lua_Integer s = luaL_checkinteger(L, 5);
+		min_stage = (u8) rangelim<s32>(s, STAGE_NONE, STAGE_COMPLETE);
+	}
+
 	for (s16 z = bpmin.Z; z <= bpmax.Z; z++)
 	for (s16 y = bpmin.Y; y <= bpmax.Y; y++)
 	for (s16 x = bpmin.X; x <= bpmax.X; x++) {
 		emerge->enqueueBlockEmergeEx(v3s16(x, y, z), PEER_ID_INEXISTENT,
-			BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE, callback, state);
+			BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE, callback, state,
+			min_stage);
 	}
 
 	return 0;
+}
+
+// get_mapgen_stage(pos)
+int ModApiEnv::l_get_mapgen_stage(lua_State *L)
+{
+	GET_ENV_PTR;
+
+	v3s16 bp = getNodeBlockPos(read_v3s16(L, 1));
+	MapBlock *block = env->getMap().emergeBlock(bp, false);
+	u8 stage = block ? block->getGenerationStage() : STAGE_NONE;
+	lua_pushinteger(L, stage);
+	return 1;
+}
+
+// chunk_has_stage(pos, stage)
+int ModApiEnv::l_chunk_has_stage(lua_State *L)
+{
+	GET_ENV_PTR;
+
+	v3s16 bp = getNodeBlockPos(read_v3s16(L, 1));
+	MapBlock *block = env->getMap().emergeBlock(bp, false);
+	u8 stage = (u8) rangelim<s32>(luaL_checkinteger(L, 2), STAGE_NONE, STAGE_COMPLETE);
+	lua_pushboolean(L, block && block->hasCompletedStage(stage));
+	return 1;
 }
 
 // delete_area(p1, p2)
@@ -1422,6 +1455,8 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(fix_light);
 	API_FCT(load_area);
 	API_FCT(emerge_area);
+	API_FCT(get_mapgen_stage);
+	API_FCT(chunk_has_stage);
 	API_FCT(delete_area);
 	API_FCT(get_value_noise);
 	API_FCT(get_value_noise_map);

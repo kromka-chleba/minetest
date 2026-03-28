@@ -12,6 +12,10 @@
 
 class ServerEnvironment;
 class MapBlock;
+class ServerActiveObject;
+class LuaEntitySAO;
+class PlayerSAO;
+struct BlockMakeData;
 struct ScriptCallbackState;
 
 class ScriptApiEnv : virtual public ScriptApiBase
@@ -37,6 +41,9 @@ public:
 
 	// Called after mapblock changes
 	void on_mapblocks_changed(const std::unordered_set<v3s16> &set);
+
+	// Called after finishing a specific mapgen stage on the centre chunk
+	void environment_OnMapgenStage(BlockMakeData *bmdata, u32 blockseed, u8 stage);
 
 	// Determines whether there are any on_mapblocks_changed callbacks
 	bool has_on_mapblocks_changed();
