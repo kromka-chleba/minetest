@@ -270,6 +270,18 @@ void EmergeManager::stopThreads()
 		m_threads[i]->wait();
 
 	m_threads_active = false;
+
+	{
+		MutexAutoLock queuelock(m_queue_mutex);
+		for (auto &chunkpair : m_deferred_by_chunk) {
+			for (const DeferredItem &item : chunkpair.second) {
+				for (const auto &cb : item.bedata.callbacks) {
+					cb.first(item.blockpos, EMERGE_CANCELLED, cb.second);
+				}
+			}
+		}
+		m_deferred_by_chunk.clear();
+	}
 }
 
 
