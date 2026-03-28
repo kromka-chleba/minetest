@@ -113,7 +113,7 @@ For the emerge layer, "has stage S completed?" means
 Mods may register custom stages:
 
 ```lua
--- Register a new stage with number between 33 and 63 (between caves and decorations).
+-- Register a custom stage.
 -- handler receives the same vmanip/environment as on_generated.
 minetest.register_mapgen_stage({
     stage = 20,
@@ -534,23 +534,23 @@ world can still be opened.
 
 ### Phase 1 — Data Layer (no behaviour change)
 
-- [ ] Add `m_generation_stage` (u8) to `MapBlock`; add compat shims for
+- [x] Add `m_generation_stage` (u8) to `MapBlock`; add compat shims for
       `isGenerated()` / `setGenerated()`.
-- [ ] Bump block serialization to format version 30; write/read
+- [x] Bump block serialization to format version 30; write/read
       `m_generation_stage`; read old 0x08 flag and convert.
-- [ ] Add `target_stage` / `input_stage` to `BlockMakeData`.
-- [ ] Add `required_stage` to `BlockEmergeData` and
+- [x] Add `target_stage` / `input_stage` to `BlockMakeData`.
+- [x] Add `required_stage` to `BlockEmergeData` and
       `enqueueBlockEmerge()` signature.
-- [ ] Add `EMERGE_DEFERRED` to `EmergeAction` enum.
-- [ ] Add `STAGE_*` constants to a new `src/mapgen/mapgen_stage.h`.
-- [ ] Write and pass unit tests for serialization round-trips.
+- [x] Add `EMERGE_DEFERRED` to `EmergeAction` enum.
+- [x] Add `STAGE_*` constants to a new `src/mapgen/mapgen_stage.h`.
+- [x] Write and pass unit tests for serialization round-trips.
 
 ### Phase 2 — Split `makeChunk()` into Stage Methods
 
-- [ ] Add `Mapgen::makeChunkStage(BlockMakeData*, u8)` virtual method.
-- [ ] Move cave, ore, decoration, dust, lighting sub-passes into individual
+- [x] Add `Mapgen::makeChunkStage(BlockMakeData*, u8)` virtual method.
+- [x] Move cave, ore, decoration, dust, lighting sub-passes into individual
       methods callable from `makeChunkStage()`.
-- [ ] Default `makeChunkStage(TERRAIN)` calls existing `makeChunk()` to
+- [x] Default `makeChunkStage(TERRAIN)` calls existing `makeChunk()` to
       preserve custom-mapgen compatibility.
 - [ ] All built-in mapgens (`v5`, `v6`, `v7`, `flat`, `carpathian`,
       `valleys`, `fractal`) route their sub-passes through the new stage
@@ -572,7 +572,7 @@ world can still be opened.
       remove the cave-roof loop bounds in `cavegen.cpp`.
 - [ ] Extend `finishBlockMake()` to blit only the centre chunk; remove
       the `!isInCentralChunk` skip-generated check from the blit loop.
-- [ ] Advance `m_generation_stage` on centre blocks to `target_stage`.
+- [x] Advance `m_generation_stage` on centre blocks to `target_stage`.
 - [ ] Add `STAGE_COMPLETE_EVENT` and neighbour re-queue in
       `EmergeManager`.
 
