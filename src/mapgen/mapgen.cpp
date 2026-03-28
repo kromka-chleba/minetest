@@ -1014,9 +1014,8 @@ static s16 compute_stone_surface_max(MMVManip *vm, const v3s16 &node_min,
 	for (s16 y = node_max.Y; y >= node_min.Y; y--) {
 		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
 			for (s16 x = node_min.X; x <= node_max.X; x++) {
-				bool is_valid;
-				MapNode n = vm->getNodeNoEx(v3s16(x, y, z), &is_valid);
-				if (is_valid && n.getContent() == c_stone)
+				MapNode n = vm->getNodeNoEx(v3s16(x, y, z));
+				if (n.getContent() != CONTENT_IGNORE && n.getContent() == c_stone)
 					return y;
 			}
 		}
