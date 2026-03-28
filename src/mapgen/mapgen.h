@@ -222,6 +222,24 @@ public:
 	void spreadLight(const v3s16 &nmin, const v3s16 &nmax);
 
 	virtual void makeChunk(BlockMakeData *data) {}
+	/**
+	 * Generate (or continue generating) the given stage for the chunk
+	 * described by @p data.  The default implementation simply calls
+	 * makeChunk() so that custom mapgens that have not been updated continue
+	 * to work unchanged.
+	 *
+	 * @param data  Chunk description (blockpos_min/max, vmanip, seed, …).
+	 *              data->target_stage indicates which stage to run up to.
+	 *              data->input_stage  indicates the highest stage already
+	 *              completed on entry (set by ServerMap::initBlockMake).
+	 * @param target_stage  The stage number to produce.  Equal to
+	 *                      data->target_stage; provided here as a convenience
+	 *                      so overrides can dispatch without reading the struct.
+	 */
+	virtual void makeChunkStage(BlockMakeData *data, u8 target_stage)
+	{
+		makeChunk(data);
+	}
 	virtual int getGroundLevelAtPoint(v2s16 p) { return 0; }
 
 	// getSpawnLevelAtPoint() is a function within each mapgen that returns a

@@ -222,6 +222,11 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	data->blockpos_min = bpmin;
 	data->blockpos_max = bpmax;
 	data->nodedef = m_nodedef;
+	// For now all chunks are generated in a single pass (STAGE_NONE →
+	// STAGE_COMPLETE).  The multi-stage queue (Phase 4) will set
+	// target_stage / input_stage to intermediate values.
+	data->target_stage = STAGE_COMPLETE;
+	data->input_stage  = STAGE_NONE;
 
 	/*
 		Create the whole area of this and the neighboring blocks
@@ -349,7 +354,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		if (bp.X >= bpmin.X && bp.X <= bpmax.X
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
-			block->setGenerated(true);
+			// Advance the block's stage to the target.
+			// setGenerationStage() acts as setGenerated(true) when
+			// target_stage == STAGE_COMPLETE (the default for Phase 1/2),
+			// so external behaviour is unchanged.
+			block->setGenerationStage(data->target_stage);
 			// Set timestamp to ensure correct application
 			// of LBMs and other stuff.
 			block->setTimestampNoChangedFlag(now);

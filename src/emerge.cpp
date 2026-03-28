@@ -734,7 +734,7 @@ void *EmergeThread::run()
 				ScopeProfiler sp(g_profiler,
 					"EmergeThread: Mapgen::makeChunk", SPT_AVG);
 
-				m_mapgen->makeChunk(&bmdata);
+				m_mapgen->makeChunkStage(&bmdata, bmdata.target_stage);
 			}
 
 			{
