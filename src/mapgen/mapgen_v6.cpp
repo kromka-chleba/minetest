@@ -636,6 +636,51 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 }
 
 
+// V6 setup helper (equivalent to MapgenBasic::setupGenContext but V6-specific)
+static void v6_setup(MapgenV6 *mg, BlockMakeData *data)
+{
+	assert(data->vmanip);
+	assert(data->nodedef);
+	mg->generating = true;
+	mg->vm   = data->vmanip;
+	mg->ndef = data->nodedef;
+	v3s16 bpmin = data->blockpos_min;
+	v3s16 bpmax = data->blockpos_max;
+	mg->node_min = bpmin * MAP_BLOCKSIZE;
+	mg->node_max = (bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	mg->full_node_min = (bpmin - 1) * MAP_BLOCKSIZE;
+	mg->full_node_max = (bpmax + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	mg->blockseed = mg->get_blockseed(data->seed, mg->full_node_min);
+	mg->central_area_size = mg->node_max - mg->node_min + v3s16(1, 1, 1);
+}
+
+void MapgenV6::generateOres(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	if (flags & MG_ORES)
+		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenV6::generateDecorations(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenV6::generateLighting(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+	this->generating = false;
+}
+
+
 void MapgenV6::calculateNoise()
 {
 	int x = node_min.X;

@@ -62,6 +62,7 @@ public:
 	virtual void makeChunk(BlockMakeData *data);
 	int getSpawnLevelAtPoint(v2s16 p);
 	s16 generateTerrain();
+	bool generateCavernsNoise(s16 max_stone_y) override;
 
 private:
 	s16 ground_level;

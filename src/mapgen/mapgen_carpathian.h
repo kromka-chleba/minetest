@@ -70,6 +70,7 @@ public:
 
 	virtual void makeChunk(BlockMakeData *data);
 	int getSpawnLevelAtPoint(v2s16 p);
+	bool generateCavernsNoise(s16 max_stone_y) override;
 
 private:
 	float base_level;

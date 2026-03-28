@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include "mapgen.h"
+#include "mapgen_stage.h"
 #include "voxel.h"
 #include "noise.h"
 #include "gamedef.h"
@@ -31,6 +32,8 @@
 #include "mapgen_singlenode.h"
 #include "cavegen.h"
 #include "dungeongen.h"
+#include "mg_ore.h"
+#include "mg_decoration.h"
 
 const FlagDesc flagdesc_mapgen[] = {
 	{"caves",       MG_CAVES},
@@ -950,6 +953,109 @@ void MapgenBasic::generateDungeons(s16 max_stone_y)
 
 	DungeonGen dgen(ndef, &gennotify, &dp);
 	dgen.generate(vm, blockseed, full_node_min, full_node_max);
+}
+
+
+////
+//// Mapgen::makeChunkStage
+////
+
+void Mapgen::makeChunkStage(BlockMakeData *data, u8 stage)
+{
+	switch (stage) {
+	case STAGE_TERRAIN:
+		makeChunk(data);
+		return;
+	case STAGE_CAVES:
+		generateCavesAndDungeons(data);
+		return;
+	case STAGE_ORES:
+		generateOres(data);
+		return;
+	case STAGE_DECORATIONS:
+		generateDecorations(data);
+		return;
+	case STAGE_DUST:
+		generateDust(data);
+		return;
+	case STAGE_LIGHTING:
+		generateLighting(data);
+		return;
+	default:
+		// STAGE_COMPLETE (Phase 2: single-pass compat) and unknown stages.
+		makeChunk(data);
+		return;
+	}
+}
+
+
+////
+//// MapgenBasic stage methods
+////
+
+void MapgenBasic::setupGenContext(BlockMakeData *data)
+{
+	assert(data->vmanip);
+	assert(data->nodedef);
+	this->generating = true;
+	this->vm   = data->vmanip;
+	this->ndef = data->nodedef;
+	node_min = data->blockpos_min * MAP_BLOCKSIZE;
+	node_max = (data->blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = (data->blockpos_min - 1) * MAP_BLOCKSIZE;
+	full_node_max = (data->blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	blockseed = getBlockSeed2(full_node_min, seed);
+}
+
+void MapgenBasic::generateCavesAndDungeons(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_CAVES) {
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
+		bool near_cavern = generateCavernsNoise(m_stone_surface_max_y);
+		if (near_cavern)
+			generateCavesRandomWalk(m_stone_surface_max_y,
+				-MAX_MAP_GENERATION_LIMIT);
+		else
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
+	}
+	if (flags & MG_DUNGEONS)
+		generateDungeons(m_stone_surface_max_y);
+	this->generating = false;
+}
+
+void MapgenBasic::generateOres(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_ORES)
+		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenBasic::generateDecorations(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenBasic::generateDust(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_BIOMES)
+		dustTopNodes();
+	this->generating = false;
+}
+
+void MapgenBasic::generateLighting(BlockMakeData *data)
+{
+	setupGenContext(data);
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+	this->generating = false;
 }
 
 

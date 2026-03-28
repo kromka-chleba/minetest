@@ -220,7 +220,7 @@ void MapgenFractal::makeChunk(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 
 	// Generate fractal and optional terrain
-	s16 stone_surface_max_y = generateTerrain();
+	m_stone_surface_max_y = generateTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -233,8 +233,8 @@ void MapgenFractal::makeChunk(BlockMakeData *data)
 
 	// Generate tunnels and randomwalk caves
 	if (flags & MG_CAVES) {
-		generateCavesNoiseIntersection(stone_surface_max_y);
-		generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
+		generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -243,7 +243,7 @@ void MapgenFractal::makeChunk(BlockMakeData *data)
 
 	// Generate dungeons
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
@@ -395,6 +395,24 @@ bool MapgenFractal::getFractalAtPoint(s16 x, s16 y, s16 z)
 	}
 
 	return true;
+}
+
+
+bool MapgenFractal::generateCavernsNoise(s16 /*max_stone_y*/)
+{
+	return false; // Fractal terrain never generates caverns
+}
+
+void MapgenFractal::generateLighting(BlockMakeData *data)
+{
+	setupGenContext(data);
+	// Only update liquids when fractal terrain mode is active
+	if (spflags & MGFRACTAL_TERRAIN)
+		updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+	this->generating = false;
 }
 
 

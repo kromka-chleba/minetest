@@ -56,6 +56,7 @@ public:
 	virtual void makeChunk(BlockMakeData *data);
 	int getSpawnLevelAtPoint(v2s16 p);
 	int generateBaseTerrain();
+	bool generateCavernsNoise(s16 max_stone_y) override;
 
 private:
 	Noise *noise_factor = nullptr;

@@ -209,7 +209,7 @@ void MapgenFlat::makeChunk(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 
 	// Generate base terrain, mountains, and ridges with initial heightmaps
-	s16 stone_surface_max_y = generateTerrain();
+	m_stone_surface_max_y = generateTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -223,22 +223,22 @@ void MapgenFlat::makeChunk(BlockMakeData *data)
 	// Generate tunnels, caverns and large randomwalk caves
 	if (flags & MG_CAVES) {
 		// Generate tunnels first as caverns confuse them
-		generateCavesNoiseIntersection(stone_surface_max_y);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
 
 		// Generate caverns
 		bool near_cavern = false;
 		if (spflags & MGFLAT_CAVERNS)
-			near_cavern = generateCavernsNoise(stone_surface_max_y);
+			near_cavern = generateCavernsNoise(m_stone_surface_max_y);
 
 		// Generate large randomwalk caves
 		if (near_cavern)
 			// Disable large randomwalk caves in this mapchunk by setting
 			// 'large cave depth' to world base. Avoids excessive liquid in
 			// large caverns and floating blobs of overgenerated liquid.
-			generateCavesRandomWalk(stone_surface_max_y,
+			generateCavesRandomWalk(m_stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -246,7 +246,7 @@ void MapgenFlat::makeChunk(BlockMakeData *data)
 		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
 
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
@@ -268,6 +268,14 @@ void MapgenFlat::makeChunk(BlockMakeData *data)
 	//			node_max + v3s16(1, 0, 1) * MAP_BLOCKSIZE, 0xFF);
 
 	this->generating = false;
+}
+
+
+bool MapgenFlat::generateCavernsNoise(s16 max_stone_y)
+{
+	if (!(spflags & MGFLAT_CAVERNS))
+		return false;
+	return MapgenBasic::generateCavernsNoise(max_stone_y);
 }
 
 

@@ -82,6 +82,8 @@ public:
 	bool getFloatlandTerrainFromMap(int idx_xyz, float float_offset);
 
 	int generateTerrain();
+	bool generateCavernsNoise(s16 max_stone_y) override;
+	void generateLighting(BlockMakeData *data) override;
 
 private:
 	s16 mount_zero_level;

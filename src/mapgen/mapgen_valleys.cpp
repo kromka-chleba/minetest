@@ -219,7 +219,7 @@ void MapgenValleys::makeChunk(BlockMakeData *data)
 	m_bgen->calcBiomeNoise(node_min);
 
 	// Generate terrain
-	s16 stone_surface_max_y = generateTerrain();
+	m_stone_surface_max_y = generateTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -232,20 +232,20 @@ void MapgenValleys::makeChunk(BlockMakeData *data)
 	// Generate tunnels, caverns and large randomwalk caves
 	if (flags & MG_CAVES) {
 		// Generate tunnels first as caverns confuse them
-		generateCavesNoiseIntersection(stone_surface_max_y);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
 
 		// Generate caverns
-		bool near_cavern = generateCavernsNoise(stone_surface_max_y);
+		bool near_cavern = generateCavernsNoise(m_stone_surface_max_y);
 
 		// Generate large randomwalk caves
 		if (near_cavern)
 			// Disable large randomwalk caves in this mapchunk by setting
 			// 'large cave depth' to world base. Avoids excessive liquid in
 			// large caverns and floating blobs of overgenerated liquid.
-			generateCavesRandomWalk(stone_surface_max_y,
+			generateCavesRandomWalk(m_stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -254,7 +254,7 @@ void MapgenValleys::makeChunk(BlockMakeData *data)
 
 	// Dungeon creation
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)

@@ -260,7 +260,7 @@ void MapgenCarpathian::makeChunk(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 
 	// Generate terrain
-	s16 stone_surface_max_y = generateTerrain();
+	m_stone_surface_max_y = generateTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -274,22 +274,22 @@ void MapgenCarpathian::makeChunk(BlockMakeData *data)
 	// Generate tunnels, caverns and large randomwalk caves
 	if (flags & MG_CAVES) {
 		// Generate tunnels first as caverns confuse them
-		generateCavesNoiseIntersection(stone_surface_max_y);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
 
 		// Generate caverns
 		bool near_cavern = false;
 		if (spflags & MGCARPATHIAN_CAVERNS)
-			near_cavern = generateCavernsNoise(stone_surface_max_y);
+			near_cavern = generateCavernsNoise(m_stone_surface_max_y);
 
 		// Generate large randomwalk caves
 		if (near_cavern)
 			// Disable large randomwalk caves in this mapchunk by setting
 			// 'large cave depth' to world base. Avoids excessive liquid in
 			// large caverns and floating blobs of overgenerated liquid.
-			generateCavesRandomWalk(stone_surface_max_y,
+			generateCavesRandomWalk(m_stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -298,7 +298,7 @@ void MapgenCarpathian::makeChunk(BlockMakeData *data)
 
 	// Generate dungeons
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
@@ -318,6 +318,14 @@ void MapgenCarpathian::makeChunk(BlockMakeData *data)
 	}
 
 	this->generating = false;
+}
+
+
+bool MapgenCarpathian::generateCavernsNoise(s16 max_stone_y)
+{
+	if (!(spflags & MGCARPATHIAN_CAVERNS))
+		return false;
+	return MapgenBasic::generateCavernsNoise(max_stone_y);
 }
 
 
