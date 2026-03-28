@@ -19,8 +19,36 @@ The current map generator runs as a single monolithic pass over each chunk
 
 Tracked issues: #9357, #15643, #2519, #7392.
 
-**Root cause:** a single-stage generator cannot satisfy the dependency
+**Root cause:** A single-stage generator cannot satisfy the dependency
 "decorations need finished terrain on all neighbours" within one pass.
+
+### Two forms of overgeneration to be removed
+
+The single-stage design requires two overgeneration mechanisms that produce
+the boundary glitches listed above.  Both are eliminated by multi-stage
+mapgen (see §2.5).
+
+1. **Block-level overgeneration — `EMERGE_EXTRA_BORDER{1,1,1}`**
+   (`src/servermap.h`):
+   Every chunk generates a 1-MapBlock-thick (16-node) border all around it,
+   loading and writing into blocks that belong to the neighbouring chunks.
+   Those border blocks are intentionally *not* marked `m_generated`, so when
+   the neighbour chunk is eventually generated its mapgen pass overwrites
+   them.  This overwrite is the source of the glitches: caves, decorations,
+   and lighting placed in the border during the first pass are partially or
+   wholly erased by the second pass.
+
+2. **Node-level overgeneration — Y ±1 node**
+   (every mapgen engine: `src/mapgen/mapgen_v7.cpp`, `mapgen_v6.cpp`, etc.):
+   Noise sampling and terrain-fill loops extend one extra node below
+   (`node_min.Y - 1`) and above (`node_max.Y + 1`) the chunk boundary.
+   Cave generators explicitly use this to plant a one-node-thick "stone
+   roof" at `node_max.Y + 1`, preventing premature light leaks into the
+   chunk above before it has been generated (see comments in
+   `src/mapgen/cavegen.cpp`).  The roof is carved away when the upper
+   chunk’s own cave pass runs.  With caves as a separate pipeline stage that
+   reads completed vertical neighbours, the roof trick is no longer
+   necessary.
 
 ---
 
@@ -46,17 +74,24 @@ Missing stages in the default pipeline are simply skipped.
 
 ### 2.2 Neighbourhood Requirement
 
-- **Stage 16 (TERRAIN):** Generates a single chunk in isolation (same as
-  today). No neighbourhood requirement.
-- **Every subsequent stage N:** Requires that all 8 horizontal neighbours
-  (3×3 chunk area) have completed stage N−1 before stage N can run on the
-  centre chunk. If any neighbour has not reached the required predecessor
-  stage, the centre chunk is re-queued until they do.
+- **Stage 16 (TERRAIN):** Generates a single chunk in isolation.  No
+  neighbourhood requirement.  The stage writes only within its own chunk
+  boundaries (no overgeneration — see §2.5).
+- **Every subsequent stage N:** Requires that all neighbours in a 3×3×3 block
+  volume (one chunk in every direction, including up and down) have
+  completed stage N−1 before stage N can run on the centre chunk.  If any
+  required neighbour has not reached the predecessor stage, the centre
+  chunk is re-queued until it does.
 
-> **Why 3×3?**  Decorations (trees, schematics) can extend at most one chunk
-> in any horizontal direction. Dust only needs to know the surface top node,
-> which is stable after decorations are complete.  Vertical dependency is not
-> needed in practice: the relevant surface is always inside the centre column.
+> **Why 3×3×3?**
+> - Horizontal (X/Z): Decorations and schematics can extend one full chunk
+>   in any horizontal direction.
+> - Vertical (Y): Cave tunnels and caverns span vertical chunk boundaries;
+>   the dedicated STAGE_CAVES pass must read completed terrain above and
+>   below.  Lighting propagation similarly needs completed terrain in all
+>   six cardinal directions.  Using the same 3×3×3 volume for every
+>   post-terrain stage keeps the logic uniform and eliminates all
+>   node-level overgeneration (the old Y±1 node cave-roof trick).
 
 ### 2.3 Replacing `m_generated` with `m_generation_stage`
 
@@ -99,6 +134,103 @@ Constraints:
 - Stages are registered during mod loading (before world load).
   The sorted list of active stage numbers is frozen at world start and
   written to `world.mt` so it can be validated on re-open.
+
+### 2.5 Removing Overgeneration
+
+Multi-stage mapgen eliminates both overgeneration mechanisms described in §1.
+
+#### 2.5.1 Removing `EMERGE_EXTRA_BORDER` (block-level overgeneration)
+
+`EMERGE_EXTRA_BORDER{1,1,1}` in `src/servermap.h` and the corresponding
+`full_bpmin` / `full_bpmax` expansion in `ServerMap::initBlockMake()` are
+removed entirely.
+
+**Why it is safe to remove:**
+
+| Old reason for the border | How multi-stage replaces it |
+|---------------------------|-----------------------------|
+| Caves need adjacent terrain to carve through | STAGE_CAVES loads the full 3×3×3 neighbourhood from completed STAGE_TERRAIN data |
+| Decorations may protrude into neighbour chunks | STAGE_DECORATIONS runs only after all 26 neighbours have finished STAGE_ORES; it writes its results back into the fully authoritative centre chunk |
+| Light must propagate across chunk edges | STAGE_LIGHTING loads the 3×3×3 neighbourhood; all blocks in the neighbourhood are already at STAGE_DUST and are stable |
+| Ore placement needs terrain context at edges | STAGE_ORES runs after neighbours finish STAGE_CAVES; ore placement is self-contained within the central chunk |
+
+**What changes in the code:**
+
+- `ServerMap::initBlockMake()`: Remove the `EMERGE_EXTRA_BORDER` expansion.
+  For STAGE_TERRAIN, the VoxelManipulator covers exactly `[bpmin, bpmax]`.
+  For all later stages it covers `[bpmin−1*csize, bpmax+1*csize]` (the 3×3×3
+  neighbourhood), but those neighbours are *read-only*; only centre blocks
+  are blitted back in `finishBlockMake()`.
+- `ServerMap::finishBlockMake()`: The loop over `full_bpmin..full_bpmax`
+  collapses to just `bpmin..bpmax`; no border blocks to `refDrop()` or
+  skip.
+- `MMVManip::initialEmerge()`: Called with the appropriate range per stage
+  rather than the overgenerated range.
+- Remove the `constexpr static v3s16 EMERGE_EXTRA_BORDER{1,1,1}` constant
+  from `src/servermap.h` once no callers remain.
+
+#### 2.5.2 Removing the Y±1 Node Overgeneration
+
+Every mapgen engine contains:
+
+```cpp
+// Noise sampling:
+noise_foo->noiseMap3D(node_min.X, node_min.Y - 1, node_min.Z, ...);
+
+// Terrain fill loops:
+for (s16 y = node_min.Y - 1; y <= node_max.Y + 1; y++) { ... }
+```
+
+And in `cavegen.cpp`:
+
+```cpp
+// Don't excavate the overgenerated stone at nmax.Y + 1,
+// this creates a 'roof' over the tunnel, preventing light in
+// tunnels at mapchunk borders when generating mapchunks upwards.
+// This 'roof' is removed when the mapchunk above is generated.
+for (s16 y = nmax.Y; y >= nmin.Y - 1; y--, ...) { ... }
+```
+
+**Why it is safe to remove:**
+
+- The "stone roof" at `nmax.Y + 1` was needed because STAGE_TERRAIN and
+  STAGE_CAVES ran in the same pass: the lower chunk's cave pass could not
+  know whether the upper chunk's terrain was solid.  With multi-stage, the
+  upper chunk is guaranteed to have completed STAGE_TERRAIN before the
+  lower chunk runs STAGE_CAVES.  The upper chunk's stone is therefore
+  already saved to disk and loaded into the 3×3×3 VoxelManipulator, giving
+  the cave generator a real, authoritative boundary to carve against.
+- Noise fields are deterministic by world seed; sampling at `Y-1` was only
+  needed to ensure continuity with what a simultaneously-running neighbour
+  chunk wrote.  Because STAGE_TERRAIN generates each chunk independently
+  (no simultaneous neighbour writes), the extra node is unnecessary.
+
+**What changes in the code:**
+
+- All `noiseMap3D(... node_min.Y - 1 ...)` calls change to
+  `noiseMap3D(... node_min.Y ...)`.
+- All terrain-fill loops `for y = node_min.Y - 1 .. node_max.Y + 1` shrink
+  to `for y = node_min.Y .. node_max.Y`.
+- The cave-roof comment and the corresponding `nmin.Y - 1` loop bound in
+  `cavegen.cpp` are removed; the loop simply runs `for y = nmax.Y .. nmin.Y`.
+- `calcLighting()` call sites that pass `nmin - v3s16(0,1,0)` / `nmax +
+  v3s16(0,1,0)` revert to plain `nmin` / `nmax` — the lighting stage now
+  relies on the 3×3×3 neighbourhood for edge propagation instead.
+- `Mapgen::calcLighting()` signature loses its `full_nmin` / `full_nmax`
+  parameters; propagation uses `vm->m_area` (the full loaded area) directly.
+
+#### 2.5.3 Net Effect
+
+After both removals:
+
+- No chunk ever writes into another chunk's blocks.
+- Every block has exactly one owner chunk; `m_generation_stage` is
+  advanced only by the owning chunk's generation pipeline.
+- The old "border block is not marked generated" special-case in
+  `finishBlockMake()` disappears entirely.
+- The “y=47 seam” class of bugs and all decoration-at-boundary artifacts
+  are structurally impossible.
+
 
 ---
 
@@ -278,12 +410,18 @@ appropriate neighbourhood size.
 +bool initBlockMake(BlockMakeData *data, v3s16 blockpos, u8 target_stage);
 ```
 
-- If `target_stage == STAGE_TERRAIN`: behaviour identical to today
-  (1 chunk + `EMERGE_EXTRA_BORDER` all round).
-- If `target_stage > STAGE_TERRAIN`: load **3 chunks × 3 chunks** horizontal
-  neighbourhood into the VoxelManipulator (full vertical extent for each
-  column). The centre chunk's existing blocks are included so that stage N
-  can read and modify terrain placed by stages 0…N-1.
+- **`STAGE_TERRAIN`**: The VoxelManipulator covers exactly
+  `[bpmin, bpmax]` — the central chunk only.  `EMERGE_EXTRA_BORDER` is
+  **not** applied; no neighbouring blocks are loaded or written.
+- **All later stages (caves, ores, decorations, dust, lighting)**:
+  The VoxelManipulator covers the full **3×3×3 chunk neighbourhood**
+  (`[bpmin - csize, bpmax + csize]`).  All blocks in the neighbourhood are
+  loaded read-only from their saved state (which is at least
+  `target_stage - 1` complete); only the centre chunk's blocks are blitted
+  back by `finishBlockMake()`.
+
+The `EMERGE_EXTRA_BORDER` constant and all uses of `full_bpmin` /
+`full_bpmax` in `initBlockMake()` are removed (see §2.5.1).
 
 ### 4.4 `ServerMap::finishBlockMake()` Changes
 
@@ -291,8 +429,13 @@ appropriate neighbourhood size.
 - Advance `m_generation_stage` on each centre block to `target_stage`.
 - Only set `MOD_STATE_WRITE_NEEDED` on centre blocks (neighbours were read-
   only for this stage and are unchanged).
-- Lighting (`STAGE_LIGHTING`) continues to propagate into the full loaded area
-  as today.
+- The loop that previously iterated over `full_bpmin..full_bpmax` to
+  `refDrop()` border blocks and skip marking them generated is **removed**.
+  The loop now covers only `bpmin..bpmax` (centre chunk blocks only); every
+  block in the loop is unconditionally advanced to `target_stage`.
+- Lighting (`STAGE_LIGHTING`) propagates light across the full 3×3×3
+  neighbourhood area via `spreadLight(vm->m_area.MinEdge, vm->m_area.MaxEdge)`;
+  results outside the centre chunk are discarded (not blitted back).
 
 ### 4.5 Re-queue Cascade
 
@@ -383,6 +526,7 @@ world can still be opened.
 | `minetest.register_on_generated` | Fired after `STAGE_DECORATIONS` as before |
 | Mods calling `minetest.emerge_area` | Default `min_stage` = `STAGE_COMPLETE`; no change in behaviour |
 | `block->isGenerated()` / `setGenerated()` callers | Compat shims forward to `m_generation_stage`; no compile break |
+| Worlds generated with old overgeneration | Border blocks saved by old mapgen are loaded normally; their `m_generation_stage` is reconstructed as `STAGE_NONE` (they were not marked generated). They will be re-generated correctly when the owning chunk's pipeline runs. |
 
 ---
 
@@ -413,19 +557,29 @@ world can still be opened.
       dispatch.
 - [ ] Verify existing generation tests still pass.
 
-### Phase 3 — Stage-Aware `initBlockMake` / `finishBlockMake`
+### Phase 3 — Stage-Aware `initBlockMake` / `finishBlockMake` and Remove Overgeneration
 
-- [ ] Extend `initBlockMake()` to accept `target_stage`; load 3×3
-      neighbourhood VoxelManipulator when stage > `STAGE_TERRAIN`.
-- [ ] Extend `finishBlockMake()` to blit only centre chunk and advance
-      `m_generation_stage` to `target_stage`.
+- [ ] Extend `initBlockMake()` to accept `target_stage`; load the exact
+      chunk (`bpmin..bpmax`) for `STAGE_TERRAIN` and the 3×3×3 neighbourhood
+      for all later stages.
+- [ ] **Remove `EMERGE_EXTRA_BORDER`**: delete the constant from
+      `src/servermap.h`; remove `full_bpmin` / `full_bpmax` expansion and
+      all border-block `refGrab()` / `refDrop()` calls from
+      `initBlockMake()` and `finishBlockMake()`.
+- [ ] **Remove Y±1 node overgeneration**: update all mapgen engines
+      (`v5`, `v6`, `v7`, `flat`, `carpathian`, `valleys`, `fractal`) to
+      sample noise and fill terrain only within `[node_min, node_max]`;
+      remove the cave-roof loop bounds in `cavegen.cpp`.
+- [ ] Extend `finishBlockMake()` to blit only the centre chunk; remove
+      the `!isInCentralChunk` skip-generated check from the blit loop.
+- [ ] Advance `m_generation_stage` on centre blocks to `target_stage`.
 - [ ] Add `STAGE_COMPLETE_EVENT` and neighbour re-queue in
       `EmergeManager`.
 
 ### Phase 4 — Stage-Aware Emerge Queue Logic
 
 - [ ] Replace `getBlockOrStartGen()` with `getBlockOrStartStage()`.
-- [ ] Add neighbourhood readiness check (3×3, predecessor stage).
+- [ ] Add neighbourhood readiness check (3×3×3, predecessor stage).
 - [ ] Handle `EMERGE_DEFERRED`: add deferred set per chunk in
       `EmergeManager`; re-enqueue on `STAGE_COMPLETE_EVENT`.
 - [ ] Integrate deferred blocks into `EmergeThread::run()`.
@@ -466,18 +620,22 @@ world can still be opened.
 | Concern | Analysis |
 |---------|----------|
 | More emerge queue entries per chunk | Each chunk now passes through up to 6 (or more with mods) emerge events instead of 1. Queue depth grows proportionally. Mitigated by: deferred entries do not consume EmergeThread time; they only consume queue memory until neighbours are ready. |
-| 3×3 VoxelManipulator load for later stages | Loading 9 chunks of node data per stage N > TERRAIN. For a 5-chunk-side mapchunk (default), that is 9×5³ = 1125 blocks. With compression, tolerable. Only the centre chunk is written back. |
+| 3×3×3 VoxelManipulator load for later stages | Loading 27 chunks of node data per stage N > TERRAIN. For a 5-block chunksize (default), that is 27×5³ = 3375 blocks. These are disk reads of already-computed data, not noise generation. Only the centre chunk's 5³ = 125 blocks are written back. |
 | Neighbour polling / deferred wakeup | Avoid polling: use the `STAGE_COMPLETE_EVENT` push model (§4.5). Each stage completion broadcasts to at most 8 neighbours; constant overhead. |
 | World generation throughput | In practice, the pipeline is deeply pipelined: while the centre chunk does DECORATIONS, its neighbours do TERRAIN. Throughput should be close to the current single-stage rate once the pipeline is full. |
 | Lighting stage | Lighting is already the most expensive step. Keeping it as a separate final stage (239) allows it to run once all terrain and decorations are stable, avoiding repeated light recalculation. |
+| Overgeneration removal | `STAGE_TERRAIN` now generates only 1 chunk worth of nodes instead of `(chunksize + 2)³` blocks. For the default 5-block chunksize this reduces VoxelManipulator allocation from 7³=343 to 5³=125 blocks (≤3× smaller). Later stages load 3³=27 chunks per neighbourhood, but these are disk reads of already-computed data, not noise generation; the net CPU cost per stage decreases. |
 
 ---
 
 ## 10. Open Questions / Future Work
 
-1. **Vertical dependency**: The current plan only checks horizontal 3×3
-   neighbours. Very tall structures (e.g., floating-island decorations) may
-   require vertical neighbours too. This is deferred to a later iteration.
+1. **Very tall structures**: The 3×3×3 neighbourhood (one chunk in every
+   direction) covers decorations that protrude by at most one chunk vertically.
+   Structures taller than one chunk (e.g., custom floating-island schematics)
+   may require a larger vertical window; individual mods can request a taller
+   neighbourhood by registering a stage with an explicit `vertical_radius`
+   parameter. This is deferred to a later iteration.
 
 2. **Stage persistence across sessions**: If a world is saved mid-pipeline
    (e.g., chunk at stage 32 when the server stops), the next session must
