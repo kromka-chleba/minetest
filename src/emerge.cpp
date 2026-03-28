@@ -529,18 +529,43 @@ void EmergeManager::notifyStageComplete(const v3s16 &chunkpos, u8 completed_stag
 				continue;
 			}
 
-			bool entry_exists = false;
+			bool entry_preexisted = false;
+			bool ok = true;
+
 			// Force queue to ensure deferred blocks are re-enqueued even under load.
-			bool ok = pushBlockEmergeData(iter->blockpos,
-				iter->bedata.peer_requested,
-				iter->bedata.flags | BLOCK_EMERGE_FORCE_QUEUE,
-				nullptr, nullptr, iter->bedata.required_stage, &entry_exists);
+			// Reattach all stored callbacks so they are invoked on completion.
+			if (iter->bedata.callbacks.empty()) {
+				bool entry_exists = false;
+				ok = pushBlockEmergeData(iter->blockpos,
+					iter->bedata.peer_requested,
+					iter->bedata.flags | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr, iter->bedata.required_stage, &entry_exists);
+				entry_preexisted = entry_exists;
+			} else {
+				bool first = true;
+				for (const auto &cb_entry : iter->bedata.callbacks) {
+					bool entry_exists = false;
+					ok = pushBlockEmergeData(iter->blockpos,
+						iter->bedata.peer_requested,
+						iter->bedata.flags | BLOCK_EMERGE_FORCE_QUEUE,
+						cb_entry.cb, cb_entry.param,
+						iter->bedata.required_stage, &entry_exists);
+					if (first) {
+						// Record whether a queue entry existed before any of our pushes.
+						entry_preexisted = entry_exists;
+						first = false;
+					}
+					if (!ok)
+						break;
+				}
+			}
+
 			if (!ok) {
 				++iter;
 				continue;
 			}
 
-			if (!entry_exists) {
+			if (!entry_preexisted) {
 				EmergeThread *thread = getOptimalThread();
 				thread->pushBlock(iter->blockpos);
 				threads_to_signal.push_back(thread);
