@@ -275,8 +275,18 @@ void EmergeManager::stopThreads()
 
 	{
 		MutexAutoLock queuelock(m_queue_mutex);
-		using CancelKey = std::tuple<s16, s16, s16, EmergeCompletionCallback, void *>;
-		std::set<CancelKey> cancelled_callbacks;
+		struct CancelKey {
+			v3s16 pos;
+			EmergeCompletionCallback cb;
+			void *param;
+		};
+		struct CancelKeyLess {
+			bool operator()(const CancelKey &a, const CancelKey &b) const {
+				return std::tie(a.pos.X, a.pos.Y, a.pos.Z, a.cb, a.param) <
+					std::tie(b.pos.X, b.pos.Y, b.pos.Z, b.cb, b.param);
+			}
+		};
+		std::set<CancelKey, CancelKeyLess> cancelled_callbacks;
 
 		for (auto &chunkpair : m_deferred_by_chunk) {
 			for (const DeferredItem &item : chunkpair.second) {
@@ -284,8 +294,7 @@ void EmergeManager::stopThreads()
 					if (!cb.first)
 						continue;
 
-					auto key = std::make_tuple(item.blockpos.X, item.blockpos.Y,
-						item.blockpos.Z, cb.first, cb.second);
+					CancelKey key{item.blockpos, cb.first, cb.second};
 					if (cancelled_callbacks.insert(key).second)
 						cb.first(item.blockpos, EMERGE_CANCELLED, cb.second);
 				}
