@@ -625,6 +625,7 @@ bool EmergeThread::isNeighbourhoodReady(const v3s16 &pos, u8 predecessor_stage,
 		return true;
 
 	v3s16 chunksize(m_emerge->mgparams->chunksize);
+	v3s16 chunkpos = EmergeManager::getContainingChunk(pos, chunksize);
 
 	for (s16 x = -1; x <= 1; x++)
 	for (s16 y = -1; y <= 1; y++)
@@ -632,15 +633,15 @@ bool EmergeThread::isNeighbourhoodReady(const v3s16 &pos, u8 predecessor_stage,
 		if (x == 0 && y == 0 && z == 0)
 			continue;
 
-		v3s16 npos = pos + v3s16(x, y, z);
+		v3s16 npos = chunkpos + v3s16(x, y, z) * chunksize;
 		MapBlock *nblock = m_map->getBlockNoCreateNoEx(npos);
 		u8 stage = nblock ? nblock->getGenerationStage() : STAGE_NONE;
 		if (stage < predecessor_stage) {
 			if (missing) {
-				v3s16 chunkpos = EmergeManager::getContainingChunk(npos, chunksize);
-				if (std::find(missing->begin(), missing->end(), chunkpos) ==
+				v3s16 missing_chunkpos = EmergeManager::getContainingChunk(npos, chunksize);
+				if (std::find(missing->begin(), missing->end(), missing_chunkpos) ==
 						missing->end())
-					missing->push_back(chunkpos);
+					missing->push_back(missing_chunkpos);
 			} else {
 				return false;
 			}
