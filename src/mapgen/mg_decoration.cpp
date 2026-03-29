@@ -209,16 +209,19 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed,
 		sidelen_now = carea_size;
 
 	const s16 sidelen_offset = sidelen_now - 1;
-	const s16 x_anchor_min = floor_div_s16(chunk_nmin.X - sidelen_offset, sidelen_now) * sidelen_now;
-	const s16 z_anchor_min = floor_div_s16(chunk_nmin.Z - sidelen_offset, sidelen_now) * sidelen_now;
-	const s16 x_anchor_max = floor_div_s16(chunk_nmax.X, sidelen_now) * sidelen_now;
-	const s16 z_anchor_max = floor_div_s16(chunk_nmax.Z, sidelen_now) * sidelen_now;
+	// Anchor cells for processing are derived from the full placement area
+	// (central chunk + overgeneration margin). This lets anchors just outside
+	// the chunk place nodes inside it.
+	const s16 x_anchor_min = floor_div_s16(place_nmin.X - sidelen_offset, sidelen_now) * sidelen_now;
+	const s16 z_anchor_min = floor_div_s16(place_nmin.Z - sidelen_offset, sidelen_now) * sidelen_now;
+	const s16 x_anchor_max = floor_div_s16(place_nmax.X, sidelen_now) * sidelen_now;
+	const s16 z_anchor_max = floor_div_s16(place_nmax.Z, sidelen_now) * sidelen_now;
 
 	int area = sidelen_now * sidelen_now;
-	// Anchor cells are selected over the full placement area so decorations
-	// whose anchors fall just outside the central chunk can still place nodes
-	// inside it. To avoid duplicate processing across chunks, only cells that
-	// overlap the central chunk are visited.
+	// Anchor cells are selected over the full placement area (central chunk
+	// plus margin). Chunks cooperate by each processing every relevant anchor
+	// cell but later only writing their own central area back to map, so
+	// cross-chunk decorations line up without clipping.
 	s16 x_start = std::clamp<s16>(
 		floor_div_s16(place_nmin.X, sidelen_now) * sidelen_now,
 		x_anchor_min, x_anchor_max);

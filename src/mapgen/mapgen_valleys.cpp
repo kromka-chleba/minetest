@@ -208,8 +208,8 @@ void MapgenValleys::makeChunk(BlockMakeData *data)
 	v3s16 blockpos_max = data->blockpos_max;
 	node_min = blockpos_min * MAP_BLOCKSIZE;
 	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = vm->m_area.MinEdge;
+	full_node_max = vm->m_area.MaxEdge;
 
 	blockseed = getBlockSeed2(full_node_min, seed);
 
