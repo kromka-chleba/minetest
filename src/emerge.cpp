@@ -972,12 +972,14 @@ void *EmergeThread::run()
 			std::vector<v3s16> missing_chunks;
 			isNeighbourhoodReady(pos, predecessor_stage, &missing_chunks);
 			if (!missing_chunks.empty()) {
-				// Actively request missing neighbour chunks up to the predecessor
+				// Actively request missing neighbor chunks up to the predecessor
 				// stage. Otherwise a deferred chunk can stall indefinitely when
-				// the missing neighbours were never requested by any client.
+				// the missing neighbors were never requested by any client.
 				for (const v3s16 &chunkpos : missing_chunks) {
+					const bool allow_generate = true;
+					const bool ignore_queue_limits = true;
 					m_emerge->enqueueBlockEmerge(PEER_ID_INEXISTENT, chunkpos,
-						true, predecessor_stage, true);
+						allow_generate, predecessor_stage, ignore_queue_limits);
 				}
 				m_emerge->addDeferredBlock(pos, bedata, bmdata, missing_chunks,
 					predecessor_stage);
