@@ -472,6 +472,17 @@ void Mapgen::calcLighting(v3s16 nmin, v3s16 nmax, v3s16 full_nmin, v3s16 full_nm
 {
 	ScopeProfiler sp(g_profiler, "EmergeThread: update lighting", SPT_AVG);
 
+	// Ensure the top padding layer exists as air so sunlight can enter when
+	// overgeneration is disabled. CONTENT_IGNORE in this layer blocks
+	// sunlight in propagateSunlight().
+	for (s16 z = nmin.Z; z <= nmax.Z; z++) {
+		for (s16 x = nmin.X; x <= nmax.X; x++) {
+			u32 i = vm->m_area.index(x, nmax.Y, z);
+			if (vm->m_data[i].getContent() == CONTENT_IGNORE)
+				vm->m_data[i] = MapNode(CONTENT_AIR);
+		}
+	}
+
 	propagateSunlight(nmin, nmax, propagate_shadow);
 	spreadLight(full_nmin, full_nmax);
 }
