@@ -596,32 +596,29 @@ void Mapgen::discardPadding()
 	// Remove padding slices (loaded from neighbours) from being written back.
 	// This prevents overgeneration artifacts such as stray stone layers or
 	// clipped decorations at chunk boundaries.
-	const v3s16 inner_min = node_min;
-	const v3s16 inner_max = node_max;
-
-	if (full_node_min.X < inner_min.X)
-		vm->setFlags(VoxelArea(v3s16(full_node_min.X, inner_min.Y, inner_min.Z),
-			v3s16(inner_min.X - 1, inner_max.Y, inner_max.Z)),
+	if (full_node_min.X < node_min.X)
+		vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
+			v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
 			VOXELFLAG_NO_DATA);
-	if (full_node_max.X > inner_max.X)
-		vm->setFlags(VoxelArea(v3s16(inner_max.X + 1, inner_min.Y, inner_min.Z),
-			v3s16(full_node_max.X, inner_max.Y, inner_max.Z)),
+	if (full_node_max.X > node_max.X)
+		vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
+			v3s16(full_node_max.X, node_max.Y, node_max.Z)),
 			VOXELFLAG_NO_DATA);
-	if (full_node_min.Y < inner_min.Y)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, inner_min.Z),
-			v3s16(inner_max.X, inner_min.Y - 1, inner_max.Z)),
+	if (full_node_min.Y < node_min.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
+			v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
 			VOXELFLAG_NO_DATA);
-	if (full_node_max.Y > inner_max.Y)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_max.Y + 1, inner_min.Z),
-			v3s16(inner_max.X, full_node_max.Y, inner_max.Z)),
+	if (full_node_max.Y > node_max.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
+			v3s16(node_max.X, full_node_max.Y, node_max.Z)),
 			VOXELFLAG_NO_DATA);
-	if (full_node_min.Z < inner_min.Z)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_min.Y, full_node_min.Z),
-			v3s16(inner_max.X, inner_max.Y, inner_min.Z - 1)),
+	if (full_node_min.Z < node_min.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
+			v3s16(node_max.X, node_max.Y, node_min.Z - 1)),
 			VOXELFLAG_NO_DATA);
-	if (full_node_max.Z > inner_max.Z)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_min.Y, inner_max.Z + 1),
-			v3s16(inner_max.X, inner_max.Y, full_node_max.Z)),
+	if (full_node_max.Z > node_max.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, node_max.Z + 1),
+			v3s16(node_max.X, node_max.Y, full_node_max.Z)),
 			VOXELFLAG_NO_DATA);
 }
 
