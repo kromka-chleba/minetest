@@ -1122,7 +1122,8 @@ void MapgenBasic::generateDecorations(BlockMakeData *data)
 {
 	setupGenContext(data);
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 	this->generating = false;
 }
 

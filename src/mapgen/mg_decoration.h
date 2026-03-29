@@ -142,7 +142,9 @@ public:
 		}
 	}
 
-	void placeAllDecos(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax);
+	void placeAllDecos(Mapgen *mg, u32 blockseed,
+		v3s16 chunk_nmin, v3s16 chunk_nmax,
+		v3s16 place_nmin, v3s16 place_nmax);
 	v3s16 getMaxOvergenerate() const;
 
 private:
