@@ -65,16 +65,11 @@ void DecorationManager::placeAllDecos(Mapgen *mg, u32 blockseed,
 		if (!deco)
 			continue;
 
-		v3s16 overgen = deco->getOvergenerate();
-		if (deco->nspawnby >= 0) {
-			overgen.X = std::max<s16>(overgen.X, 1);
-			overgen.Z = std::max<s16>(overgen.Z, 1);
-			overgen.Y = std::max<s16>(overgen.Y,
-				(s16)(std::abs(static_cast<int>(deco->check_offset)) + 1));
-		}
-
-		v3s16 deco_place_nmin = place_nmin - overgen;
-		v3s16 deco_place_nmax = place_nmax + overgen;
+		// place_nmin/max already represents the full area including overgen margin
+		// (typically full_node_min/max which is the VM extent), so use it directly
+		// and just clamp to ensure we're within VM bounds
+		v3s16 deco_place_nmin = place_nmin;
+		v3s16 deco_place_nmax = place_nmax;
 		deco_place_nmin.X = std::max(deco_place_nmin.X, mg->vm->m_area.MinEdge.X);
 		deco_place_nmin.Y = std::max(deco_place_nmin.Y, mg->vm->m_area.MinEdge.Y);
 		deco_place_nmin.Z = std::max(deco_place_nmin.Z, mg->vm->m_area.MinEdge.Z);
