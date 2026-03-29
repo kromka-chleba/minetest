@@ -475,6 +475,9 @@ void Mapgen::calcLighting(v3s16 nmin, v3s16 nmax, v3s16 full_nmin, v3s16 full_nm
 	// Temporarily fill missing padding nodes with air so sunlight can enter
 	// without permanently overgenerating terrain. Restore them after lighting.
 	std::vector<u32> temp_air_indices;
+	const size_t padding_plane = (nmax.Z - nmin.Z + 1) *
+		(nmax.X - nmin.X + 1);
+	temp_air_indices.reserve(padding_plane * 2); // nmax.Y and nmax.Y + 1
 	auto fill_padding_air = [&](s16 y)
 	{
 		for (s16 z = nmin.Z; z <= nmax.Z; z++) {
