@@ -104,7 +104,12 @@ void ScriptApiMapgen::on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage)
 	call_stage_list("registered_mapgen_stages");
 	call_stage_list("registered_on_mapgen_stages");
 
-	lua_pushnil(L);
-	lua_setfield(L, core_idx, "vmanip");
-	lua_pop(L, 2); // pop vmanip and core
+	if (lua_istable(L, core_idx)) {
+		lua_pushnil(L);
+		lua_setfield(L, core_idx, "vmanip");
+		lua_pop(L, 2); // pop vmanip and core
+	} else {
+		// Core table was mutated by callbacks, just clean the stack
+		lua_pop(L, 2); // pop vmanip and whatever is left of core
+	}
 }
