@@ -600,20 +600,20 @@ void Mapgen::discardPadding()
 	const v3s16 inner_max = node_max;
 
 	if (full_node_min.X < inner_min.X)
-		vm->setFlags(VoxelArea(full_node_min,
-			v3s16(inner_min.X - 1, full_node_max.Y, full_node_max.Z)),
+		vm->setFlags(VoxelArea(v3s16(full_node_min.X, inner_min.Y, inner_min.Z),
+			v3s16(inner_min.X - 1, inner_max.Y, inner_max.Z)),
 			VOXELFLAG_NO_DATA);
 	if (full_node_max.X > inner_max.X)
-		vm->setFlags(VoxelArea(v3s16(inner_max.X + 1, full_node_min.Y, full_node_min.Z),
-			full_node_max),
+		vm->setFlags(VoxelArea(v3s16(inner_max.X + 1, inner_min.Y, inner_min.Z),
+			v3s16(full_node_max.X, inner_max.Y, inner_max.Z)),
 			VOXELFLAG_NO_DATA);
 	if (full_node_min.Y < inner_min.Y)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, full_node_min.Z),
-			v3s16(inner_max.X, inner_min.Y - 1, full_node_max.Z)),
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, inner_min.Z),
+			v3s16(inner_max.X, inner_min.Y - 1, inner_max.Z)),
 			VOXELFLAG_NO_DATA);
 	if (full_node_max.Y > inner_max.Y)
-		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_max.Y + 1, full_node_min.Z),
-			v3s16(inner_max.X, full_node_max.Y, full_node_max.Z)),
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_max.Y + 1, inner_min.Z),
+			v3s16(inner_max.X, full_node_max.Y, inner_max.Z)),
 			VOXELFLAG_NO_DATA);
 	if (full_node_min.Z < inner_min.Z)
 		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_min.Y, full_node_min.Z),
