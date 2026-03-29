@@ -213,10 +213,10 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed,
 		sidelen_now = carea_size;
 
 	int area = sidelen_now * sidelen_now;
-	s16 x_start = floor_div_s16(place_nmin.X, sidelen_now) * sidelen_now;
-	s16 z_start = floor_div_s16(place_nmin.Z, sidelen_now) * sidelen_now;
-	s16 x_end = floor_div_s16(place_nmax.X, sidelen_now) * sidelen_now;
-	s16 z_end = floor_div_s16(place_nmax.Z, sidelen_now) * sidelen_now;
+	s16 x_start = floor_div_s16(chunk_nmin.X, sidelen_now) * sidelen_now;
+	s16 z_start = floor_div_s16(chunk_nmin.Z, sidelen_now) * sidelen_now;
+	s16 x_end = floor_div_s16(chunk_nmax.X, sidelen_now) * sidelen_now;
+	s16 z_end = floor_div_s16(chunk_nmax.Z, sidelen_now) * sidelen_now;
 
 	for (s16 z0 = z_start; z0 <= z_end; z0 += sidelen_now)
 	for (s16 x0 = x_start; x0 <= x_end; x0 += sidelen_now) {
