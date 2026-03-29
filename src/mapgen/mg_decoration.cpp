@@ -20,6 +20,8 @@ inline s16 floor_div_s16(s16 a, s16 b)
 {
 	s32 aa = a;
 	s32 bb = b;
+	// Use mathematical floor division so negative world coordinates map to the
+	// same sidelen grid regardless of generation chunk/order.
 	return (aa >= 0) ? (aa / bb) : -((s16)((-aa + bb - 1) / bb));
 }
 
@@ -179,6 +181,7 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed,
 	}
 
 	s16 sidelen_now = sidelen;
+	// Keep generation robust against malformed decoration definitions.
 	if (sidelen_now <= 0)
 		sidelen_now = 1;
 	// If chunksize is changed it may no longer be divisible by sidelen
@@ -566,11 +569,16 @@ size_t DecoLSystem::generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling)
 
 v3s16 DecoLSystem::getOvergenerate() const
 {
+	constexpr s16 LSYS_BASE_OVERGENERATE = 16;
+	constexpr s16 LSYS_ITER_EXTENT_MULTIPLIER = 4;
+
 	if (!tree_def)
-		return v3s16(16);
+		return v3s16(LSYS_BASE_OVERGENERATE);
 
 	s16 max_iter = std::max(tree_def->iterations, 1);
-	s16 extent = std::max<s16>(16,
-		(s16)(max_iter * 4 + std::abs((int)place_offset_y)));
+	// L-system trees can branch in multiple directions each iteration.
+	s16 extent = std::max<s16>(LSYS_BASE_OVERGENERATE,
+		(s16)(max_iter * LSYS_ITER_EXTENT_MULTIPLIER +
+			std::abs((int)place_offset_y)));
 	return v3s16(extent);
 }
