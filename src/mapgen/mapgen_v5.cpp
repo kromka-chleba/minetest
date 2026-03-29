@@ -284,7 +284,7 @@ int MapgenV5::generateBaseTerrain()
 	noise_ground->noiseMap3D(node_min.X, node_min.Y - 1, node_min.Z);
 
 	for (s16 z=node_min.Z; z<=node_max.Z; z++) {
-		for (s16 y=node_min.Y - 1; y<=node_max.Y + 1; y++) {
+		for (s16 y=node_min.Y - 1; y<=node_max.Y; y++) {
 			u32 vi = vm->m_area.index(node_min.X, y, z);
 			for (s16 x=node_min.X; x<=node_max.X; x++, vi++, index++, index2d++) {
 				if (vm->m_data[vi].getContent() != CONTENT_IGNORE)

@@ -405,7 +405,7 @@ int MapgenValleys::generateTerrain()
 		u32 index_3d = (z - node_min.Z) * zstride_1u1d + (x - node_min.X);
 		u32 index_data = vm->m_area.index(x, node_min.Y - 1, z);
 
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1; y++) {
+		for (s16 y = node_min.Y - 1; y <= node_max.Y; y++) {
 			if (vm->m_data[index_data].getContent() == CONTENT_IGNORE) {
 				float n_fill = noise_inter_valley_fill->result[index_3d];
 				float surface_delta = (float)y - surface_y;

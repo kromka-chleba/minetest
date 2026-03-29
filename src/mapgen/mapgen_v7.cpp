@@ -522,7 +522,7 @@ int MapgenV7::generateTerrain()
 		noise_floatland->noiseMap3D(node_min.X, node_min.Y - 1, node_min.Z);
 
 		// Cache floatland noise offset values, for floatland tapering
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1; y++, cache_index++) {
+		for (s16 y = node_min.Y - 1; y <= node_max.Y; y++, cache_index++) {
 			float float_offset = 0.0f;
 			if (y > float_taper_ymax) {
 				float_offset = std::pow((y - float_taper_ymax) / (float)floatland_taper,
@@ -559,7 +559,7 @@ int MapgenV7::generateTerrain()
 		u32 vi = vm->m_area.index(x, node_min.Y - 1, z);
 		u32 index3d = (z - node_min.Z) * zstride_1u1d + (x - node_min.X);
 
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1;
+		for (s16 y = node_min.Y - 1; y <= node_max.Y;
 				y++,
 				index3d += ystride,
 				VoxelArea::add_y(em, vi, 1),

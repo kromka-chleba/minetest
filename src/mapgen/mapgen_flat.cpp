@@ -307,7 +307,7 @@ s16 MapgenFlat::generateTerrain()
 		}
 
 		u32 vi = vm->m_area.index(x, node_min.Y - 1, z);
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1; y++) {
+		for (s16 y = node_min.Y - 1; y <= node_max.Y; y++) {
 			if (vm->m_data[vi].getContent() == CONTENT_IGNORE) {
 				if (y <= stone_level) {
 					vm->m_data[vi] = n_stone;

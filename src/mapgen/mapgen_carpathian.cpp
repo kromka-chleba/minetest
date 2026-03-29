@@ -505,7 +505,7 @@ int MapgenCarpathian::generateTerrain()
 		u32 index3d = (z - node_min.Z) * zstride_1u1d + (x - node_min.X);
 		u32 vi = vm->m_area.index(x, node_min.Y - 1, z);
 
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1;
+		for (s16 y = node_min.Y - 1; y <= node_max.Y;
 				y++,
 				index3d += ystride,
 				VoxelArea::add_y(em, vi, 1)) {
