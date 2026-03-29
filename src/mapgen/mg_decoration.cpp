@@ -6,11 +6,31 @@
 #include "mg_decoration.h"
 #include "mg_schematic.h"
 #include "mapgen.h"
+#include "mg_biome.h"
 #include "noise.h"
 #include "map.h"
 #include <algorithm>
+#include <cstdlib>
 #include <vector>
 #include "mapgen/treegen.h"
+
+namespace {
+
+inline s16 floor_div_s16(s16 a, s16 b)
+{
+	s32 aa = a;
+	s32 bb = b;
+	return (aa >= 0) ? (aa / bb) : -((s16)((-aa + bb - 1) / bb));
+}
+
+inline bool isInArea(v3s16 p, v3s16 minp, v3s16 maxp)
+{
+	return p.X >= minp.X && p.X <= maxp.X &&
+		p.Y >= minp.Y && p.Y <= maxp.Y &&
+		p.Z >= minp.Z && p.Z <= maxp.Z;
+}
+
+} // namespace
 
 
 const FlagDesc flagdesc_deco[] = {
@@ -42,7 +62,24 @@ void DecorationManager::placeAllDecos(Mapgen *mg, u32 blockseed,
 		if (!deco)
 			continue;
 
-		deco->placeDeco(mg, blockseed, nmin, nmax);
+		v3s16 overgen = deco->getOvergenerate();
+		if (deco->nspawnby >= 0) {
+			overgen.X = std::max<s16>(overgen.X, 1);
+			overgen.Z = std::max<s16>(overgen.Z, 1);
+			overgen.Y = std::max<s16>(overgen.Y,
+				(s16)(std::abs((int)deco->check_offset) + 1));
+		}
+
+		v3s16 place_nmin = nmin - overgen;
+		v3s16 place_nmax = nmax + overgen;
+		place_nmin.X = std::max(place_nmin.X, mg->vm->m_area.MinEdge.X);
+		place_nmin.Y = std::max(place_nmin.Y, mg->vm->m_area.MinEdge.Y);
+		place_nmin.Z = std::max(place_nmin.Z, mg->vm->m_area.MinEdge.Z);
+		place_nmax.X = std::min(place_nmax.X, mg->vm->m_area.MaxEdge.X);
+		place_nmax.Y = std::min(place_nmax.Y, mg->vm->m_area.MaxEdge.Y);
+		place_nmax.Z = std::min(place_nmax.Z, mg->vm->m_area.MaxEdge.Z);
+
+		deco->placeDeco(mg, blockseed, nmin, nmax, place_nmin, place_nmax);
 		blockseed++;
 	}
 }
@@ -124,33 +161,49 @@ bool Decoration::canPlaceDecoration(MMVManip *vm, v3s16 p)
 
 void Decoration::placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax)
 {
+	placeDeco(mg, blockseed, nmin, nmax, nmin, nmax);
+}
+
+void Decoration::placeDeco(Mapgen *mg, u32 blockseed,
+	v3s16 chunk_nmin, v3s16 chunk_nmax,
+	v3s16 place_nmin, v3s16 place_nmax)
+{
 	// Skip if y ranges do not overlap
-	if (nmax.Y < y_min || y_max < nmin.Y)
+	if (place_nmax.Y < y_min || y_max < place_nmin.Y)
 		return;
 
-	PcgRandom ps(blockseed + 53);
-	int carea_size = nmax.X - nmin.X + 1;
-	if (nmax.Z - nmin.Z + 1 != carea_size) {
+	int carea_size = chunk_nmax.X - chunk_nmin.X + 1;
+	if (chunk_nmax.Z - chunk_nmin.Z + 1 != carea_size) {
 		// TODO: this is a stupid restriction, which we should lift
 		throw BaseException("Decoration::placeDeco requires a square area (XZ)");
 	}
 
-	// Divide area into parts
-	// If chunksize is changed it may no longer be divisable by sidelen
-	if (carea_size % sidelen != 0)
-		sidelen = carea_size;
+	s16 sidelen_now = sidelen;
+	if (sidelen_now <= 0)
+		sidelen_now = 1;
+	// If chunksize is changed it may no longer be divisible by sidelen
+	if (carea_size % sidelen_now != 0)
+		sidelen_now = carea_size;
 
-	int area = sidelen * sidelen;
+	int area = sidelen_now * sidelen_now;
+	s16 x_start = floor_div_s16(place_nmin.X, sidelen_now) * sidelen_now;
+	s16 z_start = floor_div_s16(place_nmin.Z, sidelen_now) * sidelen_now;
+	s16 x_end = floor_div_s16(place_nmax.X, sidelen_now) * sidelen_now;
+	s16 z_end = floor_div_s16(place_nmax.Z, sidelen_now) * sidelen_now;
 
-	for (s16 z0 = 0; z0 < carea_size; z0 += sidelen)
-	for (s16 x0 = 0; x0 < carea_size; x0 += sidelen) {
-		v2s16 p2d_min(nmin.X + x0, nmin.Z + z0);
-		v2s16 p2d_max(nmin.X + x0 + sidelen - 1, nmin.Z + z0 + sidelen - 1);
+	for (s16 z0 = z_start; z0 <= z_end; z0 += sidelen_now)
+	for (s16 x0 = x_start; x0 <= x_end; x0 += sidelen_now) {
+		v2s16 p2d_min(x0, z0);
+		v2s16 p2d_max(x0 + sidelen_now - 1, z0 + sidelen_now - 1);
+
+		u32 part_seed = Mapgen::getBlockSeed2(v3s16(p2d_min.X, 0, p2d_min.Y),
+			mapseed ^ index);
+		PcgRandom ps(part_seed + 53);
 
 		bool cover = false;
 		// Amount of decorations
 		float nval = (flags & DECO_USE_NOISE) ?
-			NoiseFractal2D(&np, p2d_min.X + sidelen / 2, p2d_min.Y + sidelen / 2, mapseed) :
+			NoiseFractal2D(&np, p2d_min.X + sidelen_now / 2, p2d_min.Y + sidelen_now / 2, mapseed) :
 			fill_ratio;
 		u32 deco_count = 0;
 
@@ -184,26 +237,26 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax)
 					x = p2d_min.X;
 				}
 			}
-			int mapindex = carea_size * (z - nmin.Z) + (x - nmin.X);
+			if (x < place_nmin.X || x > place_nmax.X ||
+					z < place_nmin.Z || z > place_nmax.Z)
+				continue;
+
+			bool in_chunk = x >= chunk_nmin.X && x <= chunk_nmax.X &&
+				z >= chunk_nmin.Z && z <= chunk_nmax.Z;
+			int mapindex = in_chunk ?
+				(carea_size * (z - chunk_nmin.Z) + (x - chunk_nmin.X)) : -1;
 
 			if ((flags & DECO_ALL_FLOORS) ||
 					(flags & DECO_ALL_CEILINGS)) {
 				// All-surfaces decorations
-				// Check biome of column
-				if (mg->biomemap && !biomes.empty()) {
-					auto iter = biomes.find(mg->biomemap[mapindex]);
-					if (iter == biomes.end())
-						continue;
-				}
-
 				// Get all floors and ceilings in node column
-				u16 size = (nmax.Y - nmin.Y + 1) / 2;
+				u16 size = (place_nmax.Y - place_nmin.Y + 1) / 2;
 				std::vector<s16> floors;
 				std::vector<s16> ceilings;
 				floors.reserve(size);
 				ceilings.reserve(size);
 
-				mg->getSurfaces(v2s16(x, z), nmin.Y, nmax.Y, floors, ceilings);
+				mg->getSurfaces(v2s16(x, z), place_nmin.Y, place_nmax.Y, floors, ceilings);
 
 				if (flags & DECO_ALL_FLOORS) {
 					// Floor decorations
@@ -211,9 +264,21 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax)
 						if (y < y_min || y > y_max)
 							continue;
 
+						if (!biomes.empty()) {
+							biome_t biome = BIOME_NONE;
+							if (in_chunk && mg->biomemap)
+								biome = mg->biomemap[mapindex];
+							else if (mg->biomegen)
+								biome = mg->biomegen->calcBiomeAtPoint(v3s16(x, y, z))->index;
+
+							if (biomes.find(biome) == biomes.end())
+								continue;
+						}
+
 						v3s16 pos(x, y, z);
 						if (generate(mg->vm, &ps, pos, false))
-							mg->gennotify.addDecorationEvent(pos, index);
+							if (isInArea(pos, chunk_nmin, chunk_nmax))
+								mg->gennotify.addDecorationEvent(pos, index);
 					}
 				}
 
@@ -223,32 +288,50 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax)
 						if (y < y_min || y > y_max)
 							continue;
 
+						if (!biomes.empty()) {
+							biome_t biome = BIOME_NONE;
+							if (in_chunk && mg->biomemap)
+								biome = mg->biomemap[mapindex];
+							else if (mg->biomegen)
+								biome = mg->biomegen->calcBiomeAtPoint(v3s16(x, y, z))->index;
+
+							if (biomes.find(biome) == biomes.end())
+								continue;
+						}
+
 						v3s16 pos(x, y, z);
 						if (generate(mg->vm, &ps, pos, true))
-							mg->gennotify.addDecorationEvent(pos, index);
+							if (isInArea(pos, chunk_nmin, chunk_nmax))
+								mg->gennotify.addDecorationEvent(pos, index);
 					}
 				}
 			} else { // Heightmap decorations
 				s16 y = -MAX_MAP_GENERATION_LIMIT;
 				if (flags & DECO_LIQUID_SURFACE)
-					y = mg->findLiquidSurface(v2s16(x, z), nmin.Y, nmax.Y);
-				else if (mg->heightmap)
+					y = mg->findLiquidSurface(v2s16(x, z), place_nmin.Y, place_nmax.Y);
+				else if (in_chunk && mg->heightmap)
 					y = mg->heightmap[mapindex];
 				else
-					y = mg->findGroundLevel(v2s16(x, z), nmin.Y, nmax.Y);
+					y = mg->findGroundLevel(v2s16(x, z), place_nmin.Y, place_nmax.Y);
 
-				if (y < y_min || y > y_max || y < nmin.Y || y > nmax.Y)
+				if (y < y_min || y > y_max || y < place_nmin.Y || y > place_nmax.Y)
 					continue;
 
-				if (mg->biomemap && !biomes.empty()) {
-					auto iter = biomes.find(mg->biomemap[mapindex]);
-					if (iter == biomes.end())
+				if (!biomes.empty()) {
+					biome_t biome = BIOME_NONE;
+					if (in_chunk && mg->biomemap)
+						biome = mg->biomemap[mapindex];
+					else if (mg->biomegen)
+						biome = mg->biomegen->calcBiomeAtPoint(v3s16(x, y, z))->index;
+
+					if (biomes.find(biome) == biomes.end())
 						continue;
 				}
 
 				v3s16 pos(x, y, z);
 				if (generate(mg->vm, &ps, pos, false))
-					mg->gennotify.addDecorationEvent(pos, index);
+					if (isInArea(pos, chunk_nmin, chunk_nmax))
+						mg->gennotify.addDecorationEvent(pos, index);
 			}
 		}
 	}
@@ -450,6 +533,16 @@ size_t DecoSchematic::generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceilin
 	return 1;
 }
 
+v3s16 DecoSchematic::getOvergenerate() const
+{
+	if (!schematic)
+		return v3s16(0);
+
+	s16 overgen_xz = std::max(schematic->size.X, schematic->size.Z);
+	s16 overgen_y = schematic->size.Y + std::abs((int)place_offset_y);
+	return v3s16(overgen_xz, overgen_y, overgen_xz);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 ObjDef *DecoLSystem::clone() const
 {
@@ -469,4 +562,15 @@ size_t DecoLSystem::generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling)
 	// Make sure that tree_def can't be modified, since it is shared.
 	const auto &ref = *tree_def;
 	return treegen::make_ltree(*vm, p, ref);
+}
+
+v3s16 DecoLSystem::getOvergenerate() const
+{
+	if (!tree_def)
+		return v3s16(16);
+
+	s16 max_iter = std::max(tree_def->iterations, 1);
+	s16 extent = std::max<s16>(16,
+		(s16)(max_iter * 4 + std::abs((int)place_offset_y)));
+	return v3s16(extent);
 }
