@@ -114,6 +114,7 @@ public:
 	void listAllLoadableBlocks(std::vector<v3s16> &dst);
 	void listAllLoadedBlocks(std::vector<v3s16> &dst);
 
+	const MapgenParams *getMapgenParams() const;
 	MapgenParams *getMapgenParams();
 
 	bool saveBlock(MapBlock *block) override;

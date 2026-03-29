@@ -595,8 +595,7 @@ void MapgenBasic::discardPadding()
 {
 	// Remove padding slices (loaded from neighbors) from being written back.
 	// This prevents overgeneration artifacts such as stray stone layers or
-	// clipped decorations at chunk boundaries. Vertical padding is preserved so
-	// tall decorations (trees) can span chunk Y slices without being cut.
+	// clipped decorations at chunk boundaries.
 	if (full_node_min.X < node_min.X)
 		vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
 			v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
@@ -604,6 +603,14 @@ void MapgenBasic::discardPadding()
 	if (full_node_max.X > node_max.X)
 		vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
 			v3s16(full_node_max.X, node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Y < node_min.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
+			v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Y > node_max.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
+			v3s16(node_max.X, full_node_max.Y, node_max.Z)),
 			VOXELFLAG_NO_DATA);
 	if (full_node_min.Z < node_min.Z)
 		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
@@ -1058,8 +1065,9 @@ void MapgenBasic::setupGenContext(BlockMakeData *data)
 	this->ndef = data->nodedef;
 	node_min = data->blockpos_min * MAP_BLOCKSIZE;
 	node_max = (data->blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (data->blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (data->blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	// Match the actual VoxelManipulator extent (includes emerge overgeneration)
+	full_node_min = vm->m_area.MinEdge;
+	full_node_max = vm->m_area.MaxEdge;
 	blockseed = getBlockSeed2(full_node_min, seed);
 }
 

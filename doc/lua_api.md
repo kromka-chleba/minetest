@@ -5064,6 +5064,12 @@ Decoration types
 
 The varying types of decorations that can be placed.
 
+**Mapgen overgeneration limit:** The map generator only loads a fixed overgeneration
+margin when placing decorations — roughly two-fifths of a chunk per axis, rounded
+to whole mapblocks (never more than one full chunk). Any schematic content that
+extends beyond that margin is clipped in the current chunk; neighbouring chunks
+generate their own overlapping fragments to complete the structure.
+
 `simple`
 --------
 

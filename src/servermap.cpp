@@ -173,11 +173,17 @@ ServerMap::~ServerMap()
 	deleteDetachedBlocks();
 }
 
-MapgenParams *ServerMap::getMapgenParams()
+const MapgenParams *ServerMap::getMapgenParams() const
 {
 	// getMapgenParams() should only ever be called after Server is initialized
 	assert(settings_mgr.mapgen_params != NULL);
 	return settings_mgr.mapgen_params;
+}
+
+MapgenParams *ServerMap::getMapgenParams()
+{
+	return const_cast<MapgenParams *>(
+		static_cast<const ServerMap *>(this)->getMapgenParams());
 }
 
 u64 ServerMap::getSeed()
@@ -280,14 +286,29 @@ v3s16 ServerMap::getExtraBlockBorder(u8 target_stage) const
 		if (!decomgr)
 			return border;
 
+		const v3s16 csize = getMapgenParams()->chunksize;
+		auto margin_cap_blocks = [](s16 chunk_blocks) -> s16 {
+			// Prefer ~2/5 of the chunk, rounded to whole mapblocks (add 2 to
+			// round half up), but never exceed one full chunk along any axis.
+			s16 preferred = (2 * chunk_blocks + 2) / 5;
+			return rangelim(preferred, (s16)1, chunk_blocks);
+		};
+		const v3s16 cap_blocks(
+			margin_cap_blocks(csize.X),
+			margin_cap_blocks(csize.Y),
+			margin_cap_blocks(csize.Z));
+
 		const v3s16 overgen = decomgr->getMaxOvergenerate();
 		auto to_block_radius = [](s16 nodes) -> s16 {
 			return std::max<s16>(1, (nodes + MAP_BLOCKSIZE - 1) / MAP_BLOCKSIZE);
 		};
 
-		border.X = std::max(border.X, to_block_radius(overgen.X));
-		border.Y = std::max(border.Y, to_block_radius(overgen.Y));
-		border.Z = std::max(border.Z, to_block_radius(overgen.Z));
+		border.X = std::max(border.X,
+			std::min(to_block_radius(overgen.X), cap_blocks.X));
+		border.Y = std::max(border.Y,
+			std::min(to_block_radius(overgen.Y), cap_blocks.Y));
+		border.Z = std::max(border.Z,
+			std::min(to_block_radius(overgen.Z), cap_blocks.Z));
 	}
 
 	return border;
