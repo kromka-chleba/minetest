@@ -211,7 +211,7 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed,
 	const s16 sidelen_offset = sidelen_now - 1;
 	// Anchor cells for processing are derived from the full placement area
 	// (central chunk + overgeneration margin). This lets anchors just outside
-	// the chunk place nodes inside it, while still clamping to the VM bounds.
+	// the chunk place nodes inside it.
 	const s16 x_anchor_min = floor_div_s16(place_nmin.X - sidelen_offset, sidelen_now) * sidelen_now;
 	const s16 z_anchor_min = floor_div_s16(place_nmin.Z - sidelen_offset, sidelen_now) * sidelen_now;
 	const s16 x_anchor_max = floor_div_s16(place_nmax.X, sidelen_now) * sidelen_now;
