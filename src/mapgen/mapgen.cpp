@@ -591,7 +591,7 @@ void Mapgen::spreadLight(const v3s16 &nmin, const v3s16 &nmax)
 	//printf("spreadLight: %lums\n", t.stop());
 }
 
-void Mapgen::discardPadding()
+void MapgenBasic::discardPadding()
 {
 	// Remove padding slices (loaded from neighbors) from being written back.
 	// This prevents overgeneration artifacts such as stray stone layers or

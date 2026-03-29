@@ -222,8 +222,6 @@ public:
 	 * @param nmax ^
 	 */
 	void spreadLight(const v3s16 &nmin, const v3s16 &nmax);
-	// Exclude the outer padding from being written back to the map
-	void discardPadding();
 
 	virtual void makeChunk(BlockMakeData *data) {}
 
@@ -330,6 +328,8 @@ public:
 	void generateDecorations(BlockMakeData *data) override;
 	void generateDust(BlockMakeData *data) override;
 	void generateLighting(BlockMakeData *data) override;
+	// Exclude the outer padding from being written back to the map
+	void discardPadding();
 
 protected:
 	BiomeManager *m_bmgr = nullptr;
