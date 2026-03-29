@@ -222,6 +222,8 @@ public:
 	 * @param nmax ^
 	 */
 	void spreadLight(const v3s16 &nmin, const v3s16 &nmax);
+	// Exclude the outer padding from being written back to the map
+	void discardPadding();
 
 	virtual void makeChunk(BlockMakeData *data) {}
 

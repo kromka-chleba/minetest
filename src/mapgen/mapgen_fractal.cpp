@@ -414,6 +414,7 @@ void MapgenFractal::generateLighting(BlockMakeData *data)
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
 			full_node_min, full_node_max);
+	discardPadding();
 	this->generating = false;
 }
 

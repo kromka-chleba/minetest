@@ -591,10 +591,44 @@ void Mapgen::spreadLight(const v3s16 &nmin, const v3s16 &nmax)
 	//printf("spreadLight: %lums\n", t.stop());
 }
 
+void Mapgen::discardPadding()
+{
+	// Remove padding slices (loaded from neighbours) from being written back.
+	// This prevents overgeneration artifacts such as stray stone layers or
+	// clipped decorations at chunk boundaries.
+	const v3s16 inner_min = node_min;
+	const v3s16 inner_max = node_max;
+
+	if (full_node_min.X < inner_min.X)
+		vm->setFlags(VoxelArea(full_node_min,
+			v3s16(inner_min.X - 1, full_node_max.Y, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.X > inner_max.X)
+		vm->setFlags(VoxelArea(v3s16(inner_max.X + 1, full_node_min.Y, full_node_min.Z),
+			full_node_max),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Y < inner_min.Y)
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, full_node_min.Z),
+			v3s16(inner_max.X, inner_min.Y - 1, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Y > inner_max.Y)
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, inner_max.Y + 1, full_node_min.Z),
+			v3s16(inner_max.X, full_node_max.Y, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Z < inner_min.Z)
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, full_node_min.Z),
+			v3s16(inner_max.X, full_node_max.Y, inner_min.Z - 1)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Z > inner_max.Z)
+		vm->setFlags(VoxelArea(v3s16(inner_min.X, full_node_min.Y, inner_max.Z + 1),
+			v3s16(inner_max.X, full_node_max.Y, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
+}
+
 
 ////
 //// MapgenBasic
-////
+//// 
 
 MapgenBasic::MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerge)
 	: Mapgen(mapgenid, params, emerge)
@@ -1109,6 +1143,7 @@ void MapgenBasic::generateLighting(BlockMakeData *data)
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
 			full_node_min, full_node_max);
+	discardPadding();
 	this->generating = false;
 }
 

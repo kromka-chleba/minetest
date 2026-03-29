@@ -483,6 +483,7 @@ void MapgenV7::generateLighting(BlockMakeData *data)
 		// uses the 3×3×3 neighbourhood instead of padded bounds.
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
 			full_node_min, full_node_max, propagate_shadow);
+	discardPadding();
 	this->generating = false;
 }
 
