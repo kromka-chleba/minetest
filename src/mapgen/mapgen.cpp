@@ -1122,10 +1122,7 @@ void MapgenBasic::generateDecorations(BlockMakeData *data)
 {
 	setupGenContext(data);
 	if (flags & MG_DECORATIONS)
-		// Generate decorations across the full overgenerated area so anchors in
-		// the padding still contribute fragments inside the central chunk.
-		m_emerge->decomgr->placeAllDecos(this, blockseed,
-			full_node_min, full_node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
 	this->generating = false;
 }
 
