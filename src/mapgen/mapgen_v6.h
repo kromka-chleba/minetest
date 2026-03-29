@@ -129,6 +129,7 @@ public:
 	void generateOres(BlockMakeData *data) override;
 	void generateDecorations(BlockMakeData *data) override;
 	void generateLighting(BlockMakeData *data) override;
+	void discardPadding();
 
 	float baseTerrainLevel(float terrain_base, float terrain_higher,
 		float steepness, float height_select);
