@@ -659,3 +659,39 @@ world can still be opened.
 5. **Stage skipping for non-generated-content worlds**: Worlds using
    `mapgen_singlenode` can skip stages 32–96 entirely; the stage list
    in `world.mt` would contain only `16,239`.
+
+## 11. Implemented Deterministic Decoration Overgeneration
+
+The implemented system uses **deterministic anchor overreach** with
+**chunk-local writeback**:
+
+1. **Per-decoration overgenerate radius in nodes**:
+   each `Decoration` reports a radius (`getOvergenerate()`), with concrete
+   implementations for schematics and L-systems.
+2. **Stage-aware VoxelManipulator padding in blocks**:
+   for `target_stage >= STAGE_DECORATIONS`, `ServerMap::initBlockMake()`
+   expands the loaded block border to:
+   `max(EMERGE_EXTRA_BORDER, ceil(max_overgenerate / MAP_BLOCKSIZE))`
+   per axis, where `max_overgenerate` is computed from all registered
+   decorations.
+3. **Deterministic world-space part seeding**:
+   decoration candidate parts are seeded from world-space part coordinates,
+   so generation does not depend on chunk order or thread scheduling.
+4. **Expanded anchor evaluation + trimmed persistence**:
+   decoration anchor search runs in an expanded node region
+   (`chunk_bounds ± overgenerate`) but only center-chunk blocks are written
+   back in `finishBlockMake()`. Any neighbor-region writes in VM padding are
+   explicitly discarded before blit.
+
+### Guarantees
+
+- **Reproducible across threads**: no dependence on processing order.
+- **No cross-chunk persistence**: only owner chunk is committed.
+- **Order-independent neighbors**: chunks A/B produce identical final borders
+  regardless of which chunk emerges first.
+
+### Performance Notes
+
+- Extra VM border is enabled only for decoration-and-later stages.
+- Border size is rounded to whole mapblocks, minimizing per-stage variability.
+- Deterministic per-part seeding avoids global synchronization/cache lookups.

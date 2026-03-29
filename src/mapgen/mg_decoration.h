@@ -143,6 +143,7 @@ public:
 	}
 
 	void placeAllDecos(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax);
+	v3s16 getMaxOvergenerate() const;
 
 private:
 	DecorationManager() {};

@@ -63,6 +63,7 @@ public:
 	/// @brief copy data from map to prepare for mapgen
 	/// @return true if mapgen should actually happen
 	bool initBlockMake(v3s16 blockpos, BlockMakeData *data);
+	v3s16 getExtraBlockBorder(u8 target_stage) const;
 	/// @brief write data back to map after mapgen
 	/// @param now current game time
 	void finishBlockMake(BlockMakeData *data,

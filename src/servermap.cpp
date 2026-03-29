@@ -21,6 +21,7 @@
 #include "reflowscan.h"
 #include "emerge.h"
 #include "mapgen/mg_biome.h"
+#include "mapgen/mg_decoration.h"
 #include "config.h"
 #include "server.h"
 #include "serverenvironment.h"
@@ -210,8 +211,9 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax);
 
-	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = bpmin - extra_border;
+	const v3s16 full_bpmax = bpmax + extra_border;
 
 	// Do nothing if not fully inside mapgen limits
 	if (blockpos_over_mapgen_limit(full_bpmin) ||
@@ -266,12 +268,38 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	return true;
 }
 
+v3s16 ServerMap::getExtraBlockBorder(u8 target_stage) const
+{
+	// Keep default border for terrain/caves/ores/lighting.
+	v3s16 border = EMERGE_EXTRA_BORDER;
+
+	// Decorations need a wider deterministic neighborhood to replicate
+	// neighbor-owned anchors without cross-chunk writes.
+	if (target_stage >= STAGE_DECORATIONS && m_emerge) {
+		const DecorationManager *decomgr = m_emerge->getDecorationManager();
+		if (!decomgr)
+			return border;
+
+		const v3s16 overgen = decomgr->getMaxOvergenerate();
+		auto to_block_radius = [](s16 nodes) -> s16 {
+			return std::max<s16>(1, (nodes + MAP_BLOCKSIZE - 1) / MAP_BLOCKSIZE);
+		};
+
+		border.X = std::max(border.X, to_block_radius(overgen.X));
+		border.Y = std::max(border.Y, to_block_radius(overgen.Y));
+		border.Z = std::max(border.Z, to_block_radius(overgen.Z));
+	}
+
+	return border;
+}
+
 void ServerMap::cancelBlockMake(BlockMakeData *data)
 {
 	assert(data->vmanip); // no vmanip = initBlockMake did not complete (caller mistake)
 
-	const v3s16 full_bpmin = data->blockpos_min - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = data->blockpos_max + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = data->blockpos_min - extra_border;
+	const v3s16 full_bpmax = data->blockpos_max + extra_border;
 	for (s16 x = full_bpmin.X; x <= full_bpmax.X; x++)
 	for (s16 z = full_bpmin.Z; z <= full_bpmax.Z; z++)
 	for (s16 y = full_bpmin.Y; y <= full_bpmax.Y; y++) {
@@ -301,10 +329,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
 		const v3s16 node_max =
 			(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+		const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
 		const v3s16 full_node_min =
-			(bpmin - EMERGE_EXTRA_BORDER) * MAP_BLOCKSIZE;
+			(bpmin - extra_border) * MAP_BLOCKSIZE;
 		const v3s16 full_node_max =
-			(bpmax + EMERGE_EXTRA_BORDER + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
+			(bpmax + extra_border + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
 			v3s16(1, 1, 1);
 
 		MMVManip *vm = data->vmanip;
@@ -372,8 +401,9 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			MOD_REASON_EXPIRE_IS_AIR);
 	}
 
-	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = bpmin - extra_border;
+	const v3s16 full_bpmax = bpmax + extra_border;
 
 	v3s16 bp;
 	for (bp.X = full_bpmin.X; bp.X <= full_bpmax.X; bp.X++)

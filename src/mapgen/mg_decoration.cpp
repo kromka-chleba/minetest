@@ -86,6 +86,30 @@ void DecorationManager::placeAllDecos(Mapgen *mg, u32 blockseed,
 	}
 }
 
+v3s16 DecorationManager::getMaxOvergenerate() const
+{
+	v3s16 max_overgen(0);
+	for (size_t i = 0; i != m_objects.size(); i++) {
+		Decoration *deco = (Decoration *)m_objects[i];
+		if (!deco)
+			continue;
+
+		v3s16 overgen = deco->getOvergenerate();
+		if (deco->nspawnby >= 0) {
+			overgen.X = std::max<s16>(overgen.X, 1);
+			overgen.Z = std::max<s16>(overgen.Z, 1);
+			overgen.Y = std::max<s16>(overgen.Y,
+				(s16)(std::abs((int)deco->check_offset) + 1));
+		}
+
+		max_overgen.X = std::max(max_overgen.X, overgen.X);
+		max_overgen.Y = std::max(max_overgen.Y, overgen.Y);
+		max_overgen.Z = std::max(max_overgen.Z, overgen.Z);
+	}
+
+	return max_overgen;
+}
+
 DecorationManager *DecorationManager::clone() const
 {
 	auto mgr = new DecorationManager();
