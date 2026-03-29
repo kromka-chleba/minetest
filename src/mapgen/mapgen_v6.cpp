@@ -507,9 +507,10 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 	node_min = blockpos_min * MAP_BLOCKSIZE;
 	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
 
-	// Full allocated area
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	// Full allocated area matches the VoxelManipulator extent (includes
+	// any overgeneration margin requested by the caller).
+	full_node_min = vm->m_area.MinEdge;
+	full_node_max = vm->m_area.MaxEdge;
 
 	central_area_size = node_max - node_min + v3s16(1, 1, 1);
 	assert(central_area_size.X == central_area_size.Z);

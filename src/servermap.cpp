@@ -342,26 +342,24 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
 
-	if (data->target_stage < STAGE_DECORATIONS) {
-		// Never write overgenerated neighbor padding back to the map for
-		// early stages. Decoration overgeneration needs the padding to persist
-		// so chunks can share cross-boundary structures deterministically.
-		const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
-		const v3s16 node_max =
-			(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-		const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
-		const v3s16 full_node_min =
-			(bpmin - extra_border) * MAP_BLOCKSIZE;
-		const v3s16 full_node_max =
-			(bpmax + extra_border + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
-			v3s16(1, 1, 1);
+	// Never write overgenerated neighbor padding back to the map. Each stage
+	// reads neighbours from disk, generates over the enlarged area, and only
+	// the central chunk is authoritative.
+	const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
+	const v3s16 node_max =
+		(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_node_min =
+		(bpmin - extra_border) * MAP_BLOCKSIZE;
+	const v3s16 full_node_max =
+		(bpmax + extra_border + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
+		v3s16(1, 1, 1);
 
-		MMVManip *vm = data->vmanip;
-		// Mark everything as non-writable first, then unmask the authoritative
-		// center chunk volume. This correctly excludes edge/corner padding too.
-		vm->setFlags(VoxelArea(full_node_min, full_node_max), VOXELFLAG_NO_DATA);
-		vm->clearFlags(VoxelArea(node_min, node_max), VOXELFLAG_NO_DATA);
-	}
+	MMVManip *vm = data->vmanip;
+	// Mark everything as non-writable first, then unmask the authoritative
+	// center chunk volume. This correctly excludes edge/corner padding too.
+	vm->setFlags(VoxelArea(full_node_min, full_node_max), VOXELFLAG_NO_DATA);
+	vm->clearFlags(VoxelArea(node_min, node_max), VOXELFLAG_NO_DATA);
 
 	/*
 		Blit generated stuff to map
@@ -401,7 +399,6 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			MOD_REASON_EXPIRE_IS_AIR);
 	}
 
-	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
 	const v3s16 full_bpmin = bpmin - extra_border;
 	const v3s16 full_bpmax = bpmax + extra_border;
 
