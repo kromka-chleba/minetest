@@ -485,6 +485,9 @@ void Mapgen::calcLighting(v3s16 nmin, v3s16 nmax, v3s16 full_nmin, v3s16 full_nm
 				u32 i = vm->m_area.index(x, y, z);
 				if (vm->m_data[i].getContent() == CONTENT_IGNORE) {
 					vm->m_data[i] = MapNode(CONTENT_AIR);
+					// Ensure sunlight can originate from padding even if
+					// the neighbor column was previously unlit.
+					vm->m_data[i].param1 = LIGHT_SUN;
 					temp_air_indices.push_back(i);
 				}
 			}
