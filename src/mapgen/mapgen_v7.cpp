@@ -312,8 +312,8 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 	v3s16 blockpos_max = data->blockpos_max;
 	node_min = blockpos_min * MAP_BLOCKSIZE;
 	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = vm->m_area.MinEdge;
+	full_node_max = vm->m_area.MaxEdge;
 
 	blockseed = getBlockSeed2(full_node_min, seed);
 
@@ -484,7 +484,6 @@ void MapgenV7::generateLighting(BlockMakeData *data)
 		// uses the 3×3×3 neighbourhood instead of padded bounds.
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
 			full_node_min, full_node_max, propagate_shadow);
-	discardPadding();
 	this->generating = false;
 }
 

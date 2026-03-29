@@ -342,11 +342,10 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
 
-	// Never write overgenerated neighbor padding back to the map.
-	// Padding is loaded only to allow boundary-safe generation and must not
-	// persist, otherwise parallel emerge threads can overwrite each other at
-	// chunk boundaries.
-	{
+	if (data->target_stage < STAGE_DECORATIONS) {
+		// Never write overgenerated neighbor padding back to the map for
+		// early stages. Decoration overgeneration needs the padding to persist
+		// so chunks can share cross-boundary structures deterministically.
 		const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
 		const v3s16 node_max =
 			(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
