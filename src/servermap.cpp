@@ -337,30 +337,10 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			v3s16(1, 1, 1);
 
 		MMVManip *vm = data->vmanip;
-		if (full_node_min.X < node_min.X)
-			vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
-				v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
-				VOXELFLAG_NO_DATA);
-		if (full_node_max.X > node_max.X)
-			vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
-				v3s16(full_node_max.X, node_max.Y, node_max.Z)),
-				VOXELFLAG_NO_DATA);
-		if (full_node_min.Y < node_min.Y)
-			vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
-				v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
-				VOXELFLAG_NO_DATA);
-		if (full_node_max.Y > node_max.Y)
-			vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
-				v3s16(node_max.X, full_node_max.Y, node_max.Z)),
-				VOXELFLAG_NO_DATA);
-		if (full_node_min.Z < node_min.Z)
-			vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
-				v3s16(node_max.X, node_max.Y, node_min.Z - 1)),
-				VOXELFLAG_NO_DATA);
-		if (full_node_max.Z > node_max.Z)
-			vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, node_max.Z + 1),
-				v3s16(node_max.X, node_max.Y, full_node_max.Z)),
-				VOXELFLAG_NO_DATA);
+		// Mark everything as non-writable first, then unmask the authoritative
+		// center chunk volume. This correctly excludes edge/corner padding too.
+		vm->setFlags(VoxelArea(full_node_min, full_node_max), VOXELFLAG_NO_DATA);
+		vm->clearFlags(VoxelArea(node_min, node_max), VOXELFLAG_NO_DATA);
 	}
 
 	/*
