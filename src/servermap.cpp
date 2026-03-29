@@ -293,6 +293,47 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
 
+	// Never write overgenerated neighbor padding back to the map.
+	// Padding is loaded only to allow boundary-safe generation and must not
+	// persist, otherwise parallel emerge threads can overwrite each other at
+	// chunk boundaries.
+	{
+		const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
+		const v3s16 node_max =
+			(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+		const v3s16 full_node_min =
+			(bpmin - EMERGE_EXTRA_BORDER) * MAP_BLOCKSIZE;
+		const v3s16 full_node_max =
+			(bpmax + EMERGE_EXTRA_BORDER + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
+			v3s16(1, 1, 1);
+
+		MMVManip *vm = data->vmanip;
+		if (full_node_min.X < node_min.X)
+			vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
+				v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
+				VOXELFLAG_NO_DATA);
+		if (full_node_max.X > node_max.X)
+			vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
+				v3s16(full_node_max.X, node_max.Y, node_max.Z)),
+				VOXELFLAG_NO_DATA);
+		if (full_node_min.Y < node_min.Y)
+			vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
+				v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
+				VOXELFLAG_NO_DATA);
+		if (full_node_max.Y > node_max.Y)
+			vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
+				v3s16(node_max.X, full_node_max.Y, node_max.Z)),
+				VOXELFLAG_NO_DATA);
+		if (full_node_min.Z < node_min.Z)
+			vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
+				v3s16(node_max.X, node_max.Y, node_min.Z - 1)),
+				VOXELFLAG_NO_DATA);
+		if (full_node_max.Z > node_max.Z)
+			vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, node_max.Z + 1),
+				v3s16(node_max.X, node_max.Y, full_node_max.Z)),
+				VOXELFLAG_NO_DATA);
+	}
+
 	/*
 		Blit generated stuff to map
 		NOTE: blitBackAll adds nearly everything to changed_blocks
