@@ -57,7 +57,8 @@ DecorationManager::DecorationManager(IGameDef *gamedef) :
 
 
 void DecorationManager::placeAllDecos(Mapgen *mg, u32 blockseed,
-	v3s16 nmin, v3s16 nmax)
+	v3s16 chunk_nmin, v3s16 chunk_nmax,
+	v3s16 place_nmin, v3s16 place_nmax)
 {
 	for (size_t i = 0; i != m_objects.size(); i++) {
 		Decoration *deco = (Decoration *)m_objects[i];
@@ -72,16 +73,16 @@ void DecorationManager::placeAllDecos(Mapgen *mg, u32 blockseed,
 				(s16)(std::abs(static_cast<int>(deco->check_offset)) + 1));
 		}
 
-		v3s16 place_nmin = nmin - overgen;
-		v3s16 place_nmax = nmax + overgen;
-		place_nmin.X = std::max(place_nmin.X, mg->vm->m_area.MinEdge.X);
-		place_nmin.Y = std::max(place_nmin.Y, mg->vm->m_area.MinEdge.Y);
-		place_nmin.Z = std::max(place_nmin.Z, mg->vm->m_area.MinEdge.Z);
-		place_nmax.X = std::min(place_nmax.X, mg->vm->m_area.MaxEdge.X);
-		place_nmax.Y = std::min(place_nmax.Y, mg->vm->m_area.MaxEdge.Y);
-		place_nmax.Z = std::min(place_nmax.Z, mg->vm->m_area.MaxEdge.Z);
+		v3s16 deco_place_nmin = place_nmin - overgen;
+		v3s16 deco_place_nmax = place_nmax + overgen;
+		deco_place_nmin.X = std::max(deco_place_nmin.X, mg->vm->m_area.MinEdge.X);
+		deco_place_nmin.Y = std::max(deco_place_nmin.Y, mg->vm->m_area.MinEdge.Y);
+		deco_place_nmin.Z = std::max(deco_place_nmin.Z, mg->vm->m_area.MinEdge.Z);
+		deco_place_nmax.X = std::min(deco_place_nmax.X, mg->vm->m_area.MaxEdge.X);
+		deco_place_nmax.Y = std::min(deco_place_nmax.Y, mg->vm->m_area.MaxEdge.Y);
+		deco_place_nmax.Z = std::min(deco_place_nmax.Z, mg->vm->m_area.MaxEdge.Z);
 
-		deco->placeDeco(mg, blockseed, nmin, nmax, place_nmin, place_nmax);
+		deco->placeDeco(mg, blockseed, chunk_nmin, chunk_nmax, deco_place_nmin, deco_place_nmax);
 		blockseed++;
 	}
 }

@@ -1660,7 +1660,7 @@ int ModApiMapgen::l_generate_decorations(lua_State *L)
 
 	mgp->vm = vm;
 	try {
-		decomgr->placeAllDecos(mgp, blockseed, pmin, pmax);
+		decomgr->placeAllDecos(mgp, blockseed, pmin, pmax, pmin, pmax);
 	} catch (...) {
 		mgp->vm = oldvm;
 		throw;

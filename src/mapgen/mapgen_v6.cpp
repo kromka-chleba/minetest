@@ -620,7 +620,8 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 
 	// Generate the registered ores
 	if (flags & MG_ORES)
@@ -666,7 +667,8 @@ void MapgenV6::generateDecorations(BlockMakeData *data)
 {
 	v6_setup(this, data);
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 	this->generating = false;
 }
 

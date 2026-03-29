@@ -258,7 +258,8 @@ void MapgenValleys::makeChunk(BlockMakeData *data)
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 
 	// Sprinkle some dust on top after everything else was generated
 	if (flags & MG_BIOMES)
