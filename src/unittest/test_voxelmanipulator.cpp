@@ -209,4 +209,21 @@ void TestVoxelManipulator::testBlitBackNoOverwriteGenerated(IGameDef *gamedef)
 	UASSERT(modified.find(v3s16(0, 0, 0)) == modified.end());
 	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
 	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), t_CONTENT_BRICK);
+
+	// Inverse case: neighbor generated, center not generated.
+	map.fill({-1,0,0}, {1,0,0}, CONTENT_AIR);
+	MMVManip vm2(&map);
+	vm2.initialEmerge({-1,0,0}, {1,0,0});
+	vm2.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
+	vm2.setNodeNoEmerge({MAP_BLOCKSIZE, 0, 0}, t_CONTENT_BRICK);
+	center->setGenerated(false);
+	neighbor->setGenerated(true);
+
+	modified.clear();
+	vm2.blitBackAll(&modified, false);
+
+	UASSERT(modified.find(v3s16(0, 0, 0)) != modified.end());
+	UASSERT(modified.find(v3s16(1, 0, 0)) == modified.end());
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
+	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), CONTENT_AIR);
 }
