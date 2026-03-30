@@ -947,9 +947,7 @@ void ServerEnvironment::step(float dtime)
 			// Newly emerged shell blocks can still contain only CONTENT_IGNORE.
 			// Delay activation until mapgen marked the block as generated,
 			// otherwise LBMs may run before real node content exists.
-			if (block && !block->isGenerated())
-				block = nullptr;
-			if (!block) {
+			if (!block || !block->isGenerated()) {
 				// TODO: The blocks removed here will only be picked up again
 				// on the next cycle. To minimize the latency of objects being
 				// activated we could remember the blocks pending activating
@@ -964,9 +962,7 @@ void ServerEnvironment::step(float dtime)
 		for (const v3s16 &p: extra_blocks_added) {
 			// only activate if the block is already loaded
 			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
-			if (block && !block->isGenerated())
-				block = nullptr;
-			if (!block) {
+			if (!block || !block->isGenerated()) {
 				m_active_blocks.remove(p);
 				continue;
 			}
