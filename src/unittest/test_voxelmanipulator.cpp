@@ -189,6 +189,7 @@ void TestVoxelManipulator::testBlitBackNoOverwriteGenerated(IGameDef *gamedef)
 
 	MMVManip vm(&map);
 	vm.initialEmerge({-1,0,0}, {1,0,0});
+	// Write candidate changes for both blocks; generated block must be skipped.
 	vm.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
 	vm.setNodeNoEmerge({MAP_BLOCKSIZE, 0, 0}, t_CONTENT_BRICK);
 
@@ -202,7 +203,9 @@ void TestVoxelManipulator::testBlitBackNoOverwriteGenerated(IGameDef *gamedef)
 	std::map<v3s16, MapBlock*> modified;
 	vm.blitBackAll(&modified, false);
 
+	// Neighbor block should be modified (not generated).
 	UASSERT(modified.find(v3s16(1, 0, 0)) != modified.end());
+	// Center block should not be modified (already generated).
 	UASSERT(modified.find(v3s16(0, 0, 0)) == modified.end());
 	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
 	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), t_CONTENT_BRICK);
