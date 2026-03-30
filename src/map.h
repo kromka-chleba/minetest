@@ -330,12 +330,9 @@ public:
 		to ensure that the relevant parts of m_data are initialized.
 		@param modified_blocks output array of touched blocks (optional)
 		@param overwrite_generated if false, blocks marked as generate in the map are not changed
-		@param blockpos_min if set, only blocks within [blockpos_min, blockpos_max] are written
-		@param blockpos_max see blockpos_min
 	*/
 	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks,
-		bool overwrite_generated = true,
-		const v3s16 *blockpos_min = nullptr, const v3s16 *blockpos_max = nullptr) const;
+		bool overwrite_generated = true) const;
 
 	/*
 		Creates a copy of this VManip including contents, the copy will not be

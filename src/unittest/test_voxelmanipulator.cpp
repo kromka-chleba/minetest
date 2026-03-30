@@ -23,7 +23,7 @@ public:
 	void testEmerge(IGameDef *gamedef);
 	void testBlitBack(IGameDef *gamedef);
 	void testBlitBack2(IGameDef *gamedef);
-	void testBlitBackAreaFilter(IGameDef *gamedef);
+	void testBlitBackNoOverwriteGenerated(IGameDef *gamedef);
 };
 
 static TestVoxelManipulator g_test_instance;
@@ -34,7 +34,7 @@ void TestVoxelManipulator::runTests(IGameDef *gamedef)
 	TEST(testEmerge, gamedef);
 	TEST(testBlitBack, gamedef);
 	TEST(testBlitBack2, gamedef);
-	TEST(testBlitBackAreaFilter, gamedef);
+	TEST(testBlitBackNoOverwriteGenerated, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -182,25 +182,28 @@ void TestVoxelManipulator::testBlitBack2(IGameDef *gamedef)
 	UASSERTEQ(auto, map.getNode({0,bs,0}).getContent(), CONTENT_AIR);
 }
 
-void TestVoxelManipulator::testBlitBackAreaFilter(IGameDef *gamedef)
+void TestVoxelManipulator::testBlitBackNoOverwriteGenerated(IGameDef *gamedef)
 {
-	constexpr int bs = MAP_BLOCKSIZE;
-
 	DummyMap map(gamedef, {-1,0,0}, {1,0,0});
 	map.fill({-1,0,0}, {1,0,0}, CONTENT_AIR);
 
 	MMVManip vm(&map);
 	vm.initialEmerge({-1,0,0}, {1,0,0});
 	vm.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
-	vm.setNodeNoEmerge({bs, 0, 0}, t_CONTENT_BRICK);
+	vm.setNodeNoEmerge({MAP_BLOCKSIZE, 0, 0}, t_CONTENT_BRICK);
 
-	const v3s16 blockpos_min(0, 0, 0);
-	const v3s16 blockpos_max(0, 0, 0);
+	MapBlock *center = map.getBlockNoCreateNoEx({0, 0, 0});
+	MapBlock *neighbor = map.getBlockNoCreateNoEx({1, 0, 0});
+	UASSERT(center);
+	UASSERT(neighbor);
+	center->setGenerated(true);
+	neighbor->setGenerated(false);
+
 	std::map<v3s16, MapBlock*> modified;
-	vm.blitBackAll(&modified, true, &blockpos_min, &blockpos_max);
+	vm.blitBackAll(&modified, false);
 
-	UASSERTEQ(size_t, modified.size(), 1);
-	UASSERTEQ(auto, modified.begin()->first, v3s16(0, 0, 0));
-	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
-	UASSERTEQ(auto, map.getNode({bs, 0, 0}).getContent(), CONTENT_AIR);
+	UASSERT(modified.find(v3s16(1, 0, 0)) != modified.end());
+	UASSERT(modified.find(v3s16(0, 0, 0)) == modified.end());
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
+	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), t_CONTENT_BRICK);
 }

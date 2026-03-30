@@ -858,21 +858,13 @@ std::map<v3s16, bool> MMVManip::getCoveredBlocks() const
 }
 
 void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
-	bool overwrite_generated, const v3s16 *blockpos_min, const v3s16 *blockpos_max) const
+	bool overwrite_generated) const
 {
 	if (m_area.hasEmptyExtent())
 		return;
 	assert(m_map);
-	assert((blockpos_min == nullptr) == (blockpos_max == nullptr));
 
 	size_t nload = 0;
-	const auto in_write_range = [blockpos_min, blockpos_max](v3s16 p) -> bool {
-		if (!blockpos_min)
-			return true;
-		return p.X >= blockpos_min->X && p.X <= blockpos_max->X &&
-				p.Y >= blockpos_min->Y && p.Y <= blockpos_max->Y &&
-				p.Z >= blockpos_min->Z && p.Z <= blockpos_max->Z;
-	};
 
 	// Copy all the blocks with data back to the map
 	const auto loaded_blocks = getCoveredBlocks();
@@ -880,8 +872,6 @@ void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
 		if (!it.second)
 			continue;
 		v3s16 p = it.first;
-		if (!in_write_range(p))
-			continue;
 		MapBlock *block = m_map->getBlockNoCreateNoEx(p);
 		if (!block) {
 			if (!blockpos_over_max_limit(p)) {

@@ -294,9 +294,9 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		Blit generated stuff to map
 		NOTE: blitBackAll adds nearly everything to changed_blocks
 	*/
-	// Only write back the actual generated chunk; border blocks are read-only
-	// generation context and may have changed independently in the meantime.
-	data->vmanip->blitBackAll(changed_blocks, true, &bpmin, &bpmax);
+	// Don't overwrite already-generated blocks. This avoids clobbering
+	// neighboring chunk edges that may have been modified after emerge.
+	data->vmanip->blitBackAll(changed_blocks, false);
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()="
 		<< changed_blocks->size());

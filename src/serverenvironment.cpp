@@ -944,6 +944,8 @@ void ServerEnvironment::step(float dtime)
 
 		for (const v3s16 &p: blocks_added) {
 			MapBlock *block = m_map->getBlockOrEmerge(p, true);
+			if (block && !block->isGenerated())
+				block = nullptr;
 			if (!block) {
 				// TODO: The blocks removed here will only be picked up again
 				// on the next cycle. To minimize the latency of objects being
@@ -959,6 +961,8 @@ void ServerEnvironment::step(float dtime)
 		for (const v3s16 &p: extra_blocks_added) {
 			// only activate if the block is already loaded
 			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
+			if (block && !block->isGenerated())
+				block = nullptr;
 			if (!block) {
 				m_active_blocks.remove(p);
 				continue;
