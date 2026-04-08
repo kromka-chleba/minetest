@@ -6549,14 +6549,18 @@ Call these functions only at load time!
 * `core.register_on_block_loaded(function(blockpos))`
     * Called when a mapblock is loaded from disk or generated for the first time
     * This callback fires for ALL loaded blocks (including those far from players)
-    * For newly generated blocks, the callback runs after the chunk emerges
-      (after liquid transforms and lighting) but before block activation
-    * For blocks loaded from disk, it runs before border lighting is updated
+    * For newly generated blocks, the callback is queued after emerge/chunk
+      finalization (including liquid transforms and lighting)
+    * For blocks loaded from disk, the callback is queued during loading
+    * Callbacks are fired on the main server thread in `ServerEnvironment::step()`
+      and are not guaranteed to run before `on_block_activated`
+    * Unlike `core.register_on_mapblocks_changed`, `core.register_on_block_*`
+      callbacks are not restricted to mod load time
     * `blockpos`: position of the block (table with x, y, z)
-    * Note: callbacks must be registered at mod load time.
 * `core.register_on_block_activated(function(blockpos, last_timestamp))`
     * Called immediately after a mapblock becomes active (within active_block_range of a player)
-    * This is called after `on_block_loaded` if the block was just loaded
+    * For blocks that were loaded/generated in the same tick, this may run before
+      or after `on_block_loaded`
     * `blockpos`: position of the block (table with x, y, z)
     * `last_timestamp`: the timestamp of the block before it was activated (unsigned
       integer, same unit as `core.get_gametime()`). This is
@@ -6564,7 +6568,6 @@ Call these functions only at load time!
       block has never been activated before (e.g. newly generated blocks).
       Comparing `last_timestamp` to `core.get_gametime()` gives the elapsed time
       since the block was last active.
-    * Note: callbacks must be registered at mod load time.
     * **Warning**: As of Luanti 5.15.0, making map modifications using VoxelManip
       (or similar functions like `core.set_node`) in this callback is unreliable.
       Changes can be overwritten when neighboring mapchunks generate and extend
@@ -6575,12 +6578,10 @@ Call these functions only at load time!
     * Called after mapblocks are deactivated (moved out of active_block_range)
     * Deactivated blocks remain loaded in memory but no longer run game logic
     * `blockpos_list`: array of block positions (each is a table with x, y, z)
-    * Note: callbacks must be registered at mod load time.
 * `core.register_on_block_unloaded(function(blockpos_list))`
     * Called after mapblocks are completely unloaded from memory
     * This happens when the server needs to free memory or on shutdown
     * `blockpos_list`: array of block positions (each is a table with x, y, z)
-    * Note: callbacks must be registered at mod load time.
 
 Setting-related
 ---------------
