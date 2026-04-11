@@ -279,13 +279,31 @@ local function test_on_mapblocks_changed(cb, player, pos)
 end
 unittests.register("test_on_mapblocks_changed", test_on_mapblocks_changed, {map=true, async=true})
 
-local function test_get_loaded_active_and_loadable_blocks(cb, _, pos)
+local function test_get_loaded_and_loadable_blocks(_, pos)
+	local blockpos = (pos / core.MAP_BLOCKSIZE):floor()
+	local loaded = core.get_loaded_blocks()
+	for _, block in ipairs(loaded) do
+		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
+			("expected block %s from get_loaded_blocks to satisfy loaded status")
+			:format(core.pos_to_string(block)))
+	end
+	assert(table.indexof(loaded, blockpos) ~= -1, "expected test block in get_loaded_blocks result")
+
+	local loadable = core.get_loadable_blocks()
+	assert(type(loadable) == "table")
+	if #loadable > 0 then
+		assert(vector.check(loadable[1]))
+	end
+end
+unittests.register("test_get_loaded_and_loadable_blocks",
+		test_get_loaded_and_loadable_blocks, {map=true})
+
+local function test_forceloaded_block_becomes_active(cb, _, pos)
 	local blockpos = (pos / core.MAP_BLOCKSIZE):floor()
 	local nodepos = blockpos * core.MAP_BLOCKSIZE
 	local transient = true
 	local forceloaded = core.forceload_block(nodepos, transient, -1)
-	local timeout_us = 5 * 1000 * 1000
-	local deadline = core.get_us_time() + timeout_us
+	local deadline = core.get_us_time() + 5 * 1000 * 1000
 	local finished = false
 
 	local function finish(err)
@@ -312,29 +330,12 @@ local function test_get_loaded_active_and_loadable_blocks(cb, _, pos)
 		end
 
 		local ok, err = pcall(function()
-			local loaded = core.get_loaded_blocks()
-
-			local loadable = core.get_loadable_blocks()
-			assert(type(loadable) == "table")
-			if #loadable > 0 then
-				assert(vector.check(loadable[1]))
-			end
-
 			local active = core.get_active_blocks()
-
-			for _, block in ipairs(loaded) do
-				assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
-					("expected block %s from get_loaded_blocks to satisfy loaded status")
-					:format(core.pos_to_string(block)))
-			end
-
 			for _, block in ipairs(active) do
 				assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "active"),
 					("expected block %s from get_active_blocks to satisfy active status")
 					:format(core.pos_to_string(block)))
 			end
-
-			assert(table.indexof(loaded, blockpos) ~= -1, "expected test block in get_loaded_blocks result")
 			assert(table.indexof(active, blockpos) ~= -1, "expected test block in get_active_blocks result")
 		end)
 		if not ok then
@@ -345,8 +346,8 @@ local function test_get_loaded_active_and_loadable_blocks(cb, _, pos)
 
 	core.after(0, check)
 end
-unittests.register("test_get_loaded_active_and_loadable_blocks",
-		test_get_loaded_active_and_loadable_blocks, {map=true, async=true})
+unittests.register("test_forceloaded_block_becomes_active",
+		test_forceloaded_block_becomes_active, {map=true, async=true})
 
 local function test_gennotify_api()
 	local DECO_ID = 123
