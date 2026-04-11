@@ -307,6 +307,18 @@ local function test_get_loaded_active_and_loadable_blocks(_, pos)
 		assert(vector.check(active[1]))
 	end
 
+	for _, block in ipairs(loaded) do
+		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
+			("expected block %s from get_loaded_blocks to satisfy loaded status")
+			:format(core.pos_to_string(block)))
+	end
+
+	for _, block in ipairs(active) do
+		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "active"),
+			("expected block %s from get_active_blocks to satisfy active status")
+			:format(core.pos_to_string(block)))
+	end
+
 	local blockpos = (pos / core.MAP_BLOCKSIZE):floor()
 	assert(list_has_block(loaded, blockpos), "expected test block in get_loaded_blocks result")
 	assert(list_has_block(active, blockpos), "expected test block in get_active_blocks result")
