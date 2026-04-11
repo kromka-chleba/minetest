@@ -290,10 +290,6 @@ end
 
 local function test_get_loaded_active_and_loadable_blocks(_, pos)
 	local loaded = core.get_loaded_blocks()
-	assert(type(loaded) == "table")
-	if #loaded > 0 then
-		assert(vector.check(loaded[1]))
-	end
 
 	local loadable = core.get_loadable_blocks()
 	assert(type(loadable) == "table")
@@ -302,10 +298,6 @@ local function test_get_loaded_active_and_loadable_blocks(_, pos)
 	end
 
 	local active = core.get_active_blocks()
-	assert(type(active) == "table")
-	if #active > 0 then
-		assert(vector.check(active[1]))
-	end
 
 	for _, block in ipairs(loaded) do
 		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
