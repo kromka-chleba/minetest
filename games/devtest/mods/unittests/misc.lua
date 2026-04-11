@@ -279,35 +279,74 @@ local function test_on_mapblocks_changed(cb, player, pos)
 end
 unittests.register("test_on_mapblocks_changed", test_on_mapblocks_changed, {map=true, async=true})
 
-local function test_get_loaded_active_and_loadable_blocks(_, pos)
-	local loaded = core.get_loaded_blocks()
-
-	local loadable = core.get_loadable_blocks()
-	assert(type(loadable) == "table")
-	if #loadable > 0 then
-		assert(vector.check(loadable[1]))
-	end
-
-	local active = core.get_active_blocks()
-
-	for _, block in ipairs(loaded) do
-		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
-			("expected block %s from get_loaded_blocks to satisfy loaded status")
-			:format(core.pos_to_string(block)))
-	end
-
-	for _, block in ipairs(active) do
-		assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "active"),
-			("expected block %s from get_active_blocks to satisfy active status")
-			:format(core.pos_to_string(block)))
-	end
-
+local function test_get_loaded_active_and_loadable_blocks(cb, _, pos)
 	local blockpos = (pos / core.MAP_BLOCKSIZE):floor()
-	assert(table.indexof(loaded, blockpos) ~= -1, "expected test block in get_loaded_blocks result")
-	assert(table.indexof(active, blockpos) ~= -1, "expected test block in get_active_blocks result")
+	local nodepos = blockpos * core.MAP_BLOCKSIZE
+	local transient = true
+	local forceloaded = core.forceload_block(nodepos, transient, -1)
+	local timeout_us = 5 * 1000 * 1000
+	local deadline = core.get_us_time() + timeout_us
+	local finished = false
+
+	local function finish(err)
+		if finished then
+			return
+		end
+		finished = true
+		if forceloaded then
+			core.forceload_free_block(nodepos, transient)
+		end
+		cb(err)
+	end
+
+	if not forceloaded then
+		return finish("failed to forceload test block")
+	end
+
+	local function check()
+		if not core.compare_block_status(nodepos, "active") then
+			if core.get_us_time() >= deadline then
+				return finish("timed out waiting for test block to become active")
+			end
+			return core.after(0, check)
+		end
+
+		local ok, err = pcall(function()
+			local loaded = core.get_loaded_blocks()
+
+			local loadable = core.get_loadable_blocks()
+			assert(type(loadable) == "table")
+			if #loadable > 0 then
+				assert(vector.check(loadable[1]))
+			end
+
+			local active = core.get_active_blocks()
+
+			for _, block in ipairs(loaded) do
+				assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "loaded"),
+					("expected block %s from get_loaded_blocks to satisfy loaded status")
+					:format(core.pos_to_string(block)))
+			end
+
+			for _, block in ipairs(active) do
+				assert(core.compare_block_status(block * core.MAP_BLOCKSIZE, "active"),
+					("expected block %s from get_active_blocks to satisfy active status")
+					:format(core.pos_to_string(block)))
+			end
+
+			assert(table.indexof(loaded, blockpos) ~= -1, "expected test block in get_loaded_blocks result")
+			assert(table.indexof(active, blockpos) ~= -1, "expected test block in get_active_blocks result")
+		end)
+		if not ok then
+			return finish(tostring(err))
+		end
+		return finish()
+	end
+
+	core.after(0, check)
 end
 unittests.register("test_get_loaded_active_and_loadable_blocks",
-		test_get_loaded_active_and_loadable_blocks, {map=true})
+		test_get_loaded_active_and_loadable_blocks, {map=true, async=true})
 
 local function test_gennotify_api()
 	local DECO_ID = 123
