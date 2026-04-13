@@ -75,3 +75,66 @@ function builtin_shared.make_registration_reverse()
 	end
 	return t, registerfunc
 end
+
+function builtin_shared.setup_mapgen_stage_registration()
+	if core.register_mapgen_stage then
+		return
+	end
+
+	core.registered_mapgen_stages = core.registered_mapgen_stages or {}
+	core.registered_on_mapgen_stages = core.registered_on_mapgen_stages or {}
+
+	local function validate_stage_number(stage, caller)
+		caller = caller or "register_mapgen_stage"
+		stage = tonumber(stage)
+		if not stage then
+			error(caller .. ": stage must be a number")
+		end
+		if stage < 1 or stage > 254 then
+			error(caller .. ": stage must be in range 1..254")
+		end
+		return stage
+	end
+
+	function core.register_mapgen_stage(def)
+		if type(def) ~= "table" then
+			error("register_mapgen_stage: table expected")
+		end
+
+		local stage = validate_stage_number(def.stage, "register_mapgen_stage")
+		local func = def.func or def.callback
+		if type(func) ~= "function" then
+			error("register_mapgen_stage: def.func or def.callback is required and must be a function")
+		end
+
+		local list = core.registered_mapgen_stages[stage]
+		if not list then
+			list = {}
+			core.registered_mapgen_stages[stage] = list
+		end
+		list[#list + 1] = func
+		core.callback_origins[func] = {
+			mod = core.get_current_modname and core.get_current_modname() or "??",
+			name = def.name or tostring(stage),
+		}
+	end
+
+	function core.register_on_mapgen_stage(stage, func)
+		stage = validate_stage_number(stage, "register_on_mapgen_stage")
+		if type(func) ~= "function" then
+			error("register_on_mapgen_stage: function expected")
+		end
+
+		local list = core.registered_on_mapgen_stages[stage]
+		if not list then
+			list = {}
+			core.registered_on_mapgen_stages[stage] = list
+		end
+
+		list[#list + 1] = func
+		core.callback_origins[func] = {
+			mod = core.get_current_modname and core.get_current_modname() or "??",
+			name = "on_mapgen_stage " .. stage,
+		}
+	end
+end

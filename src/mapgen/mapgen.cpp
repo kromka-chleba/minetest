@@ -5,7 +5,9 @@
 // Copyright (C) 2015-2018 paramat
 
 #include <cmath>
+#include <limits>
 #include "mapgen.h"
+#include "mapgen_stage.h"
 #include "voxel.h"
 #include "noise.h"
 #include "gamedef.h"
@@ -31,6 +33,8 @@
 #include "mapgen_singlenode.h"
 #include "cavegen.h"
 #include "dungeongen.h"
+#include "mg_ore.h"
+#include "mg_decoration.h"
 
 const FlagDesc flagdesc_mapgen[] = {
 	{"caves",       MG_CAVES},
@@ -468,8 +472,39 @@ void Mapgen::calcLighting(v3s16 nmin, v3s16 nmax, v3s16 full_nmin, v3s16 full_nm
 {
 	ScopeProfiler sp(g_profiler, "EmergeThread: update lighting", SPT_AVG);
 
+	// Temporarily fill missing padding nodes with air so sunlight can enter
+	// without permanently overgenerating terrain. Restore them after lighting.
+	std::vector<u32> temp_air_indices;
+	const size_t padding_plane = (nmax.Z - nmin.Z + 1) *
+		(nmax.X - nmin.X + 1);
+	temp_air_indices.reserve(padding_plane * 2); // nmax.Y and nmax.Y + 1
+	auto fill_padding_air = [&](s16 y)
+	{
+		for (s16 z = nmin.Z; z <= nmax.Z; z++) {
+			for (s16 x = nmin.X; x <= nmax.X; x++) {
+				u32 i = vm->m_area.index(x, y, z);
+				if (vm->m_data[i].getContent() == CONTENT_IGNORE) {
+					vm->m_data[i] = MapNode(CONTENT_AIR);
+					// Ensure sunlight can originate from padding even if
+					// the neighbor column was previously unlit.
+					vm->m_data[i].param1 = LIGHT_SUN;
+					temp_air_indices.push_back(i);
+				}
+			}
+		}
+	};
+
+	// Needed by propagateSunlight which samples at nmax.Y and nmax.Y + 1.
+	fill_padding_air(nmax.Y);
+	if (nmax.Y + 1 <= full_nmax.Y)
+		fill_padding_air(nmax.Y + 1);
+
 	propagateSunlight(nmin, nmax, propagate_shadow);
 	spreadLight(full_nmin, full_nmax);
+
+	// Restore padding back to CONTENT_IGNORE so no overgeneration is persisted.
+	for (u32 idx : temp_air_indices)
+		vm->m_data[idx] = MapNode(CONTENT_IGNORE);
 }
 
 
@@ -554,6 +589,37 @@ void Mapgen::spreadLight(const v3s16 &nmin, const v3s16 &nmax)
 	}
 
 	//printf("spreadLight: %lums\n", t.stop());
+}
+
+void MapgenBasic::discardPadding()
+{
+	// Remove padding slices (loaded from neighbors) from being written back.
+	// This prevents overgeneration artifacts such as stray stone layers or
+	// clipped decorations at chunk boundaries.
+	if (full_node_min.X < node_min.X)
+		vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
+			v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.X > node_max.X)
+		vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
+			v3s16(full_node_max.X, node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Y < node_min.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
+			v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Y > node_max.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
+			v3s16(node_max.X, full_node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Z < node_min.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
+			v3s16(node_max.X, node_max.Y, node_min.Z - 1)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Z > node_max.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, node_max.Z + 1),
+			v3s16(node_max.X, node_max.Y, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
 }
 
 
@@ -950,6 +1016,134 @@ void MapgenBasic::generateDungeons(s16 max_stone_y)
 
 	DungeonGen dgen(ndef, &gennotify, &dp);
 	dgen.generate(vm, blockseed, full_node_min, full_node_max);
+}
+
+
+////
+//// Mapgen::makeChunkStage
+////
+
+void Mapgen::makeChunkStage(BlockMakeData *data, u8 stage)
+{
+	switch (stage) {
+	case STAGE_TERRAIN:
+		makeChunk(data);
+		return;
+	case STAGE_CAVES:
+		generateCavesAndDungeons(data);
+		return;
+	case STAGE_ORES:
+		generateOres(data);
+		return;
+	case STAGE_DECORATIONS:
+		generateDecorations(data);
+		return;
+	case STAGE_DUST:
+		generateDust(data);
+		return;
+	case STAGE_LIGHTING:
+		generateLighting(data);
+		return;
+	default:
+		// STAGE_COMPLETE (Phase 2: single-pass compat) and unknown stages.
+		makeChunk(data);
+		return;
+	}
+}
+
+
+////
+//// MapgenBasic stage methods
+////
+
+void MapgenBasic::setupGenContext(BlockMakeData *data)
+{
+	assert(data->vmanip);
+	assert(data->nodedef);
+	this->generating = true;
+	this->vm   = data->vmanip;
+	this->ndef = data->nodedef;
+	node_min = data->blockpos_min * MAP_BLOCKSIZE;
+	node_max = (data->blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	// Match the actual VoxelManipulator extent (includes emerge overgeneration)
+	full_node_min = vm->m_area.MinEdge;
+	full_node_max = vm->m_area.MaxEdge;
+	blockseed = getBlockSeed2(full_node_min, seed);
+}
+
+static s16 compute_stone_surface_max(MMVManip *vm, const v3s16 &node_min,
+	const v3s16 &node_max, content_t c_stone)
+{
+	for (s16 y = node_max.Y; y >= node_min.Y; y--) {
+		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+			for (s16 x = node_min.X; x <= node_max.X; x++) {
+				MapNode n = vm->getNodeNoEx(v3s16(x, y, z));
+				if (n.getContent() != CONTENT_IGNORE && n.getContent() == c_stone)
+					return y;
+			}
+		}
+	}
+
+	return node_min.Y;
+}
+
+void MapgenBasic::generateCavesAndDungeons(BlockMakeData *data)
+{
+	setupGenContext(data);
+	s16 stone_surface_max_y = m_stone_surface_max_y;
+	if (stone_surface_max_y == std::numeric_limits<s16>::min()) {
+		stone_surface_max_y = compute_stone_surface_max(data->vmanip,
+			node_min, node_max, c_stone);
+		m_stone_surface_max_y = stone_surface_max_y;
+	}
+	if (flags & MG_CAVES) {
+		generateCavesNoiseIntersection(stone_surface_max_y);
+		bool near_cavern = generateCavernsNoise(stone_surface_max_y);
+		if (near_cavern)
+			generateCavesRandomWalk(stone_surface_max_y,
+				-MAX_MAP_GENERATION_LIMIT);
+		else
+			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+	}
+	if (flags & MG_DUNGEONS)
+		generateDungeons(stone_surface_max_y);
+	this->generating = false;
+}
+
+void MapgenBasic::generateOres(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_ORES)
+		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenBasic::generateDecorations(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
+	this->generating = false;
+}
+
+void MapgenBasic::generateDust(BlockMakeData *data)
+{
+	setupGenContext(data);
+	if (flags & MG_BIOMES)
+		dustTopNodes();
+	this->generating = false;
+}
+
+void MapgenBasic::generateLighting(BlockMakeData *data)
+{
+	setupGenContext(data);
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+	discardPadding();
+	this->generating = false;
 }
 
 

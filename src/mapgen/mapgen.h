@@ -7,10 +7,12 @@
 #pragma once
 
 #include "constants.h"
+#include "mapgen_stage.h"
 #include "noise.h"
 #include "nodedef.h"
 #include "util/string.h"
 #include "util/container.h"
+#include <climits>
 #include <utility>
 #include <set>
 
@@ -222,6 +224,33 @@ public:
 	void spreadLight(const v3s16 &nmin, const v3s16 &nmax);
 
 	virtual void makeChunk(BlockMakeData *data) {}
+
+	// Stage-method slots — overridden by MapgenBasic and concrete mapgens.
+	// Called by makeChunkStage() to run one pipeline stage.  Each method must
+	// set this->generating=true on entry and false on exit, and must set
+	// this->vm / this->ndef and the node_min/node_max/blockseed fields via
+	// setupGenContext() before touching the VoxelManipulator.
+	virtual void generateCavesAndDungeons(BlockMakeData *data) {}
+	virtual void generateOres(BlockMakeData *data) {}
+	virtual void generateDecorations(BlockMakeData *data) {}
+	virtual void generateDust(BlockMakeData *data) {}
+	virtual void generateLighting(BlockMakeData *data) {}
+
+	/**
+	 * Generate (or continue generating) the given stage for the chunk
+	 * described by @p data.  The default implementation dispatches to the
+	 * appropriate stage-method slot, or falls back to makeChunk() so that
+	 * custom mapgens that have not been updated continue to work unchanged.
+	 *
+	 * @param data  Chunk description (blockpos_min/max, vmanip, seed, …).
+	 *              data->target_stage indicates which stage to run up to.
+	 *              data->input_stage  indicates the highest stage already
+	 *              completed on entry (set by ServerMap::initBlockMake).
+	 * @param target_stage  The stage number to produce.  Equal to
+	 *                      data->target_stage; provided here as a convenience
+	 *                      so overrides can dispatch without reading the struct.
+	 */
+	virtual void makeChunkStage(BlockMakeData *data, u8 target_stage);
 	virtual int getGroundLevelAtPoint(v2s16 p) { return 0; }
 
 	// getSpawnLevelAtPoint() is a function within each mapgen that returns a
@@ -284,6 +313,23 @@ public:
 	virtual void generateCavesRandomWalk(s16 max_stone_y, s16 large_cave_ymax);
 	virtual bool generateCavernsNoise(s16 max_stone_y);
 	virtual void generateDungeons(s16 max_stone_y);
+
+	// Cross-stage state: highest stone surface Y set by STAGE_TERRAIN,
+	// consumed by STAGE_CAVES.  Only meaningful during a generation call.
+	s16 m_stone_surface_max_y = SHRT_MIN;
+
+	// Extract the common setup boilerplate from makeChunk() in all
+	// MapgenBasic subclasses (vm, ndef, node_min/max, blockseed).
+	void setupGenContext(BlockMakeData *data);
+
+	// Stage-method overrides for the common pipeline.
+	void generateCavesAndDungeons(BlockMakeData *data) override;
+	void generateOres(BlockMakeData *data) override;
+	void generateDecorations(BlockMakeData *data) override;
+	void generateDust(BlockMakeData *data) override;
+	void generateLighting(BlockMakeData *data) override;
+	// Exclude the outer padding from being written back to the map
+	void discardPadding();
 
 protected:
 	BiomeManager *m_bmgr = nullptr;

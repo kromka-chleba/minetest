@@ -585,6 +585,8 @@ core.unregister_biome = make_wrap_deregistration(core.register_biome,
 local make_registration = builtin_shared.make_registration
 local make_registration_reverse = builtin_shared.make_registration_reverse
 
+builtin_shared.setup_mapgen_stage_registration()
+
 -- keep in sync with profiler/instrumentation.lua
 core.registered_on_chat_messages, core.register_on_chat_message = make_registration()
 core.registered_on_chatcommands, core.register_on_chatcommand = make_registration()
@@ -620,6 +622,8 @@ core.registered_allow_player_inventory_actions, core.register_allow_player_inven
 core.registered_on_rightclickplayers, core.register_on_rightclickplayer = make_registration()
 core.registered_on_liquid_transformed, core.register_on_liquid_transformed = make_registration()
 core.registered_on_mapblocks_changed, core.register_on_mapblocks_changed = make_registration()
+core.registered_mapgen_stages = {}
+core.registered_on_mapgen_stages = {}
 
 -- A bunch of registrations are read by the C++ side once on env init, so we cannot
 -- allow them to change afterwards (see s_env.cpp).

@@ -620,7 +620,8 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 
 	// Generate the registered ores
 	if (flags & MG_ORES)
@@ -633,6 +634,82 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 			full_node_min, full_node_max);
 
 	this->generating = false;
+}
+
+
+// V6 setup helper (equivalent to MapgenBasic::setupGenContext but V6-specific)
+static void v6_setup(MapgenV6 *mg, BlockMakeData *data)
+{
+	assert(data->vmanip);
+	assert(data->nodedef);
+	mg->generating = true;
+	mg->vm   = data->vmanip;
+	mg->ndef = data->nodedef;
+	v3s16 bpmin = data->blockpos_min;
+	v3s16 bpmax = data->blockpos_max;
+	mg->node_min = bpmin * MAP_BLOCKSIZE;
+	mg->node_max = (bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	mg->full_node_min = (bpmin - 1) * MAP_BLOCKSIZE;
+	mg->full_node_max = (bpmax + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	mg->blockseed = mg->get_blockseed(data->seed, mg->full_node_min);
+	mg->central_area_size = mg->node_max - mg->node_min + v3s16(1, 1, 1);
+}
+
+void MapgenV6::generateOres(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	if (flags & MG_ORES)
+		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
+	this->generating = false;
+}
+
+void MapgenV6::generateDecorations(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
+	this->generating = false;
+}
+
+void MapgenV6::generateLighting(BlockMakeData *data)
+{
+	v6_setup(this, data);
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max);
+	discardPadding();
+	this->generating = false;
+}
+
+void MapgenV6::discardPadding()
+{
+	// Remove padding slices (loaded from neighbors) from being written back.
+	if (full_node_min.X < node_min.X)
+		vm->setFlags(VoxelArea(v3s16(full_node_min.X, node_min.Y, node_min.Z),
+			v3s16(node_min.X - 1, node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.X > node_max.X)
+		vm->setFlags(VoxelArea(v3s16(node_max.X + 1, node_min.Y, node_min.Z),
+			v3s16(full_node_max.X, node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Y < node_min.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, full_node_min.Y, node_min.Z),
+			v3s16(node_max.X, node_min.Y - 1, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Y > node_max.Y)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_max.Y + 1, node_min.Z),
+			v3s16(node_max.X, full_node_max.Y, node_max.Z)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_min.Z < node_min.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, full_node_min.Z),
+			v3s16(node_max.X, node_max.Y, node_min.Z - 1)),
+			VOXELFLAG_NO_DATA);
+	if (full_node_max.Z > node_max.Z)
+		vm->setFlags(VoxelArea(v3s16(node_min.X, node_min.Y, node_max.Z + 1),
+			v3s16(node_max.X, node_max.Y, full_node_max.Z)),
+			VOXELFLAG_NO_DATA);
 }
 
 

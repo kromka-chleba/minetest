@@ -126,6 +126,11 @@ public:
 	int getGroundLevelAtPoint(v2s16 p);
 	int getSpawnLevelAtPoint(v2s16 p);
 
+	void generateOres(BlockMakeData *data) override;
+	void generateDecorations(BlockMakeData *data) override;
+	void generateLighting(BlockMakeData *data) override;
+	void discardPadding();
+
 	float baseTerrainLevel(float terrain_base, float terrain_higher,
 		float steepness, float height_select);
 	virtual float baseTerrainLevelFromNoise(v2s16 p);

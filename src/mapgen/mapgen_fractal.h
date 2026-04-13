@@ -62,6 +62,9 @@ public:
 	int getSpawnLevelAtPoint(v2s16 p);
 	bool getFractalAtPoint(s16 x, s16 y, s16 z);
 	s16 generateTerrain();
+	// Fractal terrain intentionally has no caverns; parameter is ignored.
+	bool generateCavernsNoise(s16 max_stone_y) override;
+	void generateLighting(BlockMakeData *data) override;
 
 private:
 	u16 formula;

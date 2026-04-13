@@ -202,7 +202,7 @@ void MapgenV5::makeChunk(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 
 	// Generate base terrain
-	s16 stone_surface_max_y = generateBaseTerrain();
+	m_stone_surface_max_y = generateBaseTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -216,22 +216,22 @@ void MapgenV5::makeChunk(BlockMakeData *data)
 	// Generate tunnels, caverns and large randomwalk caves
 	if (flags & MG_CAVES) {
 		// Generate tunnels first as caverns confuse them
-		generateCavesNoiseIntersection(stone_surface_max_y);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
 
 		// Generate caverns
 		bool near_cavern = false;
 		if (spflags & MGV5_CAVERNS)
-			near_cavern = generateCavernsNoise(stone_surface_max_y);
+			near_cavern = generateCavernsNoise(m_stone_surface_max_y);
 
 		// Generate large randomwalk caves
 		if (near_cavern)
 			// Disable large randomwalk caves in this mapchunk by setting
 			// 'large cave depth' to world base. Avoids excessive liquid in
 			// large caverns and floating blobs of overgenerated liquid.
-			generateCavesRandomWalk(stone_surface_max_y,
+			generateCavesRandomWalk(m_stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -240,11 +240,12 @@ void MapgenV5::makeChunk(BlockMakeData *data)
 
 	// Generate dungeons and desert temples
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 
 	// Sprinkle some dust on top after everything else was generated
 	if (flags & MG_BIOMES)
@@ -265,6 +266,14 @@ void MapgenV5::makeChunk(BlockMakeData *data)
 }
 
 
+bool MapgenV5::generateCavernsNoise(s16 max_stone_y)
+{
+	if (!(spflags & MGV5_CAVERNS))
+		return false;
+	return MapgenBasic::generateCavernsNoise(max_stone_y);
+}
+
+
 int MapgenV5::generateBaseTerrain()
 {
 	u32 index = 0;
@@ -276,7 +285,7 @@ int MapgenV5::generateBaseTerrain()
 	noise_ground->noiseMap3D(node_min.X, node_min.Y - 1, node_min.Z);
 
 	for (s16 z=node_min.Z; z<=node_max.Z; z++) {
-		for (s16 y=node_min.Y - 1; y<=node_max.Y + 1; y++) {
+		for (s16 y=node_min.Y - 1; y<=node_max.Y; y++) {
 			u32 vi = vm->m_area.index(node_min.X, y, z);
 			for (s16 x=node_min.X; x<=node_max.X; x++, vi++, index++, index2d++) {
 				if (vm->m_data[vi].getContent() != CONTENT_IGNORE)

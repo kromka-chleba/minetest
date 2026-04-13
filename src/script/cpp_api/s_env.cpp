@@ -8,10 +8,12 @@
 #include "log.h"
 #include "mapgen/mapgen.h"
 #include "lua_api/l_env.h"
+#include "lua_api/l_vmanip.h"
 #include "server.h"
 #include "serverenvironment.h"
 #include "scripting_server.h"
 #include "script/common/c_content.h"
+#include "emerge.h"
 
 /*
 	LuaABM & LuaLBM
@@ -128,6 +130,45 @@ void ScriptApiEnv::environment_OnGenerated(v3s16 minp, v3s16 maxp,
 	push_v3s16(L, maxp);
 	lua_pushnumber(L, blockseed);
 	runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
+}
+
+void ScriptApiEnv::environment_OnMapgenStage(BlockMakeData *bmdata,
+	u32 blockseed, u8 stage)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	if (!bmdata || !bmdata->vmanip)
+		return;
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_mapgen_stages");
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 2);
+		return;
+	}
+
+	lua_pushinteger(L, stage);
+	lua_gettable(L, -2); // callbacks for this stage
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 3); // list / registered_on_mapgen_stages / core
+		return;
+	}
+
+	v3s16 minp = bmdata->blockpos_min * MAP_BLOCKSIZE;
+	v3s16 maxp = bmdata->blockpos_max * MAP_BLOCKSIZE +
+				 v3s16(1,1,1) * (MAP_BLOCKSIZE - 1);
+
+	LuaVoxelManip::create(L, bmdata->vmanip, true);
+	const int vmanip = lua_gettop(L);
+
+	lua_pushvalue(L, vmanip);
+	push_v3s16(L, minp);
+	push_v3s16(L, maxp);
+	lua_pushnumber(L, blockseed);
+	lua_pushinteger(L, stage);
+	runCallbacks(5, RUN_CALLBACKS_MODE_FIRST);
+	lua_pop(L, 1); // pop return value
+	lua_pop(L, 3); // pop: stage list, registered_on_mapgen_stages, core
 }
 
 void ScriptApiEnv::environment_Step(float dtime)

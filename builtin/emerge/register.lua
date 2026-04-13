@@ -55,3 +55,5 @@ local make_registration = builtin_shared.make_registration
 core.registered_on_mods_loaded, core.register_on_mods_loaded = make_registration()
 core.registered_on_generateds, core.register_on_generated = make_registration()
 core.registered_on_shutdown, core.register_on_shutdown = make_registration()
+
+builtin_shared.setup_mapgen_stage_registration()

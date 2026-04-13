@@ -318,7 +318,7 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 	blockseed = getBlockSeed2(full_node_min, seed);
 
 	// Generate base and mountain terrain
-	s16 stone_surface_max_y = generateTerrain();
+	m_stone_surface_max_y = generateTerrain();
 
 	// Create heightmap
 	updateHeightmap(node_min, node_max);
@@ -332,22 +332,22 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 	// Generate tunnels, caverns and large randomwalk caves
 	if (flags & MG_CAVES) {
 		// Generate tunnels first as caverns confuse them
-		generateCavesNoiseIntersection(stone_surface_max_y);
+		generateCavesNoiseIntersection(m_stone_surface_max_y);
 
 		// Generate caverns
 		bool near_cavern = false;
 		if (spflags & MGV7_CAVERNS)
-			near_cavern = generateCavernsNoise(stone_surface_max_y);
+			near_cavern = generateCavernsNoise(m_stone_surface_max_y);
 
 		// Generate large randomwalk caves
 		if (near_cavern)
 			// Disable large randomwalk caves in this mapchunk by setting
 			// 'large cave depth' to world base. Avoids excessive liquid in
 			// large caverns and floating blobs of overgenerated liquid.
-			generateCavesRandomWalk(stone_surface_max_y,
+			generateCavesRandomWalk(m_stone_surface_max_y,
 				-MAX_MAP_GENERATION_LIMIT);
 		else
-			generateCavesRandomWalk(stone_surface_max_y, large_cave_depth);
+			generateCavesRandomWalk(m_stone_surface_max_y, large_cave_depth);
 	}
 
 	// Generate the registered ores
@@ -356,11 +356,12 @@ void MapgenV7::makeChunk(BlockMakeData *data)
 
 	// Generate dungeons
 	if (flags & MG_DUNGEONS)
-		generateDungeons(stone_surface_max_y);
+		generateDungeons(m_stone_surface_max_y);
 
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+		m_emerge->decomgr->placeAllDecos(this, blockseed,
+			node_min, node_max, full_node_min, full_node_max);
 
 	// Sprinkle some dust on top after everything else was generated
 	if (flags & MG_BIOMES)
@@ -464,6 +465,30 @@ bool MapgenV7::getFloatlandTerrainFromMap(int idx_xyz, float float_offset)
 }
 
 
+bool MapgenV7::generateCavernsNoise(s16 max_stone_y)
+{
+	if (!(spflags & MGV7_CAVERNS))
+		return false;
+	return MapgenBasic::generateCavernsNoise(max_stone_y);
+}
+
+void MapgenV7::generateLighting(BlockMakeData *data)
+{
+	setupGenContext(data);
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+	bool propagate_shadow = !((spflags & MGV7_FLOATLANDS) &&
+		node_max.Y >= floatland_ymin - csize.Y * 2 &&
+		node_min.Y <= floatland_ymax);
+	if (flags & MG_LIGHT)
+		// TODO(multi-stage Phase 3): drop the Y±1 overgeneration once lighting
+		// uses the 3×3×3 neighbourhood instead of padded bounds.
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max, propagate_shadow);
+	discardPadding();
+	this->generating = false;
+}
+
+
 int MapgenV7::generateTerrain()
 {
 	MapNode n_air(CONTENT_AIR);
@@ -499,7 +524,7 @@ int MapgenV7::generateTerrain()
 		noise_floatland->noiseMap3D(node_min.X, node_min.Y - 1, node_min.Z);
 
 		// Cache floatland noise offset values, for floatland tapering
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1; y++, cache_index++) {
+		for (s16 y = node_min.Y - 1; y <= node_max.Y; y++, cache_index++) {
 			float float_offset = 0.0f;
 			if (y > float_taper_ymax) {
 				float_offset = std::pow((y - float_taper_ymax) / (float)floatland_taper,
@@ -536,7 +561,7 @@ int MapgenV7::generateTerrain()
 		u32 vi = vm->m_area.index(x, node_min.Y - 1, z);
 		u32 index3d = (z - node_min.Z) * zstride_1u1d + (x - node_min.X);
 
-		for (s16 y = node_min.Y - 1; y <= node_max.Y + 1;
+		for (s16 y = node_min.Y - 1; y <= node_max.Y;
 				y++,
 				index3d += ystride,
 				VoxelArea::add_y(em, vi, 1),

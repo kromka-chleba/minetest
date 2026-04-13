@@ -22,4 +22,6 @@ public:
 
 	// Called after generating a piece of map, before writing it to the map
 	void on_generated(BlockMakeData *bmdata, u32 seed);
+	// Called after finishing a specific generation stage (including custom stages).
+	void on_mapgen_stage(BlockMakeData *bmdata, u32 seed, u8 stage);
 };

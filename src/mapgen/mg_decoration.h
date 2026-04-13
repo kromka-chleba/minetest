@@ -45,8 +45,12 @@ public:
 
 	bool canPlaceDecoration(MMVManip *vm, v3s16 p);
 	void placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax);
+	void placeDeco(Mapgen *mg, u32 blockseed,
+		v3s16 chunk_nmin, v3s16 chunk_nmax,
+		v3s16 place_nmin, v3s16 place_nmax);
 
 	virtual size_t generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling) = 0;
+	virtual v3s16 getOvergenerate() const { return v3s16(0); }
 
 	u32 flags = 0;
 	int mapseed = 0;
@@ -74,6 +78,7 @@ public:
 
 	virtual void resolveNodeNames();
 	virtual size_t generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling);
+	v3s16 getOvergenerate() const override { return v3s16(0); }
 
 	std::vector<content_t> c_decos;
 	s16 deco_height;
@@ -91,6 +96,7 @@ public:
 	virtual ~DecoSchematic();
 
 	virtual size_t generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling);
+	v3s16 getOvergenerate() const override;
 
 	Rotation rotation;
 	Schematic *schematic = nullptr;
@@ -103,6 +109,7 @@ public:
 	ObjDef *clone() const;
 
 	virtual size_t generate(MMVManip *vm, PcgRandom *pr, v3s16 p, bool ceiling);
+	v3s16 getOvergenerate() const override;
 
 	// In case it gets cloned it uses the same tree def.
 	std::shared_ptr<treegen::TreeDef> tree_def;
@@ -135,7 +142,10 @@ public:
 		}
 	}
 
-	void placeAllDecos(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax);
+	void placeAllDecos(Mapgen *mg, u32 blockseed,
+		v3s16 chunk_nmin, v3s16 chunk_nmax,
+		v3s16 place_nmin, v3s16 place_nmax);
+	v3s16 getMaxOvergenerate() const;
 
 private:
 	DecorationManager() {};

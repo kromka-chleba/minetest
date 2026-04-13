@@ -6,10 +6,12 @@
 
 #include <map>
 #include <mutex>
+#include <vector>
 #include "network/networkprotocol.h"
 #include "irr_v3d.h"
 #include "util/metricsbackend.h"
 #include "mapgen/mapgen.h" // for MapgenParams
+#include "mapgen/mapgen_stage.h"
 #include "map.h"
 
 #define BLOCK_EMERGE_ALLOW_GEN   (1 << 0)
@@ -39,6 +41,12 @@ struct BlockMakeData {
 	u64 seed = 0;
 	v3s16 blockpos_min;
 	v3s16 blockpos_max;
+	// Stage we are asked to produce (STAGE_* constant from mapgen_stage.h).
+	u8 target_stage = STAGE_NONE;
+	// Highest stage already completed in the central blocks when this
+	// BlockMakeData was prepared.  The mapgen advances from input_stage
+	// to target_stage.
+	u8 input_stage  = STAGE_NONE;
 	UniqueQueue<v3s16> transforming_liquid;
 	const NodeDefManager *nodedef = nullptr;
 
@@ -54,6 +62,9 @@ enum EmergeAction {
 	EMERGE_FROM_MEMORY,
 	EMERGE_FROM_DISK,
 	EMERGE_GENERATED,
+	// Block is queued but waiting for neighbours to complete a prerequisite
+	// stage; it will be re-enqueued automatically when they do.
+	EMERGE_DEFERRED,
 };
 
 constexpr const char *emergeActionStrs[] = {
@@ -62,6 +73,7 @@ constexpr const char *emergeActionStrs[] = {
 	"from_memory",
 	"from_disk",
 	"generated",
+	"deferred",
 };
 
 // Callback
@@ -78,6 +90,9 @@ typedef std::vector<
 struct BlockEmergeData {
 	u16 peer_requested;
 	u16 flags;
+	// Minimum generation stage the requester needs (STAGE_* constant).
+	// Default STAGE_COMPLETE preserves pre-multi-stage behaviour.
+	u8 required_stage = STAGE_COMPLETE;
 	EmergeCallbackList callbacks;
 };
 
@@ -170,6 +185,7 @@ public:
 		session_t peer_id,
 		v3s16 blockpos,
 		bool allow_generate,
+		u8 required_stage = STAGE_COMPLETE,
 		bool ignore_queue_limits=false);
 
 	bool enqueueBlockEmergeEx(
@@ -177,7 +193,8 @@ public:
 		session_t peer_id,
 		u16 flags,
 		EmergeCompletionCallback callback,
-		void *callback_param);
+		void *callback_param,
+		u8 required_stage = STAGE_COMPLETE);
 
 	size_t getQueueSize();
 	bool isBlockInQueue(v3s16 pos);
@@ -205,6 +222,15 @@ private:
 
 	std::mutex m_queue_mutex;
 	std::map<v3s16, BlockEmergeData> m_blocks_enqueued;
+	// Blocks deferred waiting on specific neighbour chunks to reach a stage.
+	// Key: chunk position (in block units, chunk-aligned)
+	struct DeferredItem {
+		v3s16 blockpos;
+		BlockEmergeData bedata;
+		u8 predecessor_stage;
+		u8 target_stage;
+	};
+	std::map<v3s16, std::vector<DeferredItem>> m_deferred_by_chunk;
 	std::unordered_map<u16, u32> m_peer_queue_count;
 
 	u32 m_qlimit_total;
@@ -212,7 +238,7 @@ private:
 	u32 m_qlimit_generate;
 
 	// Emerge metrics
-	MetricCounterPtr m_completed_emerge_counter[5];
+	MetricCounterPtr m_completed_emerge_counter[6];
 
 	// Managers of various map generation-related components
 	// Note that each Mapgen gets a copy(!) of these to work with
@@ -231,11 +257,16 @@ private:
 		u16 flags,
 		EmergeCompletionCallback callback,
 		void *callback_param,
+		u8 required_stage,
 		bool *entry_already_exists);
 
 	bool popBlockEmergeData(v3s16 pos, BlockEmergeData *bedata);
 
 	void reportCompletedEmerge(EmergeAction action);
+	void addDeferredBlock(const v3s16 &pos, const BlockEmergeData &bedata,
+		const BlockMakeData &bmdata, const std::vector<v3s16> &missing_chunks,
+		u8 predecessor_stage);
+	void notifyStageComplete(const v3s16 &chunkpos, u8 completed_stage);
 
 	friend class EmergeThread;
 };

@@ -11,6 +11,7 @@
 #include "emerge.h"
 
 #include <queue>
+#include <vector>
 
 #include "util/thread.h"
 #include "threading/event.h"
@@ -71,12 +72,15 @@ private:
 	 * @param from_db serialized block data, optional
 	 *                (for second call after EMERGE_FROM_DISK was returned)
 	 * @param allow_gen allow invoking mapgen?
+	 * @param required_stage minimum generation stage the caller needs
 	 * @param block output pointer for block
 	 * @param data info for mapgen
 	 * @return what to do for this block
 	 */
-	EmergeAction getBlockOrStartGen(v3s16 pos, bool allow_gen,
+	EmergeAction getBlockOrStartStage(v3s16 pos, bool allow_gen, u8 required_stage,
 		const std::string *from_db,  MapBlock **block, BlockMakeData *data);
+	bool isNeighbourhoodReady(const v3s16 &pos, u8 predecessor_stage,
+		std::vector<v3s16> *missing = nullptr) const;
 
 	MapBlock *finishGen(v3s16 pos, BlockMakeData *bmdata,
 		std::map<v3s16, MapBlock *> *modified_blocks);

@@ -177,6 +177,12 @@ private:
 	// emerge_area(p1, p2)
 	static int l_emerge_area(lua_State *L);
 
+	// get_mapgen_stage(pos)
+	static int l_get_mapgen_stage(lua_State *L);
+
+	// chunk_has_stage(pos, stage)
+	static int l_chunk_has_stage(lua_State *L);
+
 	// delete_area(p1, p2) -> true/false
 	static int l_delete_area(lua_State *L);
 

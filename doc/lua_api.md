@@ -5066,6 +5066,12 @@ Decoration types
 
 The varying types of decorations that can be placed.
 
+**Mapgen overgeneration limit:** The map generator only loads a fixed overgeneration
+margin when placing decorations — roughly two-fifths of a chunk per axis, rounded
+to whole mapblocks (never more than one full chunk). Any schematic content that
+extends beyond that margin is clipped in the current chunk; neighbouring chunks
+generate their own overlapping fragments to complete the structure.
+
 `simple`
 --------
 
@@ -6340,10 +6346,14 @@ Call these functions only at load time!
     * Called when a node is punched
 * `core.register_on_generated(function(minp, maxp, blockseed))`
     * Called after a piece of world between `minp` and `maxp` has been
-      generated and written into the map.
+      generated and written into the map, after stage `STAGE_DECORATIONS`
+      completes.
     * **Avoid using this** whenever possible. As with other callbacks this blocks
       the main thread and is prone to introduce noticeable latency/lag.
       Consider [Mapgen environment](#mapgen-environment) as an alternative.
+* `core.register_on_mapgen_stage(stage, function(vmanip, minp, maxp, blockseed, stage))`
+    * Called after the given mapgen stage (see `STAGE_*` constants) finishes
+      on the centre chunk. The provided VoxelManip covers the centre chunk.
 * `core.register_on_newplayer(function(player))`
     * Called when a new player enters the world for the first time
     * `player`: ObjectRef
@@ -6912,7 +6922,7 @@ Environment access
     * Load the mapblocks containing the area from `pos1` to `pos2`.
       `pos2` defaults to `pos1` if not specified.
     * This function does not trigger map generation.
-* `core.emerge_area(pos1, pos2, [callback], [param])`
+* `core.emerge_area(pos1, pos2, [callback], [param], [min_stage])`
     * Queue all blocks in the area from `pos1` to `pos2`, inclusive, to be
       asynchronously fetched from memory, loaded from disk, or if inexistent,
       generates them.
@@ -6936,6 +6946,14 @@ Environment access
           this one.
         * `param` is the user-defined parameter passed to emerge_area (or
           nil if the parameter was absent).
+        * `min_stage` (optional) is the minimum generation stage to reach for
+          each chunk. Defaults to `STAGE_COMPLETE`.
+* `core.get_mapgen_stage(pos)`
+    * Returns the generation stage (`STAGE_*` constant) of the chunk
+      containing `pos`, or `STAGE_NONE` if the chunk has not started.
+* `core.chunk_has_stage(pos, stage)`
+    * Returns `true` if the chunk containing `pos` has completed at least the
+      given `stage`.
 * `core.delete_area(pos1, pos2)`
     * delete all mapblocks in the area from pos1 to pos2, inclusive
 * `core.line_of_sight(pos1, pos2)`: returns `boolean, pos`
@@ -7443,15 +7461,22 @@ does not have a global step or timer.
 
 ### List of APIs exclusive to the mapgen env
 
+* `core.register_mapgen_stage({stage=number, name=string, func=function})`
+    * Register a custom mapgen stage callback to run in the mapgen
+      environment. The callback receives `(vmanip, minp, maxp, blockseed, stage)`.
+    * `stage` must be between `1` and `254` (see `STAGE_*` constants).
 * `core.register_on_generated(function(vmanip, minp, maxp, blockseed))`
     * Called after the engine mapgen finishes a chunk but before it is written to
-      the map.
+      the map, after stage `STAGE_DECORATIONS` completes.
     * Chunk data resides in `vmanip`. Other parts of the map are not accessible.
       The area of the chunk if comprised of `minp` and `maxp`, note that is smaller
       than the emerged area of the VoxelManip.
       Note: calling `read_from_map()` or `write_to_map()` on the VoxelManipulator object
       is not necessary and is disallowed.
     * `blockseed`: 64-bit seed number used for this chunk
+* `core.register_on_mapgen_stage(stage, function(vmanip, minp, maxp, blockseed, stage))`
+    * Called after the specified stage completes on the centre chunk. The
+      provided VoxelManip covers only the centre chunk.
 * `core.save_gen_notify(id, data)`
     * Saves data for retrieval using the gennotify mechanism (see [Mapgen objects](#mapgen-objects)).
     * Data is bound to the chunk that is currently being processed, so this function

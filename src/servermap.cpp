@@ -21,6 +21,7 @@
 #include "reflowscan.h"
 #include "emerge.h"
 #include "mapgen/mg_biome.h"
+#include "mapgen/mg_decoration.h"
 #include "config.h"
 #include "server.h"
 #include "serverenvironment.h"
@@ -172,11 +173,17 @@ ServerMap::~ServerMap()
 	deleteDetachedBlocks();
 }
 
-MapgenParams *ServerMap::getMapgenParams()
+const MapgenParams *ServerMap::getMapgenParams() const
 {
 	// getMapgenParams() should only ever be called after Server is initialized
 	assert(settings_mgr.mapgen_params != NULL);
 	return settings_mgr.mapgen_params;
+}
+
+MapgenParams *ServerMap::getMapgenParams()
+{
+	return const_cast<MapgenParams *>(
+		static_cast<const ServerMap *>(this)->getMapgenParams());
 }
 
 u64 ServerMap::getSeed()
@@ -210,8 +217,9 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax);
 
-	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = bpmin - extra_border;
+	const v3s16 full_bpmax = bpmax + extra_border;
 
 	// Do nothing if not fully inside mapgen limits
 	if (blockpos_over_mapgen_limit(full_bpmin) ||
@@ -222,6 +230,9 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	data->blockpos_min = bpmin;
 	data->blockpos_max = bpmax;
 	data->nodedef = m_nodedef;
+	// Default to full completion if the caller did not request a stage.
+	if (data->target_stage == STAGE_NONE)
+		data->target_stage = STAGE_COMPLETE;
 
 	/*
 		Create the whole area of this and the neighboring blocks
@@ -263,12 +274,53 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 	return true;
 }
 
+v3s16 ServerMap::getExtraBlockBorder(u8 target_stage) const
+{
+	// Keep default border for terrain/caves/ores/lighting.
+	v3s16 border = EMERGE_EXTRA_BORDER;
+
+	// Decorations need a wider deterministic neighborhood to replicate
+	// neighbor-owned anchors without cross-chunk writes.
+	if (target_stage >= STAGE_DECORATIONS && m_emerge) {
+		const DecorationManager *decomgr = m_emerge->getDecorationManager();
+		if (!decomgr)
+			return border;
+
+		const v3s16 csize = getMapgenParams()->chunksize;
+		auto margin_cap_blocks = [](s16 chunk_blocks) -> s16 {
+			// Prefer ~2/5 of the chunk, rounded to whole mapblocks (add 2 to
+			// round half up), but never exceed one full chunk along any axis.
+			s16 preferred = (2 * chunk_blocks + 2) / 5;
+			return rangelim(preferred, (s16)1, chunk_blocks);
+		};
+		const v3s16 cap_blocks(
+			margin_cap_blocks(csize.X),
+			margin_cap_blocks(csize.Y),
+			margin_cap_blocks(csize.Z));
+
+		const v3s16 overgen = decomgr->getMaxOvergenerate();
+		auto to_block_radius = [](s16 nodes) -> s16 {
+			return std::max<s16>(1, (nodes + MAP_BLOCKSIZE - 1) / MAP_BLOCKSIZE);
+		};
+
+		border.X = std::max(border.X,
+			std::min(to_block_radius(overgen.X), cap_blocks.X));
+		border.Y = std::max(border.Y,
+			std::min(to_block_radius(overgen.Y), cap_blocks.Y));
+		border.Z = std::max(border.Z,
+			std::min(to_block_radius(overgen.Z), cap_blocks.Z));
+	}
+
+	return border;
+}
+
 void ServerMap::cancelBlockMake(BlockMakeData *data)
 {
 	assert(data->vmanip); // no vmanip = initBlockMake did not complete (caller mistake)
 
-	const v3s16 full_bpmin = data->blockpos_min - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = data->blockpos_max + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = data->blockpos_min - extra_border;
+	const v3s16 full_bpmax = data->blockpos_max + extra_border;
 	for (s16 x = full_bpmin.X; x <= full_bpmax.X; x++)
 	for (s16 z = full_bpmin.Z; z <= full_bpmax.Z; z++)
 	for (s16 y = full_bpmin.Y; y <= full_bpmax.Y; y++) {
@@ -289,6 +341,28 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
 	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
+
+	// Never write overgenerated neighbor padding back to the map.
+	// Padding is loaded only to allow boundary-safe generation and must not
+	// persist, otherwise parallel emerge threads can overwrite each other at
+	// chunk boundaries.
+	{
+		const v3s16 node_min = bpmin * MAP_BLOCKSIZE;
+		const v3s16 node_max =
+			(bpmax + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+		const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+		const v3s16 full_node_min =
+			(bpmin - extra_border) * MAP_BLOCKSIZE;
+		const v3s16 full_node_max =
+			(bpmax + extra_border + v3s16(1, 1, 1)) * MAP_BLOCKSIZE -
+			v3s16(1, 1, 1);
+
+		MMVManip *vm = data->vmanip;
+		// Mark everything as non-writable first, then unmask the authoritative
+		// center chunk volume. This correctly excludes edge/corner padding too.
+		vm->setFlags(VoxelArea(full_node_min, full_node_max), VOXELFLAG_NO_DATA);
+		vm->clearFlags(VoxelArea(node_min, node_max), VOXELFLAG_NO_DATA);
+	}
 
 	/*
 		Blit generated stuff to map
@@ -328,8 +402,9 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 			MOD_REASON_EXPIRE_IS_AIR);
 	}
 
-	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
-	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
+	const v3s16 extra_border = getExtraBlockBorder(data->target_stage);
+	const v3s16 full_bpmin = bpmin - extra_border;
+	const v3s16 full_bpmax = bpmax + extra_border;
 
 	v3s16 bp;
 	for (bp.X = full_bpmin.X; bp.X <= full_bpmax.X; bp.X++)
@@ -349,7 +424,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		if (bp.X >= bpmin.X && bp.X <= bpmax.X
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
-			block->setGenerated(true);
+			// Advance the block's stage to the target.
+			// setGenerationStage() acts as setGenerated(true) when
+			// target_stage == STAGE_COMPLETE (the default for Phase 1/2),
+			// so external behaviour is unchanged.
+			block->setGenerationStage(data->target_stage);
 			// Set timestamp to ensure correct application
 			// of LBMs and other stuff.
 			block->setTimestampNoChangedFlag(now);
