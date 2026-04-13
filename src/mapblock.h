@@ -510,6 +510,16 @@ public:
 	// Can be empty, in which case nothing was cached yet.
 	std::vector<content_t> contents;
 
+	//// Mapgen shell-block protection ////
+	// Set to true by an external (non-mapgen) VoxelManip write_to_map() when
+	// the block is not yet fully generated (i.e. it is a shell/border block of
+	// a neighbouring chunk's in-progress generation).  Cleared at the beginning
+	// of initBlockMake for every block in the generation area, including shell
+	// blocks.  finishBlockMake checks this flag before blitting the mapgen
+	// VManip back: shell blocks whose content was externally modified during
+	// generation are skipped so that the user-written data is preserved.
+	bool m_externally_modified_during_gen = false;
+
 private:
 	// Whether day and night lighting differs
 	bool m_is_air = false;

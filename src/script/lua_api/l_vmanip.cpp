@@ -167,6 +167,14 @@ int LuaVoxelManip::l_write_to_map(lua_State *L)
 		voxalgo::blit_back_with_light(map, o->vm, &modified_blocks);
 	}
 
+	// If any non-generated (shell) blocks were written by this external
+	// VoxelManip, mark them so that finishBlockMake can detect that a
+	// concurrent mapgen must not overwrite them with its VManip data.
+	for (auto &[_pos, block] : modified_blocks) {
+		if (block && !block->isGenerated())
+			block->m_externally_modified_during_gen = true;
+	}
+
 	MapEditEvent event;
 	event.type = MEET_OTHER;
 	event.setModifiedBlocks(modified_blocks);
