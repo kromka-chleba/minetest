@@ -23,6 +23,7 @@ public:
 	void testEmerge(IGameDef *gamedef);
 	void testBlitBack(IGameDef *gamedef);
 	void testBlitBack2(IGameDef *gamedef);
+	void testBlitBackNoOverwriteGenerated(IGameDef *gamedef);
 };
 
 static TestVoxelManipulator g_test_instance;
@@ -33,6 +34,7 @@ void TestVoxelManipulator::runTests(IGameDef *gamedef)
 	TEST(testEmerge, gamedef);
 	TEST(testBlitBack, gamedef);
 	TEST(testBlitBack2, gamedef);
+	TEST(testBlitBackNoOverwriteGenerated, gamedef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -178,4 +180,50 @@ void TestVoxelManipulator::testBlitBack2(IGameDef *gamedef)
 	UASSERTEQ(auto, map.getNode({0,1,0}).getContent(), t_CONTENT_TORCH);
 	// The upper one should not!
 	UASSERTEQ(auto, map.getNode({0,bs,0}).getContent(), CONTENT_AIR);
+}
+
+void TestVoxelManipulator::testBlitBackNoOverwriteGenerated(IGameDef *gamedef)
+{
+	DummyMap map(gamedef, {-1,0,0}, {1,0,0});
+	map.fill({-1,0,0}, {1,0,0}, CONTENT_AIR);
+
+	MMVManip vm(&map);
+	vm.initialEmerge({-1,0,0}, {1,0,0});
+	// Write candidate changes for both blocks; generated block must be skipped.
+	vm.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
+	vm.setNodeNoEmerge({MAP_BLOCKSIZE, 0, 0}, t_CONTENT_BRICK);
+
+	MapBlock *center = map.getBlockNoCreateNoEx({0, 0, 0});
+	MapBlock *neighbor = map.getBlockNoCreateNoEx({1, 0, 0});
+	UASSERT(center);
+	UASSERT(neighbor);
+	center->setGenerated(true);
+	neighbor->setGenerated(false);
+
+	std::map<v3s16, MapBlock*> modified;
+	vm.blitBackAll(&modified, false);
+
+	// Neighbor block should be modified (not generated).
+	UASSERT(modified.find(v3s16(1, 0, 0)) != modified.end());
+	// Center block should not be modified (already generated).
+	UASSERT(modified.find(v3s16(0, 0, 0)) == modified.end());
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), CONTENT_AIR);
+	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), t_CONTENT_BRICK);
+
+	// Inverse case: neighbor generated, center not generated.
+	map.fill({-1,0,0}, {1,0,0}, CONTENT_AIR);
+	MMVManip vm2(&map);
+	vm2.initialEmerge({-1,0,0}, {1,0,0});
+	vm2.setNodeNoEmerge({0, 0, 0}, t_CONTENT_STONE);
+	vm2.setNodeNoEmerge({MAP_BLOCKSIZE, 0, 0}, t_CONTENT_BRICK);
+	center->setGenerated(false);
+	neighbor->setGenerated(true);
+
+	modified.clear();
+	vm2.blitBackAll(&modified, false);
+
+	UASSERT(modified.find(v3s16(0, 0, 0)) != modified.end());
+	UASSERT(modified.find(v3s16(1, 0, 0)) == modified.end());
+	UASSERTEQ(auto, map.getNode({0, 0, 0}).getContent(), t_CONTENT_STONE);
+	UASSERTEQ(auto, map.getNode({MAP_BLOCKSIZE, 0, 0}).getContent(), CONTENT_AIR);
 }
