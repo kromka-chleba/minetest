@@ -24,6 +24,7 @@
 #include "gameparams.h"
 #include "gettext.h"
 #include "gui/guiChatConsole.h"
+#include "gui/guiLicenseDialog.h"
 #include "texturesource.h"
 #include "gui/mainmenumanager.h"
 #include "gui/profilergraph.h"
@@ -1040,6 +1041,7 @@ bool Game::connectToServer(const GameStartData &start_data,
 		f32 dtime;
 		f32 wait_time = 0; // in seconds
 		bool did_fallback = false;
+		irr_ptr<GUILicenseDialog> license_dialog;
 
 		fps_control.reset();
 
@@ -1066,6 +1068,24 @@ bool Game::connectToServer(const GameStartData &start_data,
 
 			if (!checkConnection())
 				break;
+
+			// License dialog: show when server sends licensing files
+			if (client->hasPendingLicense()) {
+				if (!license_dialog) {
+					license_dialog = make_irr<GUILicenseDialog>(guienv,
+							guienv->getRootGUIElement(),
+							-1, &g_menumgr, texture_src,
+							client->getLicenseContent(), client);
+				} else if (license_dialog->getParent() == nullptr) {
+					// Dialog was dismissed without accepting (declined or escaped)
+					license_dialog = nullptr;
+					*connection_aborted = true;
+					break;
+				}
+				// Render loading screen background so the dialog is visible
+				m_rendering_engine->draw_load_screen(L"", guienv, texture_src, dtime, 0);
+				continue;
+			}
 
 			if (input->cancelPressed()) {
 				*connection_aborted = true;

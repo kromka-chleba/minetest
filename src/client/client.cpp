@@ -1994,6 +1994,33 @@ void Client::makeScreenshot()
 	}
 }
 
+void Client::acceptLicense()
+{
+	m_license_pending = false;
+	m_license_content.clear();
+
+	// Reply to server (deferred from handleCommand_AuthAccept)
+	/* TRANSLATORS: DO NOT TRANSLATE THIS LITERALLY!
+	This is a special string which needs to contain the translation's
+	language code (e.g. "de" for German). */
+	std::string lang = gettext("LANG_CODE");
+	if (lang == "LANG_CODE")
+		lang.clear();
+
+	NetworkPacket resp_pkt(TOSERVER_INIT2, sizeof(u16) + lang.size());
+	resp_pkt << lang;
+	Send(&resp_pkt);
+
+	m_state = LC_Init;
+
+	if (!m_internal_server) {
+		Address remote = m_con->GetPeerAddress(PEER_ID_SERVER);
+		actionstream << "Connected to " << m_address_name << " (";
+		remote.print(actionstream);
+		actionstream << ")" << std::endl;
+	}
+}
+
 void Client::pushToEventQueue(ClientEvent *event)
 {
 	m_client_event_queue.push(event);

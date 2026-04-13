@@ -214,6 +214,7 @@ public:
 	void handleCommand_MinimapModes(NetworkPacket *pkt);
 	void handleCommand_SetLighting(NetworkPacket *pkt);
 	void handleCommand_Camera(NetworkPacket* pkt);
+	void handleCommand_License(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 
@@ -393,6 +394,10 @@ public:
 	void request_media(const std::vector<std::string> &file_requests);
 
 	LocalClientState getState() { return m_state; }
+
+	bool hasPendingLicense() const { return m_license_pending; }
+	const std::string &getLicenseContent() const { return m_license_content; }
+	void acceptLicense();
 
 	void makeScreenshot();
 
@@ -581,6 +586,10 @@ private:
 
 	// own state
 	LocalClientState m_state;
+
+	// License state
+	bool m_license_pending = false;
+	std::string m_license_content;
 
 	// Used for saving server map to disk client-side
 	std::unique_ptr<MapDatabase> m_localdb;

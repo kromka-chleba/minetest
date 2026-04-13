@@ -3075,6 +3075,30 @@ void Server::acceptAuth(session_t peer_id, bool forSudoMode)
 	if (!forSudoMode) {
 		RemoteClient* client = getClient(peer_id, CS_Invalid);
 
+		// Send license files from <game>/licensing/ before auth accept
+		{
+			std::string licdir = m_gamespec.path + DIR_DELIM + "licensing";
+			std::vector<std::string> license_contents;
+			if (fs::IsDir(licdir)) {
+				auto dirlist = fs::GetDirListing(licdir);
+				for (const auto &dn : dirlist) {
+					if (!dn.dir) {
+						std::string content;
+						if (fs::ReadFile(licdir + DIR_DELIM + dn.name, content))
+							license_contents.push_back(std::move(content));
+						else
+							warningstream << "Server: Could not read license file: "
+								<< dn.name << std::endl;
+					}
+				}
+			}
+			NetworkPacket lic_pkt(TOCLIENT_LICENSE, 2, peer_id);
+			lic_pkt << (u16)license_contents.size();
+			for (const auto &c : license_contents)
+				lic_pkt << c;
+			Send(&lic_pkt);
+		}
+
 		NetworkPacket resp_pkt(TOCLIENT_AUTH_ACCEPT, 1 + 6 + 8 + 4, peer_id);
 
 		resp_pkt << v3f() << (u64) m_env->getServerMap().getSeed()
