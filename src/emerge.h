@@ -12,8 +12,14 @@
 #include "mapgen/mapgen.h" // for MapgenParams
 #include "map.h"
 
-#define BLOCK_EMERGE_ALLOW_GEN   (1 << 0)
-#define BLOCK_EMERGE_FORCE_QUEUE (1 << 1)
+#define BLOCK_EMERGE_ALLOW_GEN    (1 << 0)
+#define BLOCK_EMERGE_FORCE_QUEUE  (1 << 1)
+// When set, the emerge request must not advance a block past MAPGEN_STAGE_TERRAIN.
+// Used for "shell" neighbours enqueued to satisfy a COMPLETE pre-condition:
+// they only need terrain context, not full generation.  This prevents the
+// shell from cascading outward by attempting COMPLETE (which would enqueue
+// its own 26 shell neighbours, and so on without bound).
+#define BLOCK_EMERGE_TERRAIN_ONLY (1 << 2)
 
 #define EMERGE_DBG_OUT(x) {                            \
 	if (enable_mapgen_debug_info)                      \
@@ -39,6 +45,8 @@ struct BlockMakeData {
 	u64 seed = 0;
 	v3s16 blockpos_min;
 	v3s16 blockpos_max;
+	// Generation stage being executed (MAPGEN_STAGE_TERRAIN or MAPGEN_STAGE_COMPLETE)
+	u8 stage = MAPGEN_STAGE_NONE;
 	UniqueQueue<v3s16> transforming_liquid;
 	const NodeDefManager *nodedef = nullptr;
 

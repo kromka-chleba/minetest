@@ -200,24 +200,20 @@ int MapgenFractal::getSpawnLevelAtPoint(v2s16 p)
 
 void MapgenFractal::makeChunk(BlockMakeData *data)
 {
+	makeChunkTerrain(data);
+
+	this->generating = true;
+	makeChunkDecorations(data);
+}
+
+
+void MapgenFractal::makeChunkTerrain(BlockMakeData *data)
+{
 	// Pre-conditions
 	assert(data->vmanip);
 	assert(data->nodedef);
 
-	//TimeTaker t("makeChunk");
-
-	this->generating = true;
-	this->vm = data->vmanip;
-	this->ndef = data->nodedef;
-
-	v3s16 blockpos_min = data->blockpos_min;
-	v3s16 blockpos_max = data->blockpos_max;
-	node_min = blockpos_min * MAP_BLOCKSIZE;
-	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-
-	blockseed = getBlockSeed2(full_node_min, seed);
+	initChunkParams(data);
 
 	// Generate fractal and optional terrain
 	s16 stone_surface_max_y = generateTerrain();
@@ -245,6 +241,23 @@ void MapgenFractal::makeChunk(BlockMakeData *data)
 	if (flags & MG_DUNGEONS)
 		generateDungeons(stone_surface_max_y);
 
+	this->generating = false;
+}
+
+
+void MapgenFractal::makeChunkDecorations(BlockMakeData *data)
+{
+	initChunkParams(data);
+
+	// Rebuild heightmap and biomemap from the freshly-loaded stage-2 VM.
+	// These arrays are stale from a previous stage-1 run on a different chunk.
+	if (heightmap)
+		updateHeightmap(node_min, node_max);
+	if (biomegen && (flags & MG_BIOMES)) {
+		biomegen->calcBiomeNoise(node_min);
+		biomegen->getBiomes(heightmap, node_min);
+	}
+
 	// Generate the registered decorations
 	if (flags & MG_DECORATIONS)
 		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
@@ -253,18 +266,19 @@ void MapgenFractal::makeChunk(BlockMakeData *data)
 	if (flags & MG_BIOMES)
 		dustTopNodes();
 
-	// Update liquids
+	// Update liquids (only when terrain is enabled)
 	if (spflags & MGFRACTAL_TERRAIN)
 		updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
 
-	// Calculate lighting
+	// Calculate lighting.
+	// Border blocks are at MAPGEN_STAGE_TERRAIN (param1 = 0); pass
+	// propagate_shadow = false so unlit transparent nodes above the inner
+	// area are not incorrectly treated as shadows.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
-			full_node_min, full_node_max);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
-
-	//printf("makeChunk: %lums\n", t.stop());
 }
 
 

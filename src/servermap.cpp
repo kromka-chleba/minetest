@@ -208,20 +208,59 @@ bool ServerMap::initBlockMake(v3s16 blockpos, BlockMakeData *data)
 		return false;
 
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
-	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax);
 
 	const v3s16 full_bpmin = bpmin - EMERGE_EXTRA_BORDER;
 	const v3s16 full_bpmax = bpmax + EMERGE_EXTRA_BORDER;
 
 	// Do nothing if not fully inside mapgen limits
 	if (blockpos_over_mapgen_limit(full_bpmin) ||
-			blockpos_over_mapgen_limit(full_bpmax))
+			blockpos_over_mapgen_limit(full_bpmax)) {
+		m_chunks_in_progress.erase(bpmin);
 		return false;
+	}
 
+	// Determine which generation stage to run for this chunk.
+	// A representative block at bpmin tells us the current stage of the chunk
+	// (all inner blocks of the same chunk share the same stage after finishBlockMake).
+	MapBlock *center = getBlockNoCreateNoEx(bpmin);
+	u8 current_stage = center ? center->getGenStage() : (u8)MAPGEN_STAGE_NONE;
+
+	u8 target_stage;
+	if (current_stage < MAPGEN_STAGE_TERRAIN) {
+		// Chunk has no terrain yet: run the terrain stage.
+		target_stage = MAPGEN_STAGE_TERRAIN;
+	} else {
+		// Chunk has terrain.  Before running decorations, all 26 neighbouring
+		// chunks (the 3×3×3 region around this one) must also have terrain so
+		// that decorations (schematics, trees) can read the correct surrounding
+		// topology without race-conditions.
+		bool neighbors_ready = true;
+		for (s16 cx = -1; cx <= 1 && neighbors_ready; cx++)
+		for (s16 cy = -1; cy <= 1 && neighbors_ready; cy++)
+		for (s16 cz = -1; cz <= 1 && neighbors_ready; cz++) {
+			if (cx == 0 && cy == 0 && cz == 0)
+				continue;
+			v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
+			MapBlock *nb = getBlockNoCreateNoEx(nchunk);
+			if (!nb || nb->getGenStage() < MAPGEN_STAGE_TERRAIN) {
+				neighbors_ready = false;
+			}
+		}
+		if (!neighbors_ready) {
+			m_chunks_in_progress.erase(bpmin);
+			return false;
+		}
+		target_stage = MAPGEN_STAGE_COMPLETE;
+	}
+
+	data->stage = target_stage;
 	data->seed = getSeed();
 	data->blockpos_min = bpmin;
 	data->blockpos_max = bpmax;
 	data->nodedef = m_nodedef;
+
+	EMERGE_DBG_OUT("initBlockMake(): " << bpmin << " - " << bpmax
+		<< " stage=" << (int)target_stage);
 
 	/*
 		Create the whole area of this and the neighboring blocks
@@ -288,13 +327,18 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	const v3s16 bpmax = data->blockpos_max;
 
 	bool enable_mapgen_debug_info = m_emerge->enable_mapgen_debug_info;
-	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax);
+	EMERGE_DBG_OUT("finishBlockMake(): " << bpmin << " - " << bpmax
+		<< " stage=" << (int)data->stage);
 
 	/*
-		Blit generated stuff to map
-		NOTE: blitBackAll adds nearly everything to changed_blocks
+		Blit generated data back to the map.
+		For both terrain and decoration stages we only write back the inner chunk
+		blocks (not the 1-block border).  This prevents concurrent generation of
+		adjacent chunks from racing on the shared border area, and prevents
+		terrain overwrites when the border neighbour later runs its own terrain
+		generation pass.
 	*/
-	data->vmanip->blitBackAll(changed_blocks);
+	data->vmanip->blitBackRange(bpmin, bpmax, changed_blocks);
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()="
 		<< changed_blocks->size());
@@ -344,15 +388,59 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 
 		block->refDrop();
 
-		/* Border blocks are grabbed during
-		   generation but mustn't be marked generated. */
+		/* Only inner chunk blocks advance their generation stage.
+		   Border blocks are grabbed during generation for context, but
+		   their stage is owned by their own chunk's generation pass.
+		   Guard against downgrading a block that somehow already reached a
+		   higher stage (e.g. if the centre block was evicted from the LRU
+		   cache and initBlockMake therefore ran TERRAIN a second time on an
+		   already-COMPLETE chunk). */
 		if (bp.X >= bpmin.X && bp.X <= bpmax.X
 				&& bp.Y >= bpmin.Y && bp.Y <= bpmax.Y
 				&& bp.Z >= bpmin.Z && bp.Z <= bpmax.Z) {
-			block->setGenerated(true);
-			// Set timestamp to ensure correct application
-			// of LBMs and other stuff.
-			block->setTimestampNoChangedFlag(now);
+			if (block->getGenStage() < data->stage)
+				block->setGenStage(data->stage);
+			if (data->stage == MAPGEN_STAGE_COMPLETE) {
+				// Set timestamp to ensure correct application
+				// of LBMs and other stuff.
+				block->setTimestampNoChangedFlag(now);
+			}
+		}
+	}
+
+	/*
+		Fix lighting across the chunk boundary (Bug 3: lighting seams).
+
+		The mapgen computes lighting inside the vmanip which covers the inner
+		chunk plus a 1-block border (full_bpmin … full_bpmax).  However
+		blitBackRange() above only writes back the inner blocks (bpmin … bpmax).
+		The border blocks in the live map therefore retain their pre-generation
+		param1 values (often zero from TERRAIN stage), producing incorrect
+		lighting at the chunk seam — e.g. a strip of shadow or a strip of
+		sunlight along the edge of a freshly-generated chunk.
+
+		Calling update_block_border_lighting() for each inner block on the face
+		of the chunk re-propagates lighting between the new inner blocks and
+		their already-existing neighbours outside the chunk, correcting the seam.
+
+		We do this only after the COMPLETE stage so that decorations and dust
+		are already placed and the block lighting values from calcLighting are
+		in their final state.
+	*/
+	if (data->stage == MAPGEN_STAGE_COMPLETE) {
+		v3s16 bp;
+		for (bp.X = bpmin.X; bp.X <= bpmax.X; bp.X++)
+		for (bp.Z = bpmin.Z; bp.Z <= bpmax.Z; bp.Z++)
+		for (bp.Y = bpmin.Y; bp.Y <= bpmax.Y; bp.Y++) {
+			bool on_edge = (bp.X == bpmin.X || bp.X == bpmax.X ||
+					bp.Y == bpmin.Y || bp.Y == bpmax.Y ||
+					bp.Z == bpmin.Z || bp.Z == bpmax.Z);
+			if (!on_edge)
+				continue;
+			MapBlock *block = getBlockNoCreateNoEx(bp);
+			if (!block)
+				continue;
+			voxalgo::update_block_border_lighting(this, block, *changed_blocks);
 		}
 	}
 
@@ -547,6 +635,13 @@ void ServerMap::save(ModifiedState save_level)
 
 		for (MapBlock *block : blocks) {
 			block_count_all++;
+
+			// TERRAIN-stage blocks are regenerated deterministically on reload
+			// and writing them to disk every few seconds holds EnvAutoLock,
+			// blocking all emerge threads.  Skip them here; they are still
+			// saved when unloaded from memory (via Map::timerUpdate).
+			if (block->getGenStage() == MAPGEN_STAGE_TERRAIN)
+				continue;
 
 			if(block->getModified() >= (u32)save_level) {
 				// Lazy beginSave()

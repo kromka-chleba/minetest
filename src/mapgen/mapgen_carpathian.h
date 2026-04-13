@@ -68,7 +68,8 @@ public:
 
 	virtual MapgenType getType() const { return MAPGEN_CARPATHIAN; }
 
-	virtual void makeChunk(BlockMakeData *data);
+	void makeChunk(BlockMakeData *data) override;
+	void makeChunkTerrain(BlockMakeData *data) override;
 	int getSpawnLevelAtPoint(v2s16 p);
 
 private:

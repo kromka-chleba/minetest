@@ -491,6 +491,13 @@ u32 MapgenV6::get_blockseed(u64 seed, v3s16 p)
 
 void MapgenV6::makeChunk(BlockMakeData *data)
 {
+	makeChunkTerrain(data);
+	makeChunkDecorations(data);
+}
+
+
+void MapgenV6::makeChunkTerrain(BlockMakeData *data)
+{
 	// Pre-conditions
 	assert(data->vmanip);
 	assert(data->nodedef);
@@ -608,11 +615,37 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 		}
 	}
 
-	// Add top and bottom side of water to transforming_liquid queue
-	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
-
 	// Add surface nodes
 	growGrass();
+
+	this->generating = false;
+}
+
+
+void MapgenV6::makeChunkDecorations(BlockMakeData *data)
+{
+	// Pre-conditions
+	assert(data->vmanip);
+	assert(data->nodedef);
+
+	this->generating = true;
+	this->vm   = data->vmanip;
+	this->ndef = data->nodedef;
+
+	v3s16 blockpos_min = data->blockpos_min;
+	v3s16 blockpos_max = data->blockpos_max;
+
+	node_min = blockpos_min * MAP_BLOCKSIZE;
+	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
+	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+
+	central_area_size = node_max - node_min + v3s16(1, 1, 1);
+	blockseed = get_blockseed(data->seed, full_node_min);
+
+	// Rebuild heightmap from the freshly-loaded stage-2 VM.
+	// The heightmap is stale from a previous stage-1 run on a different chunk.
+	updateHeightmap(node_min, node_max);
 
 	// Generate some trees, and add grass, if a jungle
 	if (spflags & MGV6_TREES)
@@ -626,11 +659,17 @@ void MapgenV6::makeChunk(BlockMakeData *data)
 	if (flags & MG_ORES)
 		m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
 
-	// Calculate lighting
+	// Add top and bottom side of water to transforming_liquid queue
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+
+	// Calculate lighting.
+	// Border blocks are at MAPGEN_STAGE_TERRAIN (param1 = 0); pass
+	// propagate_shadow = false so unlit transparent nodes above the inner
+	// area are not incorrectly treated as shadows.
 	if (flags & MG_LIGHT)
 		calcLighting(node_min - v3s16(1, 1, 1) * MAP_BLOCKSIZE,
 			node_max + v3s16(1, 0, 1) * MAP_BLOCKSIZE,
-			full_node_min, full_node_max);
+			full_node_min, full_node_max, false);
 
 	this->generating = false;
 }

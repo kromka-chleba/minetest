@@ -29,6 +29,7 @@
 #include "mapgen_v7.h"
 #include "mapgen_valleys.h"
 #include "mapgen_singlenode.h"
+#include "mg_decoration.h"
 #include "cavegen.h"
 #include "dungeongen.h"
 
@@ -617,6 +618,63 @@ MapgenBasic::MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerg
 MapgenBasic::~MapgenBasic()
 {
 	delete []heightmap;
+}
+
+
+void MapgenBasic::initChunkParams(BlockMakeData *data)
+{
+	this->generating = true;
+	this->vm         = data->vmanip;
+	this->ndef       = data->nodedef;
+
+	const v3s16 blockpos_min = data->blockpos_min;
+	const v3s16 blockpos_max = data->blockpos_max;
+	node_min      = blockpos_min * MAP_BLOCKSIZE;
+	node_max      = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
+	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+
+	blockseed = getBlockSeed2(full_node_min, seed);
+}
+
+
+void MapgenBasic::makeChunkDecorations(BlockMakeData *data)
+{
+	initChunkParams(data);
+
+	// Rebuild heightmap and biomemap from the freshly-loaded stage-2 VM.
+	// These arrays were populated during stage 1 (terrain) which ran on a
+	// different chunk; the values are now stale and must be recomputed from
+	// the actual terrain in this VM before decorations use them.
+	if (heightmap)
+		updateHeightmap(node_min, node_max);
+	if (biomegen && (flags & MG_BIOMES)) {
+		biomegen->calcBiomeNoise(node_min);
+		biomegen->getBiomes(heightmap, node_min);
+	}
+
+	// Generate the registered decorations
+	if (flags & MG_DECORATIONS)
+		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+
+	// Sprinkle some dust on top after everything else was generated
+	if (flags & MG_BIOMES)
+		dustTopNodes();
+
+	// Add top and bottom side of water to transforming_liquid queue
+	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
+
+	// Calculate lighting.
+	// Stage 2 border blocks are at MAPGEN_STAGE_TERRAIN: terrain is placed
+	// but param1 is still 0.  propagateSunlight treats any transparent block
+	// with param1 != LIGHT_SUN as "in shadow" when propagate_shadow is true,
+	// so passing false here lets it rely on block content (solid vs.
+	// transparent) instead of uncomputed lighting values.
+	if (flags & MG_LIGHT)
+		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
+			full_node_min, full_node_max, false);
+
+	this->generating = false;
 }
 
 

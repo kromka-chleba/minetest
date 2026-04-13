@@ -953,13 +953,24 @@ void ServerEnvironment::step(float dtime)
 				continue;
 			}
 
+			// Do not activate blocks that have not completed generation yet.
+			// TERRAIN-stage blocks have no decorations and on_generated has not
+			// fired for them; LBMs and ABMs must not run until after that.
+			// Removing the block from the active set here causes the scanning
+			// loop to re-add it on the next cycle, at which point it will either
+			// be complete or removed again — whichever comes first.
+			if (!block->isGenerated()) {
+				m_active_blocks.remove(p);
+				continue;
+			}
+
 			activateBlock(block);
 		}
 
 		for (const v3s16 &p: extra_blocks_added) {
-			// only activate if the block is already loaded
+			// only activate if the block is already loaded and fully generated
 			MapBlock *block = m_map->getBlockNoCreateNoEx(p);
-			if (!block) {
+			if (!block || !block->isGenerated()) {
 				m_active_blocks.remove(p);
 				continue;
 			}

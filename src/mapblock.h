@@ -25,6 +25,25 @@ class TestMapBlock;
 #define BLOCK_TIMESTAMP_UNDEFINED 0xffffffff
 
 ////
+//// MapBlock generation stage
+////
+
+/*
+ * Multi-stage mapgen: blocks progress through stages as generation proceeds.
+ * Intermediate stages are persisted so that server restarts resume from where
+ * they left off rather than regenerating from scratch.
+ *
+ * Serialised in the flags byte: bit 3 clear = COMPLETE; bit 3+4 set = TERRAIN;
+ * bit 3 set, bit 4 clear = NONE.  Old software that only understands the boolean
+ * flag treats TERRAIN blocks as "not generated", which is a safe fallback.
+ */
+enum MapgenStage : u8 {
+	MAPGEN_STAGE_NONE        = 0,   ///< No generation has occurred yet
+	MAPGEN_STAGE_TERRAIN     = 1,   ///< Terrain, caves, biomes and ores placed
+	MAPGEN_STAGE_COMPLETE    = 255, ///< Decorations and lighting also done
+};
+
+////
 //// MapBlock modified reason flags
 ////
 
@@ -164,14 +183,24 @@ public:
 
 	inline bool isGenerated()
 	{
-		return m_generated;
+		return m_gen_stage == MAPGEN_STAGE_COMPLETE;
 	}
 
 	inline void setGenerated(bool b)
 	{
-		if (b != m_generated) {
+		setGenStage(b ? MAPGEN_STAGE_COMPLETE : MAPGEN_STAGE_NONE);
+	}
+
+	inline u8 getGenStage() const
+	{
+		return m_gen_stage;
+	}
+
+	inline void setGenStage(u8 stage)
+	{
+		if (stage != m_gen_stage) {
 			raiseModified(MOD_STATE_WRITE_NEEDED, MOD_REASON_SET_GENERATED);
-			m_generated = b;
+			m_gen_stage = stage;
 		}
 	}
 
@@ -541,8 +570,8 @@ private:
 	*/
 	u16 m_lighting_complete = 0xFFFF;
 
-	// Whether mapgen has generated the content of this block (persisted)
-	bool m_generated = false;
+	// Generation stage of this block (persisted, see MapgenStage enum)
+	u8 m_gen_stage = MAPGEN_STAGE_NONE;
 
 	/*
 		When propagating sunlight and the above block doesn't exist,

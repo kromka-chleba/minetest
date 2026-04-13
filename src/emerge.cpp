@@ -399,7 +399,17 @@ bool EmergeManager::pushBlockEmergeData(
 		bedata.callbacks.emplace_back(callback, callback_param);
 
 	if (*entry_already_exists) {
+		// TERRAIN_ONLY is a restriction: it must be preserved only when *both*
+		// the existing entry and the new request require it.  If either side
+		// wants a full COMPLETE pass (i.e. does not carry TERRAIN_ONLY), the
+		// merged entry must not have TERRAIN_ONLY — otherwise a COMPLETE
+		// re-enqueue that races with an in-flight TERRAIN_ONLY shell request
+		// for the same position would leave the block stuck at TERRAIN forever.
+		bool keep_terrain_only = (bedata.flags & BLOCK_EMERGE_TERRAIN_ONLY) &&
+		                         (flags        & BLOCK_EMERGE_TERRAIN_ONLY);
 		bedata.flags |= flags;
+		if (!keep_terrain_only)
+			bedata.flags &= ~BLOCK_EMERGE_TERRAIN_ONLY;
 	} else {
 		bedata.flags = flags;
 		bedata.peer_requested = peer_requested;
@@ -616,13 +626,17 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 		VoxelArea(minp, maxp));
 
 	/*
-		Run Lua on_generated callbacks in the server environment
+		Run Lua on_generated callbacks in the server environment.
+		Only fire for fully-complete chunks: TERRAIN-stage blocks have no
+		lighting and no decorations yet, so mods must not observe them.
 	*/
-	try {
-		m_server->getScriptIface()->environment_OnGenerated(
-			minp, maxp, m_mapgen->blockseed);
-	} catch (LuaError &e) {
-		m_server->setAsyncFatalError(e);
+	if (bmdata->stage == MAPGEN_STAGE_COMPLETE) {
+		try {
+			m_server->getScriptIface()->environment_OnGenerated(
+				minp, maxp, m_mapgen->blockseed);
+		} catch (LuaError &e) {
+			m_server->setAsyncFatalError(e);
+		}
 	}
 
 	EMERGE_DBG_OUT("ended up with: " << analyze_block(block));
@@ -706,7 +720,23 @@ void *EmergeThread::run()
 			continue;
 
 		bool allow_gen = bedata.flags & BLOCK_EMERGE_ALLOW_GEN;
-		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen);
+		bool terrain_only = bedata.flags & BLOCK_EMERGE_TERRAIN_ONLY;
+		EMERGE_DBG_OUT("pos=" << pos << " allow_gen=" << allow_gen
+			<< " terrain_only=" << terrain_only);
+
+		/*
+		 * If this is a shell (terrain-only) request and the block already has
+		 * terrain, there is nothing to do — don't attempt COMPLETE.
+		 */
+		if (terrain_only) {
+			Server::EnvAutoLock envlock(m_server);
+			block = m_map->getBlockNoCreateNoEx(pos);
+			if (block && block->getGenStage() >= MAPGEN_STAGE_TERRAIN) {
+				action = EMERGE_FROM_MEMORY;
+				goto skip_gen;
+			}
+			// Block not yet at TERRAIN — fall through to normal load/gen path.
+		}
 
 		action = getBlockOrStartGen(pos, allow_gen, nullptr, &block, &bmdata);
 
@@ -730,17 +760,28 @@ void *EmergeThread::run()
 			bool error = false;
 			m_trans_liquid = &bmdata.transforming_liquid;
 
-			{
+			if (bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+				/*
+				 * Stage 1: terrain, caves, biomes, ores, dungeons.
+				 * Decorations are deferred until all 26 neighbouring chunks
+				 * have also completed this stage.
+				 */
 				ScopeProfiler sp(g_profiler,
-					"EmergeThread: Mapgen::makeChunk", SPT_AVG);
-
-				m_mapgen->makeChunk(&bmdata);
-			}
-
-			{
+					"EmergeThread: Mapgen::makeChunkTerrain", SPT_AVG);
+				m_mapgen->makeChunkTerrain(&bmdata);
+			} else {
+				/*
+				 * Stage 2: decorations, dust, liquid queuing, lighting.
+				 * Only reached when all neighbours are at least TERRAIN.
+				 */
 				ScopeProfiler sp(g_profiler,
+					"EmergeThread: Mapgen::makeChunkDecorations", SPT_AVG);
+				m_mapgen->makeChunkDecorations(&bmdata);
+
+				// Lua on_generated fires only for fully-complete chunks so
+				// that mods see a correctly decorated neighbourhood.
+				ScopeProfiler sp2(g_profiler,
 					"EmergeThread: Lua on_generated", SPT_AVG);
-
 				try {
 					m_script->on_generated(&bmdata, m_mapgen->blockseed);
 				} catch (const LuaError &e) {
@@ -756,20 +797,97 @@ void *EmergeThread::run()
 			if (!block || error)
 				action = EMERGE_ERRORED;
 
+			/*
+			 * After TERRAIN stage, immediately re-enqueue this chunk for COMPLETE.
+			 * This applies to both normal requests and terrain-only shell requests:
+			 * shell chunks exist to provide terrain context for a neighbour, but they
+			 * must also eventually reach COMPLETE themselves.  Relying on the client
+			 * scan loop to re-request shells is not reliable — the client only
+			 * iterates blocks within its current view range and FOV, so shell chunks
+			 * generated outside that range would remain stuck at TERRAIN stage
+			 * indefinitely, producing permanent unemerged stripes at chunk borders.
+			 *
+			 * Cascade is still bounded: if this COMPLETE attempt is CANCELLED because
+			 * the chunk's own neighbours lack TERRAIN, the CANCELLED handler enqueues
+			 * those neighbours as depth-1 TERRAIN_ONLY shells.  Those shells carry
+			 * TERRAIN_ONLY and are re-enqueued for COMPLETE here, but they will not
+			 * trigger the CANCELLED cascade handler themselves (it guards on
+			 * !terrain_only), so the total cascade depth is at most 2 hops.
+			 */
+			if (action != EMERGE_ERRORED && bmdata.stage == MAPGEN_STAGE_TERRAIN) {
+				Server::EnvAutoLock envlock(m_server);
+				m_emerge->enqueueBlockEmergeEx(pos, 0,
+					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr);
+			}
+
 			m_trans_liquid = nullptr;
 		}
 
+		/*
+		 * Shell generation: COMPLETE was attempted (allow_gen was set) but
+		 * blocked because one or more of the 26 surrounding chunks have not
+		 * yet reached MAPGEN_STAGE_TERRAIN.  Enqueue each missing neighbour
+		 * for TERRAIN only (BLOCK_EMERGE_TERRAIN_ONLY) — they act as a "shell"
+		 * that gives decorations and dust correct surrounding context.
+		 *
+		 * Shell blocks carry BLOCK_EMERGE_TERRAIN_ONLY so they do NOT trigger
+		 * this CANCELLED handler themselves (guarded by !terrain_only below),
+		 * keeping the cascade strictly bounded at depth 1.  They are however
+		 * re-enqueued for COMPLETE after their own TERRAIN stage (see above).
+		 *
+		 * This chunk IS also re-enqueued for COMPLETE (see above, after TERRAIN).
+		 */
+		if (!terrain_only &&
+				action == EMERGE_CANCELLED &&
+				allow_gen &&
+				block != nullptr &&
+				block->getGenStage() == MAPGEN_STAGE_TERRAIN) {
+			const v3s16 csize = m_emerge->mgparams->chunksize;
+			const v3s16 bpmin = EmergeManager::getContainingChunk(pos, csize);
+			{
+				Server::EnvAutoLock envlock(m_server);
+				for (s16 cx = -1; cx <= 1; cx++)
+				for (s16 cy = -1; cy <= 1; cy++)
+				for (s16 cz = -1; cz <= 1; cz++) {
+					if (cx == 0 && cy == 0 && cz == 0)
+						continue;
+					v3s16 nchunk = bpmin + v3s16(cx, cy, cz) * csize;
+					MapBlock *nb = m_map->getBlockNoCreateNoEx(nchunk);
+					if (!nb || nb->getGenStage() < MAPGEN_STAGE_TERRAIN) {
+						m_emerge->enqueueBlockEmergeEx(nchunk, 0,
+							BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE |
+							BLOCK_EMERGE_TERRAIN_ONLY,
+							nullptr, nullptr);
+					}
+				}
+				// Re-enqueue self so COMPLETE is retried once shells are done.
+				m_emerge->enqueueBlockEmergeEx(pos, 0,
+					BLOCK_EMERGE_ALLOW_GEN | BLOCK_EMERGE_FORCE_QUEUE,
+					nullptr, nullptr);
+			}
+		}
+
+skip_gen:
 		runCompletionCallbacks(pos, action, bedata.callbacks);
 
-		if (block)
+		/*
+		 * Only dispatch a MapEditEvent for fully-generated (COMPLETE) blocks.
+		 * Blocks at TERRAIN stage have no lighting or decorations and would
+		 * appear pitch-black on the client.  This covers both the explicit
+		 * TERRAIN generation case and CANCELLED iterations where the in-memory
+		 * block is still at TERRAIN stage.
+		 */
+		if (block && block->isGenerated()) {
 			modified_blocks[pos] = block;
 
-		if (!modified_blocks.empty()) {
-			MapEditEvent event;
-			event.type = MEET_OTHER;
-			event.setModifiedBlocks(modified_blocks);
-			Server::EnvAutoLock envlock(m_server);
-			m_map->dispatchEvent(event);
+			if (!modified_blocks.empty()) {
+				MapEditEvent event;
+				event.type = MEET_OTHER;
+				event.setModifiedBlocks(modified_blocks);
+				Server::EnvAutoLock envlock(m_server);
+				m_map->dispatchEvent(event);
+			}
 		}
 		modified_blocks.clear();
 	}

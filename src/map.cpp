@@ -318,8 +318,12 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 						&& block->getUsageTimer() > unload_timeout) {
 					v3s16 p = block->getPos();
 
-					// Save if modified
-					if (block->getModified() != MOD_STATE_CLEAN
+					// Save if modified; skip TERRAIN-stage blocks because they
+					// are regenerated deterministically and should not be
+					// persisted as partial results (same rationale as in
+					// ServerMap::save()).
+					if (block->getGenStage() != MAPGEN_STAGE_TERRAIN
+							&& block->getModified() != MOD_STATE_CLEAN
 							&& save_before_unloading) {
 						modprofiler.add(block->getModifiedReasonString(), 1);
 						if (!saveBlock(block))
@@ -372,8 +376,11 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 
 			v3s16 p = block->getPos();
 
-			// Save if modified
-			if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
+			// Save if modified; skip TERRAIN-stage blocks because they
+			// are regenerated deterministically and should not be
+			// persisted as partial results.
+			if (block->getGenStage() != MAPGEN_STAGE_TERRAIN
+					&& block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
 				modprofiler.add(block->getModifiedReasonString(), 1);
 				if (!saveBlock(block))
 					continue;
@@ -897,6 +904,54 @@ void MMVManip::blitBackAll(std::map<v3s16, MapBlock*> *modified_blocks,
 
 	if (nload > 0) {
 		verbosestream << "blitBackAll: " << nload << " blocks had to be loaded for writing" << std::endl;
+	}
+}
+
+void MMVManip::blitBackRange(v3s16 blockpos_min, v3s16 blockpos_max,
+	std::map<v3s16, MapBlock*> *modified_blocks,
+	bool overwrite_generated) const
+{
+	if (m_area.hasEmptyExtent())
+		return;
+	assert(m_map);
+
+	size_t nload = 0;
+
+	const auto loaded_blocks = getCoveredBlocks();
+	for (auto &it : loaded_blocks) {
+		if (!it.second)
+			continue;
+		v3s16 p = it.first;
+		// Skip blocks outside the specified range
+		if (p.X < blockpos_min.X || p.X > blockpos_max.X ||
+				p.Y < blockpos_min.Y || p.Y > blockpos_max.Y ||
+				p.Z < blockpos_min.Z || p.Z > blockpos_max.Z)
+			continue;
+		MapBlock *block = m_map->getBlockNoCreateNoEx(p);
+		if (!block) {
+			if (!blockpos_over_max_limit(p)) {
+				block = m_map->emergeBlock(p, true);
+				nload++;
+			}
+		}
+		if (!block) {
+			warningstream << "blitBackRange: Couldn't load block " << p
+				<< " to write data to map" << std::endl;
+			continue;
+		}
+		if (!overwrite_generated && block->isGenerated())
+			continue;
+
+		block->copyFrom(*this);
+		block->raiseModified(MOD_STATE_WRITE_NEEDED, MOD_REASON_VMANIP);
+		block->expireIsAirCache();
+
+		if (modified_blocks)
+			(*modified_blocks)[p] = block;
+	}
+
+	if (nload > 0) {
+		verbosestream << "blitBackRange: " << nload << " blocks had to be loaded for writing" << std::endl;
 	}
 }
 

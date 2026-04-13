@@ -334,6 +334,16 @@ public:
 	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks,
 		bool overwrite_generated = true) const;
 
+	/**
+		Like blitBackAll(), but only writes back blocks whose position falls
+		within [blockpos_min, blockpos_max] (inclusive in block coords).
+		Use this when the vmanip covers a larger area (border blocks) but only
+		the inner chunk should be committed to the map.
+	*/
+	void blitBackRange(v3s16 blockpos_min, v3s16 blockpos_max,
+		std::map<v3s16, MapBlock*> *modified_blocks,
+		bool overwrite_generated = true) const;
+
 	/*
 		Creates a copy of this VManip including contents, the copy will not be
 		associated with a Map.

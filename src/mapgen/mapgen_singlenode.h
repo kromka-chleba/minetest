@@ -28,6 +28,8 @@ public:
 
 	virtual MapgenType getType() const { return MAPGEN_SINGLENODE; }
 
-	void makeChunk(BlockMakeData *data);
+	void makeChunk(BlockMakeData *data) override;
+	void makeChunkTerrain(BlockMakeData *data) override;
+	// makeChunkDecorations() is intentionally left as the default no-op from Mapgen
 	int getSpawnLevelAtPoint(v2s16 p);
 };

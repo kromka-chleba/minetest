@@ -190,23 +190,20 @@ int MapgenFlat::getSpawnLevelAtPoint(v2s16 p)
 
 void MapgenFlat::makeChunk(BlockMakeData *data)
 {
+	makeChunkTerrain(data);
+
+	this->generating = true;
+	MapgenBasic::makeChunkDecorations(data);
+}
+
+
+void MapgenFlat::makeChunkTerrain(BlockMakeData *data)
+{
 	// Pre-conditions
 	assert(data->vmanip);
 	assert(data->nodedef);
 
-	this->generating = true;
-	this->vm   = data->vmanip;
-	this->ndef = data->nodedef;
-	//TimeTaker t("makeChunk");
-
-	v3s16 blockpos_min = data->blockpos_min;
-	v3s16 blockpos_max = data->blockpos_max;
-	node_min = blockpos_min * MAP_BLOCKSIZE;
-	node_max = (blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-	full_node_min = (blockpos_min - 1) * MAP_BLOCKSIZE;
-	full_node_max = (blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
-
-	blockseed = getBlockSeed2(full_node_min, seed);
+	initChunkParams(data);
 
 	// Generate base terrain, mountains, and ridges with initial heightmaps
 	s16 stone_surface_max_y = generateTerrain();
@@ -247,25 +244,6 @@ void MapgenFlat::makeChunk(BlockMakeData *data)
 
 	if (flags & MG_DUNGEONS)
 		generateDungeons(stone_surface_max_y);
-
-	// Generate the registered decorations
-	if (flags & MG_DECORATIONS)
-		m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
-
-	// Sprinkle some dust on top after everything else was generated
-	if (flags & MG_BIOMES)
-		dustTopNodes();
-
-	//printf("makeChunk: %dms\n", t.stop());
-
-	updateLiquid(&data->transforming_liquid, full_node_min, full_node_max);
-
-	if (flags & MG_LIGHT)
-		calcLighting(node_min - v3s16(0, 1, 0), node_max + v3s16(0, 1, 0),
-			full_node_min, full_node_max);
-
-	//setLighting(node_min - v3s16(1, 0, 1) * MAP_BLOCKSIZE,
-	//			node_max + v3s16(1, 0, 1) * MAP_BLOCKSIZE, 0xFF);
 
 	this->generating = false;
 }
